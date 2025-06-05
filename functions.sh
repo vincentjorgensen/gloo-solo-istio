@@ -124,7 +124,7 @@ function install_istio_sidecar {
     --set base.enableCRDTemplates=true                                        \
     --wait
 
-helm upgrade --install istiod "$_helm_repo"/istiod                            \
+  helm upgrade --install istiod "$_helm_repo"/istiod                          \
     --version "${_istio_ver}${_flavor}"                                       \
     --kube-context="$_context"                                                \
     --namespace istio-system                                                  \
