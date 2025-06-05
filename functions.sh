@@ -9,7 +9,9 @@
 # Global versions of Helm Repos, Istio Repos, and Gateway API
 #-------------------------------------------------------------------------------
 export KGATEWAY_VER=v1.2.1
+
 export GLOO_MESH_VERSION="2.8.1"
+
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
 export ISTIO_REPO_123=us-docker.pkg.dev/gloo-mesh/istio-207627c16668
 export ISTIO_VER_123=1.23.4
@@ -23,7 +25,7 @@ export HELM_REPO_126=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_126=1.26.1
 
-export GLOO_MESH_SECRET_TOKEN="my-lucky-secret-token"GLOO_MESH_SECRET_TOKEN=
+export GLOO_MESH_SECRET_TOKEN="my-lucky-secret-token" # arbitrary
 
 SCRIPT_DIR=$(dirname "$0")
 TEMPLATES="$SCRIPT_DIR"/templates
@@ -268,12 +270,23 @@ function uninstall_kgateway_eastwest {
 }
 
 function install_kgateway_ew_link {
-  local _context2 _cluster1
+  local _context2 _cluster1 _remote_address _address_type
 
   _context1=$1
   _cluster1=$2
   _network1=$3
   _context2=$4
+
+  _remote_address=$(
+      kubectl get svc -n istio-eastwest istio-eastwest                        \
+        --context "$_context1"                                                \
+        -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
+
+  if echo "$_remote_address" | grep -qE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+'; then
+    _address_type=IPAddress
+  else
+    _address_type=Hostname
+  fi
 
 kubectl --context "$_context2" apply -f -<<EOF
 ---
@@ -289,8 +302,8 @@ metadata:
   namespace: istio-eastwest
 spec:
   addresses:
-  - type: IPAddress
-    value: $(kubectl --context "$_context1" get svc -n istio-eastwest istio-eastwest -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
+  - type: $_address_type
+    value: $_remote_address
   gatewayClassName: istio-remote
   listeners:
   - name: cross-network
@@ -311,7 +324,6 @@ function uninstall_kgateway_ew_link {
   local _context2 _cluster1
   _context2=$1
   _cluster1=$2
-
 
   kubectl delete                                                              \
           gateways.gateway.networking.k8s.io/istio-remote-peer-"${_cluster1}" \
@@ -596,29 +608,31 @@ function install_mutual_remote_secrets {
   _cluster2=$2
   _istio=$3
 
-if [[ "$_cluster1" == cluster1 ]]; then
-  istioctl-"${_istio}" create-remote-secret                                   \
-    --context="${_cluster1}"                                                  \
-    --name=cluster1                                                           \
-    --server https://"$(kubectl --context "$_cluster1" get nodes "k3d-${_cluster1}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443 |
-      kubectl apply -f - --context="${_cluster2}"
-
-  istioctl-"${_istio}" create-remote-secret                                   \
-    --context="${_cluster2}"                                                  \
-    --name=cluster2                                                           \
-    --server https://"$(kubectl --context "$_cluster2" get nodes "k3d-${_cluster2}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443 |
-      kubectl apply -f - --context="${_cluster1}"
-else
-  istioctl-"${_istio}" create-remote-secret                                   \
-    --context="${_cluster1}"                                                  \
-    --name=cluster1                                                           |
-      kubectl apply -f - --context="${_cluster2}"
-
-  istioctl-"${_istio}" create-remote-secret                                   \
-    --context="${_cluster2}"                                                  \
-    --name=cluster2                                                           |
-      kubectl apply -f - --context="${_cluster1}"
-fi
+# For K3D local clusters
+  if [[ "$_cluster1" == cluster1 ]]; then
+    istioctl-"${_istio}" create-remote-secret                                   \
+      --context="${_cluster1}"                                                  \
+      --name=cluster1                                                           \
+      --server https://"$(kubectl --context "$_cluster1" get nodes "k3d-${_cluster1}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443 |
+        kubectl apply -f - --context="${_cluster2}"
+  
+    istioctl-"${_istio}" create-remote-secret                                   \
+      --context="${_cluster2}"                                                  \
+      --name=cluster2                                                           \
+      --server https://"$(kubectl --context "$_cluster2" get nodes "k3d-${_cluster2}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443 |
+        kubectl apply -f - --context="${_cluster1}"
+  # For AWS and Azure (and GCP?) clusters
+  else
+    istioctl-"${_istio}" create-remote-secret                                   \
+      --context="${_cluster1}"                                                  \
+      --name=cluster1                                                           |
+        kubectl apply -f - --context="${_cluster2}"
+  
+    istioctl-"${_istio}" create-remote-secret                                   \
+      --context="${_cluster2}"                                                  \
+      --name=cluster2                                                           |
+        kubectl apply -f - --context="${_cluster1}"
+  fi
 }
 
 function check_remote_cluster_status {
@@ -739,13 +753,11 @@ deploy_istio_sidecar_with_ingress_and_eastwest() {
   install_helloworld_app -x "$_cluster2" -i
 }
 
-
 deploy_istio_ambient() {
   local _cluster _istio
   _cluster=$1
   _istio=$2
 
-  
   create_namespace "$_cluster" "$_cluster" istio-system
   install_istio_secrets "$_cluster" "$_cluster" istio-system
   install_istio_ambient "$_cluster" "$_cluster" "$_cluster" "$_istio"
@@ -774,7 +786,6 @@ metadata:
   name: helloworld-gateway
   namespace: helloworld
   labels:
-#####    topology.istio.io/network: $_network # Don't do this
     istio.io/rev: $_revision
 spec:
   gatewayClassName: istio
