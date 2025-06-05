@@ -1,0 +1,3 @@
+{% if ambient %}
+    discoveryAddress: istiod-main.istio-system.svc:15012
+{% endif %}

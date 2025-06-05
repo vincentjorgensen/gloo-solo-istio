@@ -1,0 +1,33 @@
+name: istio-eastwestgateway
+revision: {{ revision }}
+global:
+  hub: {{ istio_repo }}
+  tag: {{ istio_ver }}{{ flavor }}
+labels:
+  istio: eastwestgateway
+  app: istio-eastwestgateway
+  topology.istio.io/network: {{ network }}
+service:
+{% if azure %}
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+{% endif %}
+  type: LoadBalancer
+networkGateway: {{ network }}
+replicaCount: {{ size }}
+autoscaling:
+    minReplicas: {{ size }}
+    maxReplicas: {{ size }}
+##affinity:
+##  podAntiAffinity:
+##    preferredDuringSchedulingIgnoredDuringExecution:
+##    - podAffinityTerm:
+##        labelSelector:
+##          matchExpressions:
+##          - key: istio
+##            operator: In
+##            values:
+##            - eastwestgateway
+##        topologyKey: topology.kubernetes.io/zone
+##      weight: 100
+...

@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+###############################################################################
+# GLOO SOLO ISTIO
+#
+# Common functions for manipulating Istio clusters, Gloo Platform, and Solo.io
+# builds
+###############################################################################
+#-------------------------------------------------------------------------------
+# Global versions of Helm Repos, Istio Repos, and Gateway API
+#-------------------------------------------------------------------------------
 export KGATEWAY_VER=v1.2.1
 export GLOO_MESH_VERSION="2.8.1"
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
@@ -14,7 +23,7 @@ export HELM_REPO_126=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_126=1.26.1
 
-export GLOO_PLATFORM_SECRET_TOKEN="my-lucky-secret-token"
+export GLOO_MESH_SECRET_TOKEN="my-lucky-secret-token"GLOO_MESH_SECRET_TOKEN=
 
 SCRIPT_DIR=$(dirname "$0")
 TEMPLATES="$SCRIPT_DIR"/templates
@@ -328,7 +337,7 @@ metadata:
   name: relay-token
   namespace: gloo-mesh
 stringData:
-  token: "$GLOO_PLATFORM_SECRET_TOKEN"
+  token: "$GLOO_MESH_SECRET_TOKEN"
 EOF
   
   helm install gloo-platform-crds gloo-platform/gloo-platform-crds            \
@@ -406,7 +415,7 @@ metadata:
   name: relay-token
   namespace: gloo-mesh
 stringData:
-  token: "$GLOO_PLATFORM_SECRET_TOKEN"
+  token: "$GLOO_MESH_SECRET_TOKEN"
 EOF
   
   helm install gloo-platform-crds gloo-platform/gloo-platform-crds            \

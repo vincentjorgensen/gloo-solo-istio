@@ -1,0 +1,62 @@
+---
+common:
+  cluster: {{ cluster_name }}
+  verbose: {{ verbose }}
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+  extraEnvs:
+    RELAY_DISABLE_CLIENT_CERTIFICATE_AUTHENTICATION:
+      value: "true"
+    RELAY_TOKEN:
+      valueFrom:
+        secretKeyRef:
+          key: token
+          name: relay-token
+glooAnalyzer:
+  enabled: {{ analyzer_enabled }}
+glooInsightsEngine:
+  enabled: {{ insights_enabled }}
+glooMgmtServer:
+  enabled: true
+  serviceType: LoadBalancer
+  extraEnvs:
+    RELAY_DISABLE_CLIENT_CERTIFICATE_AUTHENTICATION:
+      value: "true"
+    RELAY_TOKEN:
+      valueFrom:
+        secretKeyRef:
+          key: token
+          name: relay-token
+  relay:
+    disableTokenGeneration: true
+{% if azure_enabled %}
+  serviceOverrides:
+    metadata:
+      annotations:
+        service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+{% endif %}
+glooUi:
+  enabled: true
+licensing:
+  glooMeshLicenseKey: {{ gloo_platform_license_key }}
+prometheus:
+  enabled: true
+redis:
+  deployment:
+    enabled: true
+telemetryCollector:
+  enabled: true
+telemetryCollectorCustomization:
+  skipVerify: true
+telemetryGateway:
+  enabled: true
+  service:
+    type: LoadBalancer
+{% if azure_enabled %}
+    annotations:
+      service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+{% endif %}
+...
+

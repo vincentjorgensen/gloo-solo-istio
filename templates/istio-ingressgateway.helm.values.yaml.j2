@@ -1,0 +1,36 @@
+name: istio-ingressgateway
+revision: {{ revision }}
+global:
+  hub: {{ istio_repo }}
+  tag: {{ istio_ver }}{{ flavor }}
+labels:
+  istio: ingressgateway
+  app: istio-ingressgateway
+  topology.istio.io/network: {{ network }}
+  proxy.istio.io/config: '{"discoveryAddress" : "istiod-main.istio-system.svc:15012" }'
+##env:
+##  ISTIO_META_ROUTER_MODE: sni-dnat
+##  ISTIO_META_REQUESTED_NETWORK_VIEW: ${_context}
+service:
+{% if azure %}
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+{% endif %}
+  type: LoadBalancer
+replicaCount: {{ size }}
+autoscaling:
+    minReplicas: {{ size }}
+    maxReplicas: {{ size }}
+#affinity:
+#  podAntiAffinity:
+#    preferredDuringSchedulingIgnoredDuringExecution:
+#    - podAffinityTerm:
+#        labelSelector:
+#          matchExpressions:
+#          - key: istio
+#            operator: In
+#            values:
+#            - ingressgateway-${_revision}
+#        topologyKey: topology.kubernetes.io/zone
+#      weight: 100
+...

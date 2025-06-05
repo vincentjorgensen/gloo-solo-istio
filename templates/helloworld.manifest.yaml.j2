@@ -1,0 +1,94 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: helloworld
+  labels:
+    name: helloworld
+{% if ambient_enabled %}
+    istio.io/dataplane-mode: ambient
+{% endif %}
+{% if sidecar_enabled %}
+    istio.io/rev: main
+{% endif %}
+---
+apiVersion: v1
+kind: Service
+metadata:
+{% if ambient_enabled %}
+  annotations:
+    networking.istio.io/traffic-distribution: Any
+{% endif %}
+  name: helloworld
+  namespace: helloworld
+  labels:
+    app: helloworld
+    service: helloworld
+{% if ambient_enabled %}
+    solo.io/service-scope: global
+{% endif %}
+spec:
+  ports:
+  - port: 8001
+    name: http
+  selector:
+    app: helloworld
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: helloworld
+  namespace: helloworld
+{% for zone in zones -%}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helloworld-{{ zone }}
+  namespace: helloworld
+  labels:
+    app: helloworld
+    version: {{ zone }}
+spec:
+  replicas: {{ size }}
+  selector:
+    matchLabels:
+      app: helloworld
+      version: {{ zone }}
+  template:
+    metadata:
+      labels:
+        app: helloworld
+        version: {{ zone }}
+    spec:
+      serviceAccountName: helloworld
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values:
+                - {{ zone }}
+      containers:
+      - name: helloworld
+        env:
+        - name: SERVICE_VERSION
+          value: {{ zone }}
+        - name: ZONE
+          value: {{ zone }}
+        - name: REGION
+          value: {{ region }}
+        - name: SERVER_PORT
+          value: '8001'
+        image: vincentjorgensen/node-helloworld:0.0.1
+        resources:
+          requests:
+            cpu: "100m"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8001
+{% endfor %}
+...
