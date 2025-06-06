@@ -1,5 +1,7 @@
 name: istio-eastwestgateway
+{% if revision %}
 revision: {{ revision }}
+{% endif %}
 global:
   hub: {{ istio_repo }}
   tag: {{ istio_ver }}{{ flavor }}

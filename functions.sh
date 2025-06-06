@@ -27,8 +27,18 @@ export ISTIO_VER_126=1.26.1
 
 export GLOO_MESH_SECRET_TOKEN="my-lucky-secret-token" # arbitrary
 
+export SCRIPT_DIR TEMPLATES REVISION
+
 SCRIPT_DIR=$(dirname "$0")
 TEMPLATES="$SCRIPT_DIR"/templates
+REVISION=""
+
+function set_revision {
+  local _revision
+  _revision=$1
+
+  REVISION="$_revision"
+}
 
 function create_namespace {
   local _cluster _context _namespace
@@ -96,7 +106,7 @@ function uninstall_kgateway_crds {
 
 function install_istio_sidecar {
   local _cluster _context _network _istio _istio_ver _istio_repo _helm_repo
-  local _mesh_id _trust_domain _revision _crd_templates _flavor
+  local _mesh_id _trust_domain _crd_templates _flavor
   _cluster=$1
   _context=$2
   _network=$3
@@ -108,7 +118,6 @@ function install_istio_sidecar {
 
   _mesh_id=mesh
   _trust_domain=cluster.local
-  _revision=main
   _flavor="-solo"
 
   kubectl label namespace istio-system topology.istio.io/network="$_network"  \
@@ -118,10 +127,11 @@ function install_istio_sidecar {
   helm upgrade --install istio-base "$_helm_repo"/base                        \
     --version "${_istio_ver}${_flavor}"                                       \
     --kube-context="$_context"                                                \
-    --set defaultRevision="$_revision"                                        \
     --namespace istio-system                                                  \
     --create-namespace                                                        \
-    --set base.enableCRDTemplates=true                                        \
+    --values <(jinja2                                                         \
+               -D revision="$REVISION"                                        \
+               "$TEMPLATES"/istio-base.helm.values.yaml.j2 )                  \
     --wait
 
   helm upgrade --install istiod "$_helm_repo"/istiod                          \
@@ -131,7 +141,7 @@ function install_istio_sidecar {
     --values <(jinja2                                                         \
                -D sidecar="enabled"                                           \
                -D cluster_name="$_cluster"                                    \
-               -D revision="$_revision"                                       \
+               -D revision="$REVISION"                                        \
                -D network="$_network"                                         \
                -D istio_repo="$_istio_repo"                                   \
                -D istio_ver="$_istio_ver"                                     \
@@ -157,20 +167,38 @@ function uninstall_istio {
 
 function install_istio_ambient {
   local _cluster _context _network _istio _istio_ver _istio_repo _helm_repo
-  local _mesh_id _trust_domain _revision
-  _cluster=$1
-  _context=$2
-  _network=$3
-  _istio=$4
+  local _mesh_id _trust_domain
+  _mesh_id=mesh
+  _trust_domain=cluster.local
+  _flavor="-solo"
+  _istio="1.25"
+
+  while getopts "c:f:i:m:t:w:x:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      c) 
+        _cluster=$OPTARG ;;
+      f) 
+        _flavor="-${OPTARG}" ;;
+      i) 
+        _istio=$OPTARG ;;
+      m) 
+        _mesh_id=$OPTARG ;;
+      t) 
+        _trust_domain=$OPTARG ;;
+      w)
+        _network=$OPTARG ;;
+      x) 
+        _context=$OPTARG ;;
+    esac
+  done
+
+  [[ -z $_network ]] && _network="$_cluster"
+  [[ -z $_context ]] && _context="$_cluster"
 
   _istio_ver=$(eval echo \$ISTIO_VER_"${_istio//.}")
   _istio_repo=$(eval echo \$ISTIO_REPO_"${_istio//.}")
   _helm_repo=$(eval echo \$HELM_REPO_"${_istio//.}")
-
-  _mesh_id=mesh
-  _trust_domain=cluster.local
-  _revision=main
-  _flavor="-solo"
 
   # Is this needed in ambient
   kubectl label namespace istio-system topology.istio.io/network="$_network"  \
@@ -181,8 +209,9 @@ function install_istio_ambient {
     --kube-context="$_context"                                                \
     --namespace istio-system                                                  \
     --create-namespace                                                        \
-    --set defaultRevision="$_revision"                                        \
-    --set base.enableCRDTemplates=true                                        \
+    --values <(jinja2                                                         \
+               -D revision="$REVISION"                                        \
+               "$TEMPLATES"/istio-base.helm.values.yaml.j2 )                  \
     --wait
 
 helm upgrade --install istiod "$_helm_repo"/istiod                            \
@@ -192,7 +221,7 @@ helm upgrade --install istiod "$_helm_repo"/istiod                            \
     --values <(jinja2                                                         \
                -D ambient="enabled"                                           \
                -D cluster_name="$_cluster"                                    \
-               -D revision="$_revision"                                       \
+               -D revision="$REVISION"                                        \
                -D network="$_network"                                         \
                -D istio_repo="$_istio_repo"                                   \
                -D istio_ver="$_istio_ver"                                     \
@@ -207,25 +236,26 @@ helm upgrade --install istio-cni "$_helm_repo"/cni                            \
     --version "${_istio_ver}${_flavor}"                                       \
     --kube-context="$_context"                                                \
     --namespace istio-system                                                  \
-    --set profile=ambient                                                     \
-    --set revision="$_revision"                                               \
-    --set "global.hub=${_istio_repo}"                                         \
-    --set "global.tag=${_istio_ver}${_flavor}"                                \
-    --set "ambient.dnsCapture=true"                                           \
+    --values <(jinja2                                                         \
+               -D revision="$REVISION"                                        \
+               -D istio_repo="$_istio_repo"                                   \
+               -D istio_ver="$_istio_ver"                                     \
+               -D flavor="$_flavor"                                           \
+               "$TEMPLATES"/istio-cni.helm.values.yaml.j2 )                   \
     --wait
 
 helm upgrade --install ztunnel "$_helm_repo"/ztunnel                          \
     --version "${_istio_ver}${_flavor}"                                       \
     --kube-context="$_context"                                                \
     --namespace istio-system                                                  \
-    --set revision="$_revision"                                               \
-    --set "hub=${_istio_repo}"                                                \
-    --set "tag=${_istio_ver}${_flavor}"                                       \
-    --set "multiCluster.clusterName=${_cluster}"                              \
-    --set "network=${_network}"                                               \
-    --set "env.ISTIO_META_ENABLE_HBONE=true"                                  \
-    --set "env.ISTIO_META_DNS_CAPTURE=true"                                   \
-    --set "env.SKIP_VALIDATE_TRUST_DOMAIN=true"                               \
+    --values <(jinja2                                                         \
+               -D cluster="$_cluster"                                         \
+               -D network="$_network"                                         \
+               -D revision="$REVISION"                                        \
+               -D istio_repo="$_istio_repo"                                   \
+               -D istio_ver="$_istio_ver"                                     \
+               -D flavor="$_flavor"                                           \
+               "$TEMPLATES"/ztunnel.helm.values.yaml.j2 )                     \
     --wait
 
   kubectl apply                                                               \
@@ -247,18 +277,33 @@ function uninstall_ambient {
 }
 
 function install_kgateway_eastwest {
-  local _context _revision
+  local _context _size
   _context=$1
   _network=$2
-
-  _revision=main
+  _size=${3:-1}
 
   kubectl apply                                                               \
     --context "$_context"                                                     \
     -f <(jinja2                                                               \
          -D network="$_network"                                               \
-         -D revision="$_revision"                                             \
+         -D revision="$REVISION"                                              \
+         -D size="$_size"                                                     \
          "$TEMPLATES"/kgateway-eastwest.template.yaml.j2)
+}
+
+function install_kgateway_eastwest_126 {
+  local _context _size
+  _context=$1
+  _network=$2
+  _size=${3:-1}
+
+  kubectl apply                                                               \
+    --context "$_context"                                                     \
+    -f <(jinja2                                                               \
+         -D network="$_network"                                               \
+         -D revision="$REVISION"                                              \
+         -D size="$_size"                                                     \
+         "$TEMPLATES"/kgateway-eastwest.126.template.yaml.j2)
 }
 
 function uninstall_kgateway_eastwest {
@@ -497,12 +542,11 @@ function uninstall_gloo_agent {
 }
 
 function install_istio_ingressgateway {
-  local _context _istio _size _revision _network _flavor
+  local _context _istio _size _network _flavor
   _context=$1
   _network=$2
   _istio=$3
   _size=${4:-1}
-  _revision=main
   _flavor=-solo
   _azure=""
 
@@ -519,7 +563,7 @@ function install_istio_ingressgateway {
     --values <(jinja2                                                         \
                -D size="$_size"                                               \
                -D network="$_network"                                         \
-               -D revision="$_revision"                                       \
+               -D revision="$REVISION"                                        \
                -D istio_ver="$_istio_ver"                                     \
                -D istio_repo="$_istio_repo"                                   \
                -D flavor="$_flavor"                                           \
@@ -537,12 +581,11 @@ function uninstall_istio_ingressgateway {
 }
 
 function install_istio_eastwestgateway {
-  local _context _istio _size _revision _network _flavor
+  local _context _istio _size _network _flavor
   _context=$1
   _network=$2
   _istio=$3
   _size=${4:-1}
-  _revision=main
   _flavor="-solo"
 
   _istio_ver=$(eval echo \$ISTIO_VER_"${_istio//.}")
@@ -558,7 +601,7 @@ function install_istio_eastwestgateway {
     --values <(jinja2                                                         \
                -D size="$_size"                                               \
                -D network="$_network"                                         \
-               -D revision="$_revision"                                       \
+               -D revision="$REVISION"                                        \
                -D istio_ver="$_istio_ver"                                     \
                -D istio_repo="$_istio_repo"                                   \
                -D flavor="$_flavor"                                           \
@@ -753,6 +796,103 @@ deploy_istio_sidecar_with_ingress_and_eastwest() {
   install_helloworld_app -x "$_cluster2" -i
 }
 
+function install_kgateway_ingress_gateway {
+  local _context _port _tldn _name _namespace
+  _context=$1
+  _name=$2
+  _namespace=$3
+  _tldn=$4
+  _port=$5
+
+  kubectl apply                                                               \
+    --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	      \
+    -f <(jinja2                                                               \
+         -D revision="$REVISION"                                              \
+         -D tldn="$_tldn"                                                     \
+         -D port="$_port"                                                     \
+         -D namespace="$_namespace"                                           \
+         -D name="$_name"                                                     \
+       "$TEMPLATES"/kgateway.ingress_gateway.template.yaml.j2)
+}
+
+function uninstall_kgateway_ingress_gateway {
+  local _context _name _namespace
+  _context=$1
+  _name=$2
+  _namespace=$3
+  
+  kubectl delete                                                      \
+          gateways.gateway.networking.k8s.io/"$_name"                 \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
+  --namespace "$_namespace"
+}
+
+function install_kgateway_httproute {
+  local _context _gateway_name _fqdn _namespace
+  local _service _service_namespace _service_port
+  _context=$1
+  _gateway_name=$2
+  _namespace=$3
+  _service=$4
+  _service_namespace=$5
+  _service_port=$6
+  _fqdn=$7
+
+  kubectl apply                                                       \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
+  -f <(jinja2                                                         \
+       -D fqdn="$_fqdn"                                               \
+       -D namespace="$_namespace"                                     \
+       -D gateway_name="$_gateway_name"                               \
+       -D service="$_service"                                         \
+       -D service_namespace="$_service_namespace"                     \
+       -D service_port="$_service_port"                               \
+       "$TEMPLATES"/kgateway.httproute.template.yaml.j2)
+}
+
+function uninstall_kgateway_httproute {
+  local _context _gateway_name _fqdn _namespace
+  local _service
+  _context=$1
+  _gateway_name=$2
+  _namespace=$3
+  _service=$4
+
+  kubectl delete                                                      \
+          httproutes.gateways.gateway.networking.k8s.io/"$_service"-route \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
+  --namespace "$_namespace"
+}
+
+function install_kgateway_reference_grant {
+  local _context _gateway_namespace 
+  local _service _service_namespace
+  _context=$1
+  _gateway_namespace=$2
+  _service=$3
+  _service_namespace=$4
+
+  kubectl apply                                                       \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
+  -f <(jinja2                                                         \
+       -D gateway_namespace="$_gateway_namespace"                     \
+       -D service="$_service"                                         \
+       -D service_namespace="$_service_namespace"                     \
+       "$TEMPLATES"/kgateway.reference_grant.template.yaml.j2)
+}
+
+function uninstall_kgateway_reference_grant {
+  local _context _service _service_namespace
+  _context=$1
+  _service=$4
+  _service_namespace=$5
+
+  kubectl delete                                                      \
+          referencegrants.gateways.gateway.networking.k8s.io/"$_service" \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
+  --namespace "$_service_namespace"
+}
+  
 deploy_istio_ambient() {
   local _cluster _istio
   _cluster=$1
@@ -760,7 +900,7 @@ deploy_istio_ambient() {
 
   create_namespace "$_cluster" "$_cluster" istio-system
   install_istio_secrets "$_cluster" "$_cluster" istio-system
-  install_istio_ambient "$_cluster" "$_cluster" "$_cluster" "$_istio"
+  install_istio_ambient -c "$_cluster" -i  "$_istio"
 }
 
 deploy_kgateway_eastwest() {
@@ -768,90 +908,5 @@ deploy_kgateway_eastwest() {
   _cluster=$1
 
   create_namespace "$_cluster" "$_cluster" istio-eastwest
-  install_kgateway_eastwest "$_cluster" "$_cluster"
-}
-
-function install_helloworld_kgateway_ingress {
-  local _context _network _revision
-  _context=$1
-  _network=$2
-
-  _revision=main
-
-kubectl --context "$_context" apply -f -<<EOF
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: helloworld-gateway
-  namespace: helloworld
-  labels:
-    istio.io/rev: $_revision
-spec:
-  gatewayClassName: istio
-  listeners:
-  - name: http
-    hostname: "helloworld.example.com"
-    port: 80
-    protocol: HTTP
-    allowedRoutes:
-      namespaces:
-        from: Same
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: helloworld-route
-  namespace: helloworld
-spec:
-  parentRefs:
-  - name: helloworld-gateway
-  hostnames: ["helloworld.example.com"]
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /
-    backendRefs:
-    - kind: Hostname
-      group: networking.istio.io
-      name: helloworld.helloworld.mesh.internal
-      port: 8001
-...
-EOF
-}
-
-function uninstall_helloworld_kgateway_ingress {
-  local _context
-  _context=$1
-
-  kubectl delete gateways.gateway.networking.k8s.io/helloworld-gateway        \
-                 httproutes.gateway.networking.k8s.io/helloworld-route        \
-    --context "$_context"                                                     \
-    --namespace helloworld
-}
-
-deploy_istio_ambient_with_kgateway_and_eastwest() {
-  local _cluster1 _cluster2 _istio
-  _cluster1=$1
-  _cluster2=$2
-  _istio=$3
-
-  deploy_istio_ambient "$_cluster1" "$_istio"
-  install_kgateway_crds "$_cluster1"
-  deploy_kgateway_eastwest "$_cluster1"
-
-  create_namespace "$_cluster1" "$_cluster1" istio-gateways
-
-  deploy_istio_ambient "$_cluster2" "$_istio"
-  install_kgateway_crds "$_cluster2"
-  deploy_kgateway_eastwest "$_cluster2"
-
-  create_namespace "$_cluster2" "$_cluster2" istio-gateways
-
-  install_kgateway_ew_link "$_cluster1" "$_cluster1" "$_cluster1" "$_cluster2"
-  install_kgateway_ew_link "$_cluster2" "$_cluster2" "$_cluster2" "$_cluster1"
-
-  install_helloworld_app -x "$_cluster1" -a
-  install_helloworld_app -x "$_cluster2" -a
+  install_kgateway_eastwest_126 "$_cluster" "$_cluster"
 }

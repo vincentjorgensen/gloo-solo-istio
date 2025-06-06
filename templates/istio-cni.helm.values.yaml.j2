@@ -1,0 +1,10 @@
+profile: ambient
+{% if revision %}
+revision: {{ revision }}
+{% endif %}
+global:
+  hub: {{ istio_repo }}
+  tag: {{ istio_ver }}{{ flavor }}
+ambient:
+  dnsCapture: true
+

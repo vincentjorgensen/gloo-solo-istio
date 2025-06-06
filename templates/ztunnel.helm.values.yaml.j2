@@ -1,0 +1,13 @@
+{% if revision %}
+revision: {{ revision }}
+{% endif %}
+hub: {{ istio_repo }}
+tag: {{ istio_ver}{{ flavor }}
+multiCluster:
+  clusterName: {{ cluster }}
+network: {{ network }}
+env:
+  ISTIO_META_ENABLE_HBONE: true
+  ISTIO_META_DNS_CAPTURE: true
+  SKIP_VALIDATE_TRUST_DOMAIN: true
+
