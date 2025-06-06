@@ -9,7 +9,9 @@ metadata:
     istio.io/dataplane-mode: ambient
 {% endif %}
 {% if sidecar_enabled %}
-    istio.io/rev: main
+{% if revision %}
+    istio.io/rev: {{ revision }}
+{% endif %}
 {% endif %}
 ---
 apiVersion: v1

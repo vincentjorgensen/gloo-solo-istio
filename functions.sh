@@ -27,17 +27,15 @@ export ISTIO_VER_126=1.26.1
 
 export GLOO_MESH_SECRET_TOKEN="my-lucky-secret-token" # arbitrary
 
-export SCRIPT_DIR TEMPLATES REVISION
+export TEMPLATES REVISION
 
-SCRIPT_DIR=$(dirname "$0")
-TEMPLATES="$SCRIPT_DIR"/templates
-REVISION=""
+TEMPLATES="$(dirname "$0")"/templates
 
 function set_revision {
   local _revision
   _revision=$1
 
-  REVISION="$_revision"
+  export REVISION="$_revision"
 }
 
 function create_namespace {
@@ -263,7 +261,7 @@ helm upgrade --install ztunnel "$_helm_repo"/ztunnel                          \
     -f "$TEMPLATES"/telemetry.istio-system.manifest.yaml
 }
 
-function uninstall_ambient {
+function uninstall_istio_ambient {
   local _context
   _context=$1
 
@@ -760,6 +758,7 @@ function install_helloworld_app {
          -D ambient_enabled="$_ambient"                                       \
          -D sidecar_enabled="$_sidecar"                                       \
          -D size="$_size"                                                     \
+         -D revision="$REVISION"                                              \
          "$TEMPLATES"/helloworld.manifest.yaml.j2                             \
          "$_ztemp".yaml )
 }
@@ -812,7 +811,7 @@ function install_kgateway_ingress_gateway {
          -D port="$_port"                                                     \
          -D namespace="$_namespace"                                           \
          -D name="$_name"                                                     \
-       "$TEMPLATES"/kgateway.ingress_gateway.template.yaml.j2)
+       "$TEMPLATES"/kgateway.ingress_gateway.template.yaml.j2 )
 }
 
 function uninstall_kgateway_ingress_gateway {
@@ -878,7 +877,7 @@ function install_kgateway_reference_grant {
        -D gateway_namespace="$_gateway_namespace"                     \
        -D service="$_service"                                         \
        -D service_namespace="$_service_namespace"                     \
-       "$TEMPLATES"/kgateway.reference_grant.template.yaml.j2)
+       "$TEMPLATES"/kgateway.reference_grant.template.yaml.j2 )
 }
 
 function uninstall_kgateway_reference_grant {
