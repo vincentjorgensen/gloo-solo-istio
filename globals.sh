@@ -75,5 +75,7 @@ function set_gme_secret_token {
   local _gme_secret_token
   _gme_secret_token=$1
 
-  export GME_SECRET_TOKEN="_gme_secret_token"
+  export GME_SECRET_TOKEN="$_gme_secret_token"
 }
+
+# END
