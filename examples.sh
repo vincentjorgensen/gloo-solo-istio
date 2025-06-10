@@ -2,7 +2,22 @@
 
 source "$(dirname "$0")"/functions.sh
 
-istio_ambient_kgateway_eastwest_helloworld() {
+ambient_and_kgateway() {
+  local _cluster1
+  _cluster1=$1
+  _istio=1.26
+  _revision=main
+
+  set_revision "$_revision"
+  set_istio "$_istio" 
+
+  deploy_istio_ambient "$_cluster1"
+  install_kgateway_crds "$_cluster1"
+
+  install_curl_app -x "$_cluster1" -a
+}
+
+ambient_kgateway_eastwest_helloworld() {
   local _cluster1 _cluster2 _istio _revision
   _cluster1=$1
   _cluster2=$2
@@ -26,7 +41,7 @@ istio_ambient_kgateway_eastwest_helloworld() {
   install_helloworld_app -x "$_cluster1" -a
   install_helloworld_app -x "$_cluster2" -a
 
-  create_namespace "$_cluster1" "$_cluster1" istio-gateways
+  create_namespace "$_cluster1" istio-gateways
   install_kgateway_ingress_gateway "$_cluster1" ingress-gateway istio-gateways '*.example.com' 80
   install_kgateway_httproute "$_cluster1" ingress-gateway istio-gateways helloworld helloworld 8001 helloworld.example.com
   install_kgateway_reference_grant "$_cluster1" istio-gateways helloworld helloworld
