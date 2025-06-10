@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-source "$(dirname "$0")"/functions.sh
-
 ambient_and_kgateway() {
   local _cluster1
   _cluster1=$1

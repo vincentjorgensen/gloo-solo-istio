@@ -8,5 +8,6 @@
 source "$(dirname "$0")"/globals.sh
 source "$(dirname "$0")"/installs.sh
 source "$(dirname "$0")"/deploys.sh
+source "$(dirname "$0")"/examples.sh
 
 # END

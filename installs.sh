@@ -232,10 +232,14 @@ function uninstall_istio_ambient {
 }
 
 function install_kgateway_eastwest {
-  local _context _size
+  local _context _network _size _istio_126
   _context=$1
   _network=$2
   _size=${3:-1}
+
+  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
+    _istio_126="enabled"
+  fi
 
   kubectl apply                                                               \
     --context "$_context"                                                     \
@@ -243,22 +247,8 @@ function install_kgateway_eastwest {
          -D network="$_network"                                               \
          -D revision="$REVISION"                                              \
          -D size="$_size"                                                     \
-         "$TEMPLATES"/kgateway-eastwest.template.yaml.j2)
-}
-
-function install_kgateway_eastwest_126 {
-  local _context _size
-  _context=$1
-  _network=$2
-  _size=${3:-1}
-
-  kubectl apply                                                               \
-    --context "$_context"                                                     \
-    -f <(jinja2                                                               \
-         -D network="$_network"                                               \
-         -D revision="$REVISION"                                              \
-         -D size="$_size"                                                     \
-         "$TEMPLATES"/kgateway-eastwest.126.template.yaml.j2)
+         -D istio_126="$_istio_126"                                           \
+         "$TEMPLATES"/kgateway.eastwest_gateway.template.yaml.j2 )
 }
 
 function uninstall_kgateway_eastwest {
@@ -267,11 +257,15 @@ function uninstall_kgateway_eastwest {
 
   kubectl delete gateways.gateway.networking.k8s.io/istio-eastwest            \
     --context "$_context" --namespace istio-eastwest
+
+  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
+    kubectl delete configmap/istio-eastwest-options                           \
+      --context "$_context" --namespace istio-eastwest
+  fi
 }
 
 function install_kgateway_ew_link {
-  local _context2 _cluster1 _remote_address _address_type
-
+  local _context1 _cluster1 _network1 _context2 _remote_address _address_type
   _context1=$1
   _cluster1=$2
   _network1=$3
@@ -749,10 +743,10 @@ function uninstall_kgateway_ingress_gateway {
   _name=$2
   _namespace=$3
   
-  kubectl delete                                                      \
-          gateways.gateway.networking.k8s.io/"$_name"                 \
-  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
-  --namespace "$_namespace"
+  kubectl delete                                                              \
+          gateways.gateway.networking.k8s.io/"$_name"                         \
+    --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
+    --namespace "$_namespace"
 }
 
 function install_kgateway_httproute {
@@ -767,15 +761,15 @@ function install_kgateway_httproute {
   _fqdn=$7
 
   kubectl apply                                                       \
-  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
-  -f <(jinja2                                                         \
-       -D fqdn="$_fqdn"                                               \
-       -D namespace="$_namespace"                                     \
-       -D gateway_name="$_gateway_name"                               \
-       -D service="$_service"                                         \
-       -D service_namespace="$_service_namespace"                     \
-       -D service_port="$_service_port"                               \
-       "$TEMPLATES"/kgateway.httproute.template.yaml.j2)
+    --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
+    -f <(jinja2                                                       \
+         -D fqdn="$_fqdn"                                             \
+         -D namespace="$_namespace"                                   \
+         -D gateway_name="$_gateway_name"                             \
+         -D service="$_service"                                       \
+         -D service_namespace="$_service_namespace"                   \
+         -D service_port="$_service_port"                             \
+         "$TEMPLATES"/kgateway.httproute.template.yaml.j2 )
 }
 
 function uninstall_kgateway_httproute {
