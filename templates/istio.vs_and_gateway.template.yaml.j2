@@ -1,0 +1,38 @@
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ name }}
+  namespace: {{ namespace }}
+spec:
+  gateways:
+  - {{ name }}-gateway
+  hosts:
+  - '{{ fqdn }}'
+  http:
+  - name: {{ service }}
+    match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: {{ service_name }}
+        port:
+          number: {{ service_port }}
+---
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: {{ name }}-gateway
+  namespace: {{ namespace }}
+spec:
+  selector:
+    app: istio-ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "{{ fqdn }}"
+...
