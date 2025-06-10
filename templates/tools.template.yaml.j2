@@ -1,0 +1,43 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tools
+  labels:
+    name: tools
+    istio.io/dataplane-mode: ambient
+{% if ambient_enabled %}
+    istio.io/dataplane-mode: ambient
+{% endif %}
+{% if sidecar_enabled %}
+{% if revision %}
+    istio.io/rev: {{ revision }}
+{% else %}
+    istio-injection: enabled
+{% endif %}
+{% endif %}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tools
+  namespace: tools
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tools
+  template:
+    metadata:
+      labels:
+        app: tools
+    spec:
+      containers:
+        - name: tools
+          image: arunvelsriram/utils:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - "tail"
+            - "-f"
+            - "/dev/null"
+...

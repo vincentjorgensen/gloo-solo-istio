@@ -473,7 +473,7 @@ function install_istio_ingressgateway {
   _size=${3:-1}
   _azure=""
 
-  echo "_size=$_size"
+  #echo "_size=$_size"
   helm upgrade -i istio-ingressgateway "$HELM_REPO"/gateway                   \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$_context"                                                \
@@ -698,6 +698,32 @@ function install_curl_app {
          "$TEMPLATES"/curl.template.yaml.j2 )
 }
 
+function install_tools_app {
+  local _context _ambient _sidecar 
+  _sidecar=""
+  _ambient=""
+
+  while getopts "aix:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      a)
+        _ambient="enabled" ;;
+      i) 
+        _sidecar="enabled" ;;
+      x) 
+        _context=$OPTARG ;;
+    esac
+  done
+
+  kubectl apply                                                               \
+    --context="$_context"                                                     \
+    -f <(jinja2                                                               \
+         -D ambient_enabled="$_ambient"                                       \
+         -D sidecar_enabled="$_sidecar"                                       \
+         -D revision="$REVISION"                                              \
+         "$TEMPLATES"/tools.template.yaml.j2 )
+}
+
 function install_istio_vs_and_gateway {
   local _context _port _tldn _name _namespace
   _context=$1
@@ -719,12 +745,17 @@ function install_istio_vs_and_gateway {
 }
 
 function install_kgateway_ingress_gateway {
-  local _context _port _tldn _name _namespace
+  local _context _port _tldn _name _namespace _istio_126 _size
   _context=$1
   _name=$2
   _namespace=$3
   _tldn=$4
   _port=$5
+  _size=${6:-1}
+
+  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
+    _istio_126="enabled"
+  fi
 
   kubectl apply                                                               \
     --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	      \
@@ -734,6 +765,8 @@ function install_kgateway_ingress_gateway {
          -D port="$_port"                                                     \
          -D namespace="$_namespace"                                           \
          -D name="$_name"                                                     \
+         -D size="$_size"                                                     \
+         -D istio_126="$_istio_126"                                           \
        "$TEMPLATES"/kgateway.ingress_gateway.template.yaml.j2 )
 }
 

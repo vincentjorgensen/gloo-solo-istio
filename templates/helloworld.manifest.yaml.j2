@@ -11,6 +11,8 @@ metadata:
 {% if sidecar_enabled %}
 {% if revision %}
     istio.io/rev: {{ revision }}
+{% else %}
+    istio-injection: enabled
 {% endif %}
 {% endif %}
 ---
