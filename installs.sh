@@ -668,7 +668,7 @@ function install_helloworld_app {
          -D sidecar_enabled="$_sidecar"                                       \
          -D size="$_size"                                                     \
          -D revision="$REVISION"                                              \
-         "$TEMPLATES"/helloworld.manifest.yaml.j2                             \
+         "$TEMPLATES"/helloworld.template.yaml.j2                             \
          "$_ztemp".yaml )
 }
 
