@@ -28,35 +28,40 @@ spec:
     parametersRef:
       group: ""
       kind: ConfigMap
-      name: istio-eastwest-options
+      name: {{ name }}-options
 {% endif %}
 {% if istio_126 %}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: istio-eastwest-options
-  namespace: istio-eastwest
+  name: {{name }}-options
+  namespace: {{ namespace }}
 data:
   horizontalPodAutoscaler: |
     spec:
       minReplicas: {{ size }}
       maxReplicas: {{ size }}
 
-##  deployment: |
+  deployment: |
+    spec:
+      replicas: {{ size }}
+      template:
+        spec:
+          containers:
+          - name: istio-proxy
+            resources:
+              limits:
+                cpu: 50m
+                memory: 256Mi
+              requests:
+                cpu: 2m
+                memory: 64m
+
 ##    metadata:
 ##      annotations:
 ##        additional-annotation: some-value
-##    spec:
-##      replicas: {{ size }}
-##      template:
-##        spec:
-##          containers:
-##          - name: istio-proxy
-##            resources:
-##              requests:
-##                cpu: 1234m
-##
+
 ##  service: |
 ##    spec:
 ##      ports:

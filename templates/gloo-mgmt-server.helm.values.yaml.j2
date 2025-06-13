@@ -2,6 +2,7 @@
 common:
   cluster: {{ cluster_name }}
   verbose: {{ verbose }}
+{% if gloo_agent %}
 glooAgent:
   enabled: true
   relay:
@@ -14,6 +15,7 @@ glooAgent:
         secretKeyRef:
           key: token
           name: relay-token
+{% endif %}
 glooAnalyzer:
   enabled: {{ analyzer_enabled }}
 glooInsightsEngine:
@@ -39,6 +41,8 @@ glooMgmtServer:
 {% endif %}
 glooUi:
   enabled: true
+  service:
+    type: LoadBalancer
 licensing:
   glooMeshLicenseKey: {{ gloo_platform_license_key }}
 prometheus:

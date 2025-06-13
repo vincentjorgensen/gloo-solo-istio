@@ -47,20 +47,25 @@ data:
       minReplicas: {{ size }}
       maxReplicas: {{ size }}
 
-##  deployment: |
-##    metadata:
-##      annotations:
-##        additional-annotation: some-value
-##    spec:
-##      replicas: {{ size }}
-##      template:
-##        spec:
-##          containers:
-##          - name: istio-proxy
-##            resources:
-##              requests:
-##                cpu: 1234m
-##
+  deployment: |
+    spec:
+      replicas: {{ size }}
+      template:
+        spec:
+          containers:
+          - name: istio-proxy
+            resources:
+              limits:
+                cpu: 50m
+                memory: 256Mi
+              requests:
+                cpu: 1m
+                memory: 16m
+
+#####    metadata:
+#####      annotations:
+#####        additional-annotation: some-value
+
 ##  service: |
 ##    spec:
 ##      ports:

@@ -7,7 +7,7 @@
 #-------------------------------------------------------------------------------
 # Global versions of Helm Repos, Istio Repos, and Istio settings
 #-------------------------------------------------------------------------------
-export REVISION=""
+export REVISION
 export TRUST_DOMAIN="cluster.local"
 export MESH_ID="mesh"
 
@@ -28,8 +28,6 @@ export GME_VER_26="2.6.12"
 export GME_VER_27="2.7.3"
 export GME_VER_28="2.8.1"
 export GME_VER_29="2.9.0"
-
-export GME_SECRET_TOKEN="my-lucky-secret-token" # arbitrary
 
 function set_revision {
   local _revision
@@ -73,7 +71,7 @@ function set_mesh_id {
 
 function set_gme_secret_token {
   local _gme_secret_token
-  _gme_secret_token=$1
+  _gme_secret_token=${1:-my-lucky-secret-token}
 
   export GME_SECRET_TOKEN="$_gme_secret_token"
 }

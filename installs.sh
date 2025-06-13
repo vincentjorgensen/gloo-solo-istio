@@ -7,6 +7,7 @@
 export KGATEWAY_VER=v1.2.1
 export TEMPLATES
 TEMPLATES="$(dirname "$0")"/templates
+CERTS="$(dirname "$0")"/certs
 
 function create_namespace {
   local _context _namespace
@@ -35,10 +36,10 @@ function install_istio_secrets {
   kubectl create secret generic cacerts                                       \
     --context="$_context"                                                     \
     --namespace "$_namespace"                                                 \
-    --from-file="$K3D_DIR"/certs/"${_cluster}"/ca-cert.pem                    \
-    --from-file="$K3D_DIR"/certs/"${_cluster}"/ca-key.pem                     \
-    --from-file="$K3D_DIR"/certs/"${_cluster}"/root-cert.pem                  \
-    --from-file="$K3D_DIR"/certs/"${_cluster}"/cert-chain.pem
+    --from-file="$CERTS"/"${_cluster}"/ca-cert.pem                            \
+    --from-file="$CERTS"/"${_cluster}"/ca-key.pem                             \
+    --from-file="$CERTS"/"${_cluster}"/root-cert.pem                          \
+    --from-file="$CERTS"/"${_cluster}"/cert-chain.pem
 }
 
 function uninstall_istio_secrets {
@@ -305,25 +306,33 @@ function uninstall_kgateway_ew_link {
 }
 
 function install_gloo_mgmt_server {
-  local _cluster _context
-  _cluster=$1
-  _context=$2
+  local _cluster _context _gloo_agent _verbose
+  _verbose=false
+
+  while getopts "c:gvx:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      c) 
+        _cluster=$OPTARG ;;
+      g)
+        _gloo_agent="enabled" ;;
+      v)
+        _verbose="true" ;;
+      x) 
+        _context=$OPTARG ;;
+    esac
+  done
+
+  [[ -z $_context ]] && _context="$_cluster"
 
   kubectl create namespace gloo-mesh                                          \
     --context="$_context"
 
   kubectl apply                                                               \
     --context="$_context"                                                     \
-    -f -<<EOF
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: relay-token
-  namespace: gloo-mesh
-stringData:
-  token: "$GME_SECRET_TOKEN"
-EOF
+    -f <(jinja2                                                               \
+         -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
+         "$TEMPLATES"/templates/gme.secret.relay-token.template.yaml.j2 )
   
   helm install gloo-platform-crds gloo-platform/gloo-platform-crds            \
     --version="$GME_VER"                                                      \
@@ -339,43 +348,48 @@ EOF
     --values <(
         jinja2                                                                \
         -D cluster_name="$_cluster"                                           \
-        -D verbose="false"                                                    \
+        -D verbose="$_verbose"                                                \
         -D azure_enabled="false"                                              \
-        -D analyzer_enabled="false"                                           \
-        -D insights_enabled="false"                                           \
+        -D analyzer_enabled="true"                                            \
+        -D insights_enabled="true"                                            \
+        -D gloo_agent="$_gloo_agent"                                          \
         -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"             \
         "$TEMPLATES"/gloo-mgmt-server.helm.values.yaml.j2 )                   \
     --wait
-
-  kubectl apply                                                               \
-    --context "$_cluster"                                                     \
-    -f -<<EOF
----
-apiVersion: admin.gloo.solo.io/v2
-kind: KubernetesCluster
-metadata:
-  name: $_cluster
-  namespace: gloo-mesh
-spec:
-  clusterDomain: cluster.local
-...
-EOF
 }
 
 function uninstall_gloo_mgmt_server {
   local _context
   _context=$1
 
-  kubectl delete kubernetescluster/"$_cluster"                                \
-    --context "$_context"                                                     \
-    --namespace gloo-mesh
-
-  helm uninstall gloo-platform-mgmt gloo-platform-crds \
-    --kube-context="$_context" \
+  helm uninstall gloo-platform-mgmt gloo-platform-crds                        \
+    --kube-context="$_context"                                                \
     --namespace=gloo-mesh
 
   kubectl delete secret/relay-token                                           \
     --context "$_context"                                                     \
+    --namespace gloo-mesh
+}
+
+function install_gloo_k8s_cluster {
+  local _mgmt_context _cluster
+  _cluster=$1
+  _mgmt_context=$2
+
+  kubectl apply                                                               \
+    --context "$_mgmt_context"                                                \
+    -f <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
+         -D cluster="$_cluster"                                               \
+         "$TEMPLATES"/gloo.k8s_cluster.template.yaml.j2 )
+}
+
+function uninstall_gloo_k8s_cluster {
+  local _mgmt_context _cluster
+  _cluster=$1
+  _mgmt_context=$2
+
+  kubectl delete kubernetescluster/"$_cluster"                                \
+    --context "$_mgmt_context"                                                \
     --namespace gloo-mesh
 }
 
@@ -400,18 +414,9 @@ function install_gloo_agent {
 
   kubectl apply                                                               \
     --context="$_context"                                                     \
-    -f -<<EOF
----
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: relay-token
-  namespace: gloo-mesh
-stringData:
-  token: "$GME_SECRET_TOKEN"
-...
-EOF
+    -f <(jinja2                                                               \
+         -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
+         "$TEMPLATES"/templates/gme.secret.relay-token.template.yaml.j2 )
   
   helm install gloo-platform-crds gloo-platform/gloo-platform-crds            \
     --version="$GME_VER"                                                      \
@@ -428,34 +433,18 @@ EOF
         jinja2                                                                \
         -D cluster_name="$_cluster"                                           \
         -D verbose="false"                                                    \
-        -D insights_enabled="false"                                           \
+        -D insights_enabled="true"                                            \
+        -D analyzer_enabled="true"                                            \
         -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"             \
         -D gloo_mesh_server="$GLOO_MESH_SERVER"                               \
         -D gloo_mesh_telemetry_gateway="$GLOO_MESH_TELEMETRY_GATEWAY"         \
         "$TEMPLATES"/gloo-agent.helm.values.yaml.j2 )                         \
     --wait
-
-  kubectl --context "$_mgmt_context" apply                                    \
-    -f -<<EOF
----
-apiVersion: admin.gloo.solo.io/v2
-kind: KubernetesCluster
-metadata:
-  name: $_cluster
-  namespace: gloo-mesh
-spec:
-  clusterDomain: cluster.local
-...
-EOF
 }
 
 function uninstall_gloo_agent {
   local _context
   _context=$1
-
-  kubectl delete kubernetescluster/"$_cluster"                                \
-    --context "$_context"                                                     \
-    --namespace gloo-mesh
 
   helm uninstall gloo-platform-agent gloo-platform-crds                       \
     --kube-context="$_context"                                                \
@@ -467,7 +456,7 @@ function uninstall_gloo_agent {
 }
 
 function install_istio_ingressgateway {
-  local _context _size _network
+  local _context _size _network _azure
   _context=$1
   _network=$2
   _size=${3:-1}
@@ -486,6 +475,7 @@ function install_istio_ingressgateway {
                -D istio_repo="$ISTIO_REPO"                                    \
                -D istio_ver="$ISTIO_VER"                                      \
                -D flavor="$ISTIO_FLAVOR"                                      \
+               -D azure="$_azure"                                             \
                "$TEMPLATES"/istio-ingressgateway.helm.values.yaml.j2 )        \
     --wait
 }
@@ -624,16 +614,21 @@ function get_istio_zones {
 
 function install_helloworld_app {
   local _context _region _zones _ztemp _ambient _sidecar _size
+  local _traffic_distribution
   _sidecar=""
   _ambient=""
+  _traffic_distribution="Any"
   _size=1
 	_ztemp=$(mktemp)
 
-  while getopts "ais:x:" opt; do
+  while getopts "ad:is:x:" opt; do
     # shellcheck disable=SC2220
     case $opt in
       a)
         _ambient="enabled" ;;
+      d)
+        # PreferNetwork, PreferClose, PreferRegion, Any
+        _traffic_distribution=$OPTARG ;;
       i) 
         _sidecar="enabled" ;;
       s) 
@@ -665,6 +660,7 @@ function install_helloworld_app {
     -f <(jinja2                                                               \
          -D region="$_region"                                                 \
          -D ambient_enabled="$_ambient"                                       \
+         -D traffic_distribution="$_traffic_distribution"                     \
          -D sidecar_enabled="$_sidecar"                                       \
          -D size="$_size"                                                     \
          -D revision="$REVISION"                                              \
@@ -793,16 +789,16 @@ function install_kgateway_httproute {
   _service_port=$6
   _fqdn=$7
 
-  kubectl apply                                                       \
-    --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
-    -f <(jinja2                                                       \
-         -D fqdn="$_fqdn"                                             \
-         -D namespace="$_namespace"                                   \
-         -D gateway_name="$_gateway_name"                             \
-         -D service="$_service"                                       \
-         -D service_namespace="$_service_namespace"                   \
-         -D service_port="$_service_port"                             \
-         "$TEMPLATES"/kgateway.httproute.template.yaml.j2 )
+  kubectl apply                                                               \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	          \
+  -f <(jinja2                                                                 \
+       -D fqdn="$_fqdn"                                                       \
+       -D namespace="$_namespace"                                             \
+       -D gateway_name="$_gateway_name"                                       \
+       -D service="$_service"                                                 \
+       -D service_namespace="$_service_namespace"                             \
+       -D service_port="$_service_port"                                       \
+       "$TEMPLATES"/kgateway.httproute.template.yaml.j2 )
 }
 
 function uninstall_kgateway_httproute {
@@ -813,9 +809,9 @@ function uninstall_kgateway_httproute {
   _namespace=$3
   _service=$4
 
-  kubectl delete                                                      \
-          httproutes.gateways.gateway.networking.k8s.io/"$_service"-route \
-  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
+  kubectl delete                                                              \
+          httproutes.gateways.gateway.networking.k8s.io/"$_service"-route     \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        	\
   --namespace "$_namespace"
 }
 
@@ -827,12 +823,12 @@ function install_kgateway_reference_grant {
   _service=$3
   _service_namespace=$4
 
-  kubectl apply                                                       \
-  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
-  -f <(jinja2                                                         \
-       -D gateway_namespace="$_gateway_namespace"                     \
-       -D service="$_service"                                         \
-       -D service_namespace="$_service_namespace"                     \
+  kubectl apply                                                               \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        	\
+  -f <(jinja2                                                                 \
+       -D gateway_namespace="$_gateway_namespace"                             \
+       -D service="$_service"                                                 \
+       -D service_namespace="$_service_namespace"                             \
        "$TEMPLATES"/kgateway.reference_grant.template.yaml.j2 )
 }
 
@@ -842,10 +838,107 @@ function uninstall_kgateway_reference_grant {
   _service=$4
   _service_namespace=$5
 
-  kubectl delete                                                      \
-          referencegrants.gateways.gateway.networking.k8s.io/"$_service" \
-  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
+  kubectl delete                                                              \
+          referencegrants.gateways.gateway.networking.k8s.io/"$_service"      \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        	\
   --namespace "$_service_namespace"
+}
+
+function install_tls_cert_sercret {
+  local _cluster _namespace _secret_name _context
+
+  while getopts "c:n:s:x:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      c)
+        _cluster=$OPTARG ;;
+      n)
+        _namespace=$OPTARG ;;
+      s)
+        _secret_name=$OPTARG ;;
+      x)
+        _context=$OPTARG ;;
+    esac
+  done
+
+  [[ -z $_context ]] && _context="$_cluster"
+
+  kubectl create secret tls "$_secret_name"                                   \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        	\
+  --namespace "$_namespace"                                                   \
+  --cert="${CERTS}"/"${_cluster}"/ca-cert.pem                                 \
+  --key="${CERTS}"/"${_cluster}"/ca-key.pem
+}
+
+function install_argocd {
+  local _context _cluster
+  _cluster=$1
+  _context=$2
+
+  while getopts "c:x:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      c)
+        _cluster=$OPTARG ;;
+      x)
+        _context=$OPTARG ;;
+    esac
+  done
+
+  [[ -z $_context ]] && _context="$_cluster"
+
+#  kubectl create namespace argocd                                             \
+#  --context "$_context"
+    
+#  kubectl apply                                                               \
+#  --context "$_context"  	  	  	  	  	  	  	  	  	  	  	  	  	  	\
+#  --namespace argocd                                                          \
+#  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+  helm upgrade --install argocd argo/argo-cd                                  \
+  --kube-context "$_context"                                                  \
+  --namespace argocd                                                          \
+  --create-namespace                                                          \
+  --values <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	  \
+             -D cluster="$_cluster"                                           \
+             "$TEMPLATES"/argocd.helm.values.yaml.j2 )                        \
+  --wait
+}
+
+function install_argocd_cluster {
+  local _argo_context _cluster _cluster_server _cert_data _key_data _ca_data
+  local _context
+  _cluster=$1
+  _context=$2
+  _argo_context=$3
+
+  _cluster_server=https://"$(kubectl --context "$_context" get nodes "k3d-${_cluster}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443
+
+  _ca_data=$(
+    kubectl config view                                                       \
+    --raw=true                                                                \
+    -o jsonpath='{.clusters[?(@.name == "k3d-'"$_cluster"'")].cluster.certificate-authority-data}')
+
+  _cert_data=$(
+    kubectl config view                                                       \
+    --raw=true                                                                \
+    -o jsonpath='{.users[?(@.name == "admin@k3d-'"$_cluster"'")].user.client-certificate-data}')
+
+  _key_data=$(
+    kubectl config view                                                       \
+    --raw=true                                                                \
+    -o jsonpath='{.users[?(@.name == "admin@k3d-'"$_cluster"'")].user.client-key-data}')
+
+  kubectl apply                                                               \
+  --context "$_argo_context"    	  	  	  	  	  	  	  	  	  	  	  	\
+  -f <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
+       -D cluster="$_cluster"                                                 \
+       -D cluster_server="$_cluster_server"                                   \
+       -D cluster_server="$_cluster_server"                                   \
+       -D cert_data="$_cert_data"                                             \
+       -D key_data="$_key_data"                                               \
+       -D ca_data="$_ca_data"                                                 \
+      "$TEMPLATES"/argocd.secret.cluster.template.yaml.j2 )
 }
 
 # END

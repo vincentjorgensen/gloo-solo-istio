@@ -39,6 +39,15 @@ meshConfig:
     attempts: 3
     retryOn: connect-failure,refused-stream,unavailable,cancelled,reset,503
   trustDomain: {{ trust_domain }}
+resources:
+  limits:
+    cpu: 20m
+    memory: 256Mi
+  requests:
+    cpu: 2m
+    memory: 64Mi
+autoscaleMin: 1
+autoscaleMax: 1
 
 ##sidecarInjectorWebhook:
 ##  templates:

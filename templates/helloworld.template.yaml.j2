@@ -21,7 +21,7 @@ kind: Service
 metadata:
 {% if ambient_enabled %}
   annotations:
-    networking.istio.io/traffic-distribution: Any
+    networking.istio.io/traffic-distribution: {{ traffic_distribution }}
 {% endif %}
   name: helloworld
   namespace: helloworld
@@ -88,11 +88,15 @@ spec:
         - name: SERVER_PORT
           value: '8001'
         image: vincentjorgensen/node-helloworld:0.0.2
-        resources:
-          requests:
-            cpu: "100m"
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8001
+        resources:
+          limits:
+            cpu: 3m
+            memory: 40Mi
+          requests:
+            cpu: 1m
+            memory: 20Mi
 {% endfor %}
 ...
