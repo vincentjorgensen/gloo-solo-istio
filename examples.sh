@@ -3,11 +3,8 @@
 ambient_and_kgateway() {
   local _cluster1
   _cluster1=$1
-  _istio=1.26
-  _revision=main
 
-  set_revision "$_revision"
-  set_istio "$_istio" 
+  set_defaults
 
   deploy_istio_ambient "$_cluster1"
 
@@ -18,11 +15,8 @@ ambient_kgateway_eastwest_helloworld() {
   local _cluster1 _cluster2 _istio _revision
   _cluster1=$1
   _cluster2=$2
-  _istio=1.26
-  _revision=main
 
-  set_revision "$_revision"
-  set_istio "$_istio" 
+  set_defaults
 
   deploy_ambient_kgateway_helloworld "$_cluster1"
   deploy_ambient_kgateway_helloworld "$_cluster2"
@@ -31,8 +25,8 @@ ambient_kgateway_eastwest_helloworld() {
   install_kgateway_ew_link "$_cluster2" "$_cluster2" "$_cluster2" "$_cluster1"
 
   create_namespace "$_cluster1" istio-gateways
-  install_kgateway_ingress_gateway "$_cluster1" ingress-gateway istio-gateways '*.example.com' 80
-  install_kgateway_httproute "$_cluster1" ingress-gateway istio-gateways helloworld helloworld 8001 helloworld.example.com
+  install_kgateway_ingress_gateway "$_cluster1" ingress-gateway istio-gateways 80
+  install_kgateway_httproute "$_cluster1" ingress-gateway istio-gateways helloworld helloworld 8001
   install_kgateway_reference_grant "$_cluster1" istio-gateways helloworld helloworld
 
 #  install_kgateway_ingress_gateway "$_cluster1" helloworld-gateway helloworld 'helloworld.example.com' 80
@@ -47,8 +41,8 @@ istio_sidecar_istio_eastwest_helloworld() {
   _istio=$3
   _revision=main
 
-  set_revision "$_revision"
-  set_istio "$_istio"
+  set_defaults
+  set_istio "$_istio" solo
 
   deploy_istio_sidecar "$_cluster1"
   install_istio_eastwestgateway "$_cluster1" "$_cluster1" 1

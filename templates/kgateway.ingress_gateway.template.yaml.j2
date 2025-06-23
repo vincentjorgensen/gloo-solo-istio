@@ -13,7 +13,7 @@ spec:
   gatewayClassName: istio
   listeners:
   - name: http
-    hostname: "{{ tldn }}"
+    hostname: "*.{{ tldn }}"
     port: {{ port }}
     protocol: HTTP
     allowedRoutes:

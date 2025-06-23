@@ -745,25 +745,24 @@ function install_kgateway_ingress_gateway {
   _context=$1
   _name=$2
   _namespace=$3
-  _tldn=$4
-  _port=$5
-  _size=${6:-1}
+  _port=$4
+  _size=${5:-1}
 
   if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
     _istio_126="enabled"
   fi
 
   kubectl apply                                                               \
-    --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	      \
-    -f <(jinja2                                                               \
-         -D revision="$REVISION"                                              \
-         -D tldn="$_tldn"                                                     \
-         -D port="$_port"                                                     \
-         -D namespace="$_namespace"                                           \
-         -D name="$_name"                                                     \
-         -D size="$_size"                                                     \
-         -D istio_126="$_istio_126"                                           \
-       "$TEMPLATES"/kgateway.ingress_gateway.template.yaml.j2 )
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
+  -f <(jinja2                                                                 \
+       -D revision="$REVISION"                                                \
+       -D port="$_port"                                                       \
+       -D namespace="$_namespace"                                             \
+       -D name="$_name"                                                       \
+       -D size="$_size"                                                       \
+       -D istio_126="$_istio_126"                                             \
+       -D tldn="$TLDN"                                                        \
+     "$TEMPLATES"/kgateway.ingress_gateway.template.yaml.j2 )
 }
 
 function uninstall_kgateway_ingress_gateway {
@@ -779,7 +778,7 @@ function uninstall_kgateway_ingress_gateway {
 }
 
 function install_kgateway_httproute {
-  local _context _gateway_name _fqdn _namespace
+  local _context _gateway_name _namespace
   local _service _service_namespace _service_port
   _context=$1
   _gateway_name=$2
@@ -787,12 +786,11 @@ function install_kgateway_httproute {
   _service=$4
   _service_namespace=$5
   _service_port=$6
-  _fqdn=$7
 
   kubectl apply                                                               \
   --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	          \
   -f <(jinja2                                                                 \
-       -D fqdn="$_fqdn"                                                       \
+       -D tldn="$TLDN"                                                        \
        -D namespace="$_namespace"                                             \
        -D gateway_name="$_gateway_name"                                       \
        -D service="$_service"                                                 \
@@ -901,6 +899,7 @@ function install_argocd {
   --create-namespace                                                          \
   --values <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	  \
              -D cluster="$_cluster"                                           \
+             -D tldn="$TLDN"                                                  \
              "$TEMPLATES"/argocd.helm.values.yaml.j2 )                        \
   --wait
 }
@@ -939,6 +938,39 @@ function install_argocd_cluster {
        -D key_data="$_key_data"                                               \
        -D ca_data="$_ca_data"                                                 \
       "$TEMPLATES"/argocd.secret.cluster.template.yaml.j2 )
+}
+
+function install_external_dns_for_pihole {
+  local _context _pihole_server_address
+  _context=$1
+
+  _pihole_server_address=$(docker inspect pihole | jq -r '.[].NetworkSettings.Networks."'"$DOCKER_NETWORK"'".IPAddress')
+
+  kubectl create secret generic pihole-password                               \
+  --context "$_context"                                                       \
+  --namespace "kube-system"                                                   \
+  --from-literal EXTERNAL_DNS_PIHOLE_PASSWORD="$(yq -r '.services.pihole.environment.FTLCONF_webserver_api_password' "$K3D_DIR"/pihole.docker-compose.yaml.j2)"
+
+  kubectl apply                                                               \
+  --context "$_context"                                                       \
+  -f <(jinja2                                                                 \
+       -D pihole_server_address="$_pihole_server_address"                     \
+       "$TEMPLATES"/externaldns.pihole.manifest.yaml.j2 )
+}
+
+function uninstall_external_dns_for_pihole {
+  local _context _pihole_server_address
+  _context=$1
+
+  kubectl delete                                                              \
+  --context "$_context"                                                       \
+  -f <(jinja2                                                                 \
+       -D pihole_server_address="$_pihole_server_address"                     \
+       "$TEMPLATES"/externaldns.pihole.manifest.yaml.j2 )
+  
+  kubectl delete secret pihole-password                                       \
+  --context "$_context"                                                       \
+  --namespace "kube-system"
 }
 
 # END
