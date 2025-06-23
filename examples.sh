@@ -11,12 +11,23 @@ ambient_and_kgateway() {
   install_curl_app -x "$_cluster1" -a
 }
 
+ambient_kgateway_helloworld() {
+  local _cluster
+  _cluster=$1
+
+  set_defaults
+  install_external_dns_for_pihole "$_cluster"
+
+  deploy_ambient_kgateway_helloworld "$_cluster" false
+}
+
 ambient_kgateway_eastwest_helloworld() {
   local _cluster1 _cluster2 _istio _revision
   _cluster1=$1
   _cluster2=$2
 
   set_defaults
+  install_external_dns_for_pihole "$_cluster1"
 
   deploy_ambient_kgateway_helloworld "$_cluster1"
   deploy_ambient_kgateway_helloworld "$_cluster2"
@@ -34,6 +45,22 @@ ambient_kgateway_eastwest_helloworld() {
 #  install_kgateway_reference_grant "$_cluster1" istio-gateways helloworld helloworld
 }
 
+sidecar_istio_gateway_helloworld() {
+  local _cluster
+  _cluster=$1
+
+  set_defaults
+  install_external_dns_for_pihole "$_cluster"
+
+  deploy_istio_sidecar "$_cluster"
+
+  install_helloworld_app -x "$_cluster" -i
+
+  install_istio_ingressgateway "$_cluster" "$_cluster" 1
+
+  install_istio_vs_and_gateway "$_cluster" helloworld helloworld helloworld 8001
+}
+
 istio_sidecar_istio_eastwest_helloworld() {
   local _cluster1 _cluster2 _istio _revision
   _cluster1=$1
@@ -42,7 +69,6 @@ istio_sidecar_istio_eastwest_helloworld() {
   _revision=main
 
   set_defaults
-  set_istio "$_istio" solo
 
   deploy_istio_sidecar "$_cluster1"
   install_istio_eastwestgateway "$_cluster1" "$_cluster1" 1

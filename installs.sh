@@ -725,18 +725,17 @@ function install_istio_vs_and_gateway {
   _context=$1
   _name=$2
   _namespace=$3
-  _fqdn=$4
-  _service_name=$5
-  _service_port=$6
+  _service_name=$4
+  _service_port=$5
 
   kubectl apply                                                               \
-    --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	      \
-    -f <(jinja2                                                               \
-         -D name="$_name"                                                     \
-         -D namespace="$_namespace"                                           \
-         -D fqdn="$_fqdn"                                                     \
-         -D service_name="$_service_name"                                     \
-         -D service_port="$_service_port"                                     \
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
+  -f <(jinja2                                                                 \
+       -D name="$_name"                                                       \
+       -D namespace="$_namespace"                                             \
+       -D service_name="$_service_name"                                       \
+       -D service_port="$_service_port"                                       \
+       -D tldn="$TLDN"                                                        \
        "$TEMPLATES"/istio.vs_and_gateway.template.yaml.j2 )
 }
 

@@ -14,18 +14,24 @@ rules:
 - apiGroups: [""]
   resources: ["services","endpoints","pods"]
   verbs: ["get","watch","list"]
-- apiGroups: ["extensions","networking.k8s.io"]
-  resources: ["ingresses"]
-  verbs: ["get","watch","list"]
+###- apiGroups: ["extensions","networking.k8s.io"]
+###  resources: ["ingresses"]
+###  verbs: ["get","watch","list"]
+###- apiGroups: [""]
+###  resources: ["namespaces"]
+###  verbs: ["get","watch","list"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["list","watch"]
 - apiGroups: [""]
   resources: ["namespaces"]
   verbs: ["get","watch","list"]
 - apiGroups: ["gateway.networking.k8s.io"]
   resources: ["gateways","httproutes"]
   verbs: ["get","watch","list"]
-- apiGroups: [""]
-  resources: ["nodes"]
-  verbs: ["list","watch"]
+- apiGroups: ["networking.istio.io"]
+  resources: ["gateways", "virtualservices"]
+  verbs: ["get","watch","list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -68,12 +74,12 @@ spec:
             # Change this if you gave the secret a different name
             name: pihole-password
         args:
+        ### - --source=ingress
+        ### - --source=gloo-proxy
         - --source=service
-        - --source=ingress
         - --source=gateway-httproute
-        - --source=istio-gateway
-        - --source=istio-virtualservice
-        - --source=gloo-proxy
+        ### - --source=istio-gateway
+        - --source=istio-virtualservice 
         # Pihole only supports A/AAAA/CNAME records so there is no mechanism to track ownership.
         # You don't need to set this flag, but if you leave it unset, you will receive warning
         # logs when ExternalDNS attempts to create TXT records.

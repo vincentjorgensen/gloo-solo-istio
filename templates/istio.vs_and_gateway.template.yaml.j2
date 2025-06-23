@@ -8,9 +8,9 @@ spec:
   gateways:
   - {{ name }}-gateway
   hosts:
-  - '{{ fqdn }}'
+  - '{{ service_name }}.{{ tldn }}'
   http:
-  - name: {{ service }}
+  - name: {{ service_name }}
     match:
     - uri:
         prefix: /
@@ -34,5 +34,6 @@ spec:
       name: http
       protocol: HTTP
     hosts:
-    - "{{ fqdn }}"
+#    - "{{ service_name }}.{{ tldn }}"
+    - "*.{{ tldn }}"
 ...

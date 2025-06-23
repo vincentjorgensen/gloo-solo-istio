@@ -11,6 +11,7 @@ function deploy_istio_sidecar {
   create_namespace "$_cluster" istio-system
 #  install_istio_secrets "$_cluster" "$_cluster" istio-system
   install_istio_sidecar -c "$_cluster"
+  install_kgateway_crds "$_cluster"
 }
 
 function deploy_istio_ambient {
@@ -48,11 +49,12 @@ function deploy_gme_agent {
 }
 
 function deploy_ambient_kgateway_helloworld {
-  local _cluster
+  local _cluster _east_west
   _cluster=${1:-cluster1}
+  _east_west=${2:-false}
   
   deploy_istio_ambient "$_cluster"
-  deploy_kgateway_eastwest "$_cluster"
+  "$_east_west" && deploy_kgateway_eastwest "$_cluster"
 
   install_helloworld_app -x "$_cluster" -a
 
