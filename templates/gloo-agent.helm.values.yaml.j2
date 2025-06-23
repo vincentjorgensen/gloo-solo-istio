@@ -1,0 +1,31 @@
+---
+common:
+  cluster: {{ cluster_name }}
+  verbose: {{ verbose }}
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: {{ gloo_mesh_server }}:9900
+  extraEnvs:
+    RELAY_DISABLE_SERVER_CERTIFICATE_VALIDATION:
+      value: "true"
+    RELAY_TOKEN:
+      valueFrom:
+        secretKeyRef:
+          key: token
+          name: relay-token
+glooAnalyzer:
+  enabled: {{ analyzer_enabled }}
+##glooInsightsEngine:
+##  enabled: {{ insights_enabled }}
+licensing:
+  glooMeshLicenseKey: {{ gloo_platform_license_key }}
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: "{{ gloo_mesh_telemetry_gateway }}:4317"
+telemetryCollectorCustomization:
+  skipVerify: true
+...
