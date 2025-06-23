@@ -100,7 +100,7 @@ function install_istio_sidecar {
     --create-namespace                                                        \
     --values <(jinja2                                                         \
                -D revision="$REVISION"                                        \
-               "$TEMPLATES"/istio-base.helm.values.yaml.j2 )                  \
+               "$TEMPLATES"/helm.istio-base.yaml.j2 )                         \
     --wait
 
   helm upgrade --install istiod "$HELM_REPO"/istiod                           \
@@ -117,7 +117,7 @@ function install_istio_sidecar {
                -D trust_domain="$TRUST_DOMAIN"                                \
                -D mesh_id="$MESH_ID"                                          \
                -D flavor="$ISTIO_FLAVOR"                                      \
-               "$TEMPLATES"/istiod.helm.values.yaml.j2 )                      \
+               "$TEMPLATES"/helm.istiod.yaml.j2 )                             \
     --wait
 
   kubectl apply                                                               \
@@ -167,7 +167,7 @@ function install_istio_ambient {
     --create-namespace                                                        \
     --values <(jinja2                                                         \
                -D revision="$REVISION"                                        \
-               "$TEMPLATES"/istio-base.helm.values.yaml.j2 )                  \
+               "$TEMPLATES"/helm.istio-base.yaml.j2 )                         \
     --wait
 
   helm upgrade --install istiod "$HELM_REPO"/istiod                           \
@@ -185,7 +185,7 @@ function install_istio_ambient {
                -D mesh_id="$MESH_ID"                                          \
                -D flavor="$ISTIO_FLAVOR"                                      \
                -D license_key="$GLOO_MESH_LICENSE_KEY"                        \
-               "$TEMPLATES"/istiod.helm.values.yaml.j2 )                      \
+               "$TEMPLATES"/helm.istiod.yaml.j2 )                             \
     --wait
 
   helm upgrade --install istio-cni "$HELM_REPO"/cni                           \
@@ -197,7 +197,7 @@ function install_istio_ambient {
                -D istio_repo="$ISTIO_REPO"                                    \
                -D istio_ver="$ISTIO_VER"                                      \
                -D flavor="$ISTIO_FLAVOR"                                      \
-               "$TEMPLATES"/istio-cni.helm.values.yaml.j2 )                   \
+               "$TEMPLATES"/helm.istio-cni.yaml.j2 )                          \
     --wait
 
   helm upgrade --install ztunnel "$HELM_REPO"/ztunnel                         \
@@ -211,12 +211,12 @@ function install_istio_ambient {
                -D istio_repo="$ISTIO_REPO"                                    \
                -D istio_ver="$ISTIO_VER"                                      \
                -D flavor="$ISTIO_FLAVOR"                                      \
-               "$TEMPLATES"/ztunnel.helm.values.yaml.j2 )                     \
+               "$TEMPLATES"/helm.ztunnel.yaml.j2 )                            \
     --wait
 
   kubectl apply                                                               \
-    --context "$_context"                                                     \
-    -f "$TEMPLATES"/telemetry.istio-system.manifest.yaml
+  --context "$_context"                                                       \
+  -f "$TEMPLATES"/telemetry.istio-system.manifest.yaml
 }
 
 function uninstall_istio_ambient {
@@ -342,11 +342,10 @@ function install_gloo_mgmt_server {
     --wait
 
   helm upgrade -i gloo-platform-mgmt gloo-platform/gloo-platform              \
-    --version="$GME_VER"                                                      \
-    --kube-context="$_context"                                                \
-    --namespace=gloo-mesh                                                     \
-    --values <(
-        jinja2                                                                \
+  --version="$GME_VER"                                                        \
+  --kube-context="$_context"                                                  \
+  --namespace=gloo-mesh                                                       \
+  --values <(jinja2                                                           \
         -D cluster_name="$_cluster"                                           \
         -D verbose="$_verbose"                                                \
         -D azure_enabled="false"                                              \
@@ -354,7 +353,7 @@ function install_gloo_mgmt_server {
         -D insights_enabled="true"                                            \
         -D gloo_agent="$_gloo_agent"                                          \
         -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"             \
-        "$TEMPLATES"/gloo-mgmt-server.helm.values.yaml.j2 )                   \
+        "$TEMPLATES"/helm.gloo-mgmt-server.yaml.j2 )                          \
     --wait
 }
 
@@ -400,7 +399,7 @@ function install_gloo_agent {
   _mgmt_context=$3
 
   kubectl create namespace gloo-mesh                                          \
-    --context="$_context"
+  --context="$_context"
 
   GLOO_MESH_SERVER=$(kubectl get svc gloo-mesh-mgmt-server                    \
     --context "$_mgmt_context"                                                \
@@ -426,11 +425,10 @@ function install_gloo_agent {
     --wait
 
   helm upgrade -i gloo-platform-agent gloo-platform/gloo-platform             \
-    --version="$GME_VER"                                                      \
-    --kube-context="$_context"                                                \
-    --namespace=gloo-mesh                                                     \
-    --values <(
-        jinja2                                                                \
+  --version="$GME_VER"                                                        \
+  --kube-context="$_context"                                                  \
+  --namespace=gloo-mesh                                                       \
+  --values <(jinja2                                                           \
         -D cluster_name="$_cluster"                                           \
         -D verbose="false"                                                    \
         -D insights_enabled="true"                                            \
@@ -438,7 +436,7 @@ function install_gloo_agent {
         -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"             \
         -D gloo_mesh_server="$GLOO_MESH_SERVER"                               \
         -D gloo_mesh_telemetry_gateway="$GLOO_MESH_TELEMETRY_GATEWAY"         \
-        "$TEMPLATES"/gloo-agent.helm.values.yaml.j2 )                         \
+        "$TEMPLATES"/helm.gloo-agent.yaml.j2 )                                \
     --wait
 }
 
@@ -447,12 +445,12 @@ function uninstall_gloo_agent {
   _context=$1
 
   helm uninstall gloo-platform-agent gloo-platform-crds                       \
-    --kube-context="$_context"                                                \
-    --namespace=gloo-mesh
+  --kube-context="$_context"                                                  \
+  --namespace=gloo-mesh
 
   kubectl delete secret/relay-token                                           \
-    --context "$_context"                                                     \
-    --namespace gloo-mesh
+  --context "$_context"                                                       \
+  --namespace gloo-mesh
 }
 
 function install_istio_ingressgateway {
@@ -476,7 +474,7 @@ function install_istio_ingressgateway {
                -D istio_ver="$ISTIO_VER"                                      \
                -D flavor="$ISTIO_FLAVOR"                                      \
                -D azure="$_azure"                                             \
-               "$TEMPLATES"/istio-ingressgateway.helm.values.yaml.j2 )        \
+               "$TEMPLATES"/helm.istio-ingressgateway.yaml.j2 )               \
     --wait
 }
 
@@ -508,7 +506,7 @@ function install_istio_eastwestgateway {
                -D istio_repo="$ISTIO_REPO"                                    \
                -D istio_ver="$ISTIO_VER"                                      \
                -D flavor="$ISTIO_FLAVOR"                                      \
-               "$TEMPLATES"/istio-eastwestgateway.helm.values.yaml.j2 )       \
+               "$TEMPLATES"/helm.istio-eastwestgateway.yaml.j2 )              \
     --wait
 
   # Expose Services
@@ -899,7 +897,7 @@ function install_argocd {
   --values <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	  \
              -D cluster="$_cluster"                                           \
              -D tldn="$TLDN"                                                  \
-             "$TEMPLATES"/argocd.helm.values.yaml.j2 )                        \
+             "$TEMPLATES"/helm.argocd.yaml.j2 )                               \
   --wait
 }
 
