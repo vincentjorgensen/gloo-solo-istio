@@ -28,6 +28,7 @@ export GME_VER_27="2.7.3"
 export GME_VER_28="2.8.1"
 export GME_VER_29="2.9.0"
 
+export DEFAULT_GME="2.9"
 export DEFAULT_GME_SECRET_TOKEN="my-lucky-secret-token"
 export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TLDN=example.com
@@ -95,5 +96,6 @@ function set_defaults {
   set_mesh_id $DEFAULT_MESH_ID
   set_gme_secret_token $DEFAULT_GME_SECRET_TOKEN
   set_tldn $DEFAULT_TLDN
+  set_gme $DEFAULT_GME
 }
 # END

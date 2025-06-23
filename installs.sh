@@ -332,7 +332,7 @@ function install_gloo_mgmt_server {
     --context="$_context"                                                     \
     -f <(jinja2                                                               \
          -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
-         "$TEMPLATES"/templates/gme.secret.relay-token.template.yaml.j2 )
+         "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
   
   helm install gloo-platform-crds gloo-platform/gloo-platform-crds            \
     --version="$GME_VER"                                                      \
@@ -416,7 +416,7 @@ function install_gloo_agent {
     --context="$_context"                                                     \
     -f <(jinja2                                                               \
          -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
-         "$TEMPLATES"/templates/gme.secret.relay-token.template.yaml.j2 )
+         "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
   
   helm install gloo-platform-crds gloo-platform/gloo-platform-crds            \
     --version="$GME_VER"                                                      \
@@ -554,25 +554,25 @@ function install_mutual_remote_secrets {
 
 # For K3D local clusters
   if [[ "$_cluster1" =~ cluster ]]; then
-    istioctl-"${ISTIO_VER}" create-remote-secret                              \
+    istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
       --context="$_cluster1"                                                  \
       --name="$_cluster1"                                                     \
       --server https://"$(kubectl --context "$_cluster1" get nodes "k3d-${_cluster1}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443 |
         kubectl apply -f - --context="${_cluster2}"
   
-    istioctl-"${ISTIO_VER}" create-remote-secret                              \
+    istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
       --context="$_cluster2"                                                  \
       --name="$_cluster2"                                                     \
       --server https://"$(kubectl --context "$_cluster2" get nodes "k3d-${_cluster2}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443 |
         kubectl apply -f - --context="${_cluster1}"
   # For AWS and Azure (and GCP?) clusters
   else
-    istioctl-"${ISTIO_VER}" create-remote-secret                              \
+    istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
       --context="${_cluster1}"                                                \
       --name=cluster1                                                         |
         kubectl apply -f - --context="${_cluster2}"
   
-    istioctl-"${ISTIO_VER}" create-remote-secret                              \
+    istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
       --context="${_cluster2}"                                                \
       --name=cluster2                                                         |
         kubectl apply -f - --context="${_cluster1}"
@@ -906,27 +906,35 @@ function install_argocd {
 
 function install_argocd_cluster {
   local _argo_context _cluster _cluster_server _cert_data _key_data _ca_data
-  local _context
+  local _context _k8s_user _k8s_cluster
   _cluster=$1
   _context=$2
   _argo_context=$3
+
+  if [[ $(kubectl config get-contexts "$_context" --no-headers=true | awk '{print $1}') == '*' ]]; then
+    _k8s_user=$(kubectl config get-contexts "$_context" --no-headers=true | awk '{print $4}')
+    _k8s_cluster=$(kubectl config get-contexts "$_context" --no-headers=true | awk '{print $3}')
+  else
+    _k8s_user=$(kubectl config get-contexts "$_context" --no-headers=true | awk '{print $3}')
+    _k8s_cluster=$(kubectl config get-contexts "$_context" --no-headers=true | awk '{print $2}')
+  fi
 
   _cluster_server=https://"$(kubectl --context "$_context" get nodes "k3d-${_cluster}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443
 
   _ca_data=$(
     kubectl config view                                                       \
     --raw=true                                                                \
-    -o jsonpath='{.clusters[?(@.name == "k3d-'"$_cluster"'")].cluster.certificate-authority-data}')
+    -o jsonpath='{.clusters[?(@.name == "'"$_k8s_cluster"'")].cluster.certificate-authority-data}')
 
   _cert_data=$(
     kubectl config view                                                       \
     --raw=true                                                                \
-    -o jsonpath='{.users[?(@.name == "admin@k3d-'"$_cluster"'")].user.client-certificate-data}')
+    -o jsonpath='{.users[?(@.name == "'"$_k8s_user"'")].user.client-certificate-data}')
 
   _key_data=$(
     kubectl config view                                                       \
     --raw=true                                                                \
-    -o jsonpath='{.users[?(@.name == "admin@k3d-'"$_cluster"'")].user.client-key-data}')
+    -o jsonpath='{.users[?(@.name == "'"$_k8s_user"'")].user.client-key-data}')
 
   kubectl apply                                                               \
   --context "$_argo_context"    	  	  	  	  	  	  	  	  	  	  	  	\
