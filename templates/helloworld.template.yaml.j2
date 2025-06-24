@@ -52,7 +52,7 @@ metadata:
   namespace: helloworld
   labels:
     app: helloworld
-    version: {{ zone }}
+    version: {{ service_version }}
 spec:
   replicas: {{ size }}
   selector:
@@ -80,7 +80,7 @@ spec:
       - name: helloworld
         env:
         - name: SERVICE_VERSION
-          value: {{ zone }}
+          value: {{ service_version }}
         - name: ZONE
           value: {{ zone }}
         - name: REGION

@@ -9,7 +9,7 @@ function deploy_istio_sidecar {
   _cluster=$1
 
   create_namespace "$_cluster" istio-system
-#  install_istio_secrets "$_cluster" "$_cluster" istio-system
+  install_istio_secrets "$_cluster" "$_cluster" istio-system
   install_istio_sidecar -c "$_cluster"
   install_kgateway_crds "$_cluster"
 }
@@ -62,7 +62,6 @@ function deploy_ambient_kgateway_helloworld {
   install_kgateway_ingress_gateway "$_cluster" ingress-gateway istio-gateways 80
   install_kgateway_httproute "$_cluster" ingress-gateway istio-gateways helloworld helloworld 8001
   install_kgateway_reference_grant "$_cluster" istio-gateways helloworld helloworld
-
 }
 
 function deploy_argocd {

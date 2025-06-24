@@ -5,7 +5,7 @@
 #
 ###############################################################################
 export KGATEWAY_VER=v1.2.1
-export TEMPLATES
+export TEMPLATES CERTS
 TEMPLATES="$(dirname "$0")"/templates
 CERTS="$(dirname "$0")"/certs
 
@@ -15,7 +15,7 @@ function create_namespace {
   _namespace=$2
 
   kubectl create namespace "$_namespace"                                      \
-    --context="$_context"
+  --context="$_context"
 }
 
 function delete_namespace {
@@ -24,7 +24,7 @@ function delete_namespace {
   _namespace=$2
 
   kubectl delete namespace "$_namespace"                                      \
-    --context="$_context"
+  --context="$_context"
 }
 
 function install_istio_secrets {
@@ -34,12 +34,12 @@ function install_istio_secrets {
   _namespace=$3
 
   kubectl create secret generic cacerts                                       \
-    --context="$_context"                                                     \
-    --namespace "$_namespace"                                                 \
-    --from-file="$CERTS"/"${_cluster}"/ca-cert.pem                            \
-    --from-file="$CERTS"/"${_cluster}"/ca-key.pem                             \
-    --from-file="$CERTS"/"${_cluster}"/root-cert.pem                          \
-    --from-file="$CERTS"/"${_cluster}"/cert-chain.pem
+  --context="$_context"                                                       \
+  --namespace "$_namespace"                                                   \
+  --from-file="$CERTS"/"${_cluster}"/ca-cert.pem                              \
+  --from-file="$CERTS"/"${_cluster}"/ca-key.pem                               \
+  --from-file="$CERTS"/"${_cluster}"/root-cert.pem                            \
+  --from-file="$CERTS"/"${_cluster}"/cert-chain.pem
 }
 
 function uninstall_istio_secrets {
@@ -49,8 +49,8 @@ function uninstall_istio_secrets {
   _namespace=$3
 
   kubectl delete secret cacerts                                               \
-    --context="$_context"                                                     \
-    --namespace "$_namespace"
+  --context="$_context"                                                       \
+  --namespace "$_namespace"
 }
 
 function install_kgateway_crds {
@@ -58,8 +58,8 @@ function install_kgateway_crds {
   _context=$1
 
   kubectl apply                                                               \
-    --context="$_context"                                                     \
-    -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/standard-install.yaml
+  --context="$_context"                                                       \
+  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/standard-install.yaml
 }
 
 function uninstall_kgateway_crds {
@@ -67,8 +67,8 @@ function uninstall_kgateway_crds {
   _context=$1
 
   kubectl delete                                                              \
-    --context="$_context"                                                     \
-    -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/standard-install.yaml
+  --context="$_context"                                                       \
+  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/standard-install.yaml
 }
 
 function install_istio_sidecar {
@@ -90,39 +90,39 @@ function install_istio_sidecar {
   [[ -z $_context ]] && _context="$_cluster"
 
   kubectl label namespace istio-system topology.istio.io/network="$_network"  \
-    --context "$_context" --overwrite
+  --context "$_context" --overwrite
 
   # shellcheck disable=SC2086
   helm upgrade --install istio-base "$HELM_REPO"/base                         \
-    --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
-    --kube-context="$_context"                                                \
-    --namespace istio-system                                                  \
-    --create-namespace                                                        \
-    --values <(jinja2                                                         \
-               -D revision="$REVISION"                                        \
-               "$TEMPLATES"/helm.istio-base.yaml.j2 )                         \
-    --wait
+  --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                     \
+  --kube-context="$_context"                                                  \
+  --namespace istio-system                                                    \
+  --create-namespace                                                          \
+  --values <(jinja2                                                           \
+             -D revision="$REVISION"                                          \
+             "$TEMPLATES"/helm.istio-base.yaml.j2 )                           \
+  --wait
 
   helm upgrade --install istiod "$HELM_REPO"/istiod                           \
-    --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
-    --kube-context="$_context"                                                \
-    --namespace istio-system                                                  \
-    --values <(jinja2                                                         \
-               -D sidecar="enabled"                                           \
-               -D cluster_name="$_cluster"                                    \
-               -D revision="$REVISION"                                        \
-               -D network="$_network"                                         \
-               -D istio_repo="$ISTIO_REPO"                                    \
-               -D istio_ver="$ISTIO_VER"                                      \
-               -D trust_domain="$TRUST_DOMAIN"                                \
-               -D mesh_id="$MESH_ID"                                          \
-               -D flavor="$ISTIO_FLAVOR"                                      \
-               "$TEMPLATES"/helm.istiod.yaml.j2 )                             \
-    --wait
+  --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                     \
+  --kube-context="$_context"                                                  \
+  --namespace istio-system                                                    \
+  --values <(jinja2                                                           \
+             -D sidecar="enabled"                                             \
+             -D cluster_name="$_cluster"                                      \
+             -D revision="$REVISION"                                          \
+             -D network="$_network"                                           \
+             -D istio_repo="$ISTIO_REPO"                                      \
+             -D istio_ver="$ISTIO_VER"                                        \
+             -D trust_domain="$TRUST_DOMAIN"                                  \
+             -D mesh_id="$MESH_ID"                                            \
+             -D flavor="$ISTIO_FLAVOR"                                        \
+             "$TEMPLATES"/helm.istiod.yaml.j2 )                               \
+  --wait
 
   kubectl apply                                                               \
-    --context "$_context"                                                     \
-    -f "$TEMPLATES"/telemetry.istio-system.manifest.yaml
+  --context "$_context"                                                       \
+  -f "$TEMPLATES"/telemetry.istio-system.manifest.yaml
 }
 
 function uninstall_istio_sidecar {
@@ -130,12 +130,12 @@ function uninstall_istio_sidecar {
   _context=$1
 
   kubectl delete telemetry/mesh-default                                       \
-    --context "$_context"                                                     \
-    --namespace istio-system
+  --context "$_context"                                                       \
+  --namespace istio-system
 
   helm uninstall istiod istio-base                                            \
-    --kube-context="$_context"                                                \
-    --namespace istio-system
+  --kube-context="$_context"                                                  \
+  --namespace istio-system
 }
 
 function install_istio_ambient {
@@ -612,14 +612,15 @@ function get_istio_zones {
 
 function install_helloworld_app {
   local _context _region _zones _ztemp _ambient _sidecar _size
-  local _traffic_distribution
+  local _traffic_distribution _service_version
   _sidecar=""
   _ambient=""
   _traffic_distribution="Any"
   _size=1
 	_ztemp=$(mktemp)
+  _service_version=none
 
-  while getopts "ad:is:x:" opt; do
+  while getopts "ad:is:v:x:" opt; do
     # shellcheck disable=SC2220
     case $opt in
       a)
@@ -631,6 +632,8 @@ function install_helloworld_app {
         _sidecar="enabled" ;;
       s) 
         _size=$OPTARG ;;
+      v) 
+        _service_version=$OPTARG ;;
       x) 
         _context=$OPTARG ;;
     esac
@@ -654,16 +657,17 @@ function install_helloworld_app {
   cp "$_ztemp" "$_ztemp".yaml
 
   kubectl apply                                                               \
-    --context="$_context"                                                     \
-    -f <(jinja2                                                               \
-         -D region="$_region"                                                 \
-         -D ambient_enabled="$_ambient"                                       \
-         -D traffic_distribution="$_traffic_distribution"                     \
-         -D sidecar_enabled="$_sidecar"                                       \
-         -D size="$_size"                                                     \
-         -D revision="$REVISION"                                              \
-         "$TEMPLATES"/helloworld.template.yaml.j2                             \
-         "$_ztemp".yaml )
+  --context="$_context"                                                       \
+  -f <(jinja2                                                                 \
+       -D region="$_region"                                                   \
+       -D service_version="$_service_version"                                 \
+       -D ambient_enabled="$_ambient"                                         \
+       -D traffic_distribution="$_traffic_distribution"                       \
+       -D sidecar_enabled="$_sidecar"                                         \
+       -D size="$_size"                                                       \
+       -D revision="$REVISION"                                                \
+       "$TEMPLATES"/helloworld.template.yaml.j2                               \
+       "$_ztemp".yaml )
 }
 
 function install_curl_app {
@@ -684,12 +688,12 @@ function install_curl_app {
   done
 
   kubectl apply                                                               \
-    --context="$_context"                                                     \
-    -f <(jinja2                                                               \
-         -D ambient_enabled="$_ambient"                                       \
-         -D sidecar_enabled="$_sidecar"                                       \
-         -D revision="$REVISION"                                              \
-         "$TEMPLATES"/curl.template.yaml.j2 )
+  --context="$_context"                                                       \
+  -f <(jinja2                                                                 \
+       -D ambient_enabled="$_ambient"                                         \
+       -D sidecar_enabled="$_sidecar"                                         \
+       -D revision="$REVISION"                                                \
+       "$TEMPLATES"/curl.template.yaml.j2 )
 }
 
 function install_tools_app {
@@ -710,12 +714,12 @@ function install_tools_app {
   done
 
   kubectl apply                                                               \
-    --context="$_context"                                                     \
-    -f <(jinja2                                                               \
-         -D ambient_enabled="$_ambient"                                       \
-         -D sidecar_enabled="$_sidecar"                                       \
-         -D revision="$REVISION"                                              \
-         "$TEMPLATES"/tools.template.yaml.j2 )
+  --context="$_context"                                                       \
+  -f <(jinja2                                                                 \
+       -D ambient_enabled="$_ambient"                                         \
+       -D sidecar_enabled="$_sidecar"                                         \
+       -D revision="$REVISION"                                                \
+       "$TEMPLATES"/tools.template.yaml.j2 )
 }
 
 function install_istio_vs_and_gateway {
@@ -770,8 +774,8 @@ function uninstall_kgateway_ingress_gateway {
   
   kubectl delete                                                              \
           gateways.gateway.networking.k8s.io/"$_name"                         \
-    --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
-    --namespace "$_namespace"
+  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	          \
+  --namespace "$_namespace"
 }
 
 function install_kgateway_httproute {
