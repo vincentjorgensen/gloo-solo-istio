@@ -15,7 +15,7 @@ function create_namespace {
   _namespace=$2
 
   kubectl create namespace "$_namespace"                                      \
-  --context="$_context"
+  --context "$_context"
 }
 
 function delete_namespace {
@@ -24,7 +24,7 @@ function delete_namespace {
   _namespace=$2
 
   kubectl delete namespace "$_namespace"                                      \
-  --context="$_context"
+  --context "$_context"
 }
 
 function install_istio_secrets {
@@ -34,7 +34,7 @@ function install_istio_secrets {
   _namespace=$3
 
   kubectl create secret generic cacerts                                       \
-  --context="$_context"                                                       \
+  --context "$_context"                                                       \
   --namespace "$_namespace"                                                   \
   --from-file="$CERTS"/"${_cluster}"/ca-cert.pem                              \
   --from-file="$CERTS"/"${_cluster}"/ca-key.pem                               \
@@ -49,7 +49,7 @@ function uninstall_istio_secrets {
   _namespace=$3
 
   kubectl delete secret cacerts                                               \
-  --context="$_context"                                                       \
+  --context "$_context"                                                       \
   --namespace "$_namespace"
 }
 
@@ -58,7 +58,7 @@ function install_kgateway_crds {
   _context=$1
 
   kubectl apply                                                               \
-  --context="$_context"                                                       \
+  --context "$_context"                                                       \
   -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/standard-install.yaml
 }
 
@@ -67,7 +67,7 @@ function uninstall_kgateway_crds {
   _context=$1
 
   kubectl delete                                                              \
-  --context="$_context"                                                       \
+  --context "$_context"                                                       \
   -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/standard-install.yaml
 }
 
@@ -273,9 +273,17 @@ function install_kgateway_ew_link {
   _context2=$4
 
   _remote_address=$(
+    kubectl get svc -n istio-eastwest istio-eastwest                          \
+    --context "$_context1"                                                    \
+    -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
+
+  while [[ -z $_remote_address ]]; do
+    _remote_address=$(
       kubectl get svc -n istio-eastwest istio-eastwest                        \
-        --context "$_context1"                                                \
-        -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
+      --context "$_context1"                                                  \
+      -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
+    echo -n '.' && sleep 5
+  done && echo
 
   if echo "$_remote_address" | grep -qE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+'; then
     _address_type=IPAddress
@@ -284,14 +292,14 @@ function install_kgateway_ew_link {
   fi
 
   kubectl apply                                                               \
-    --context "$_context2"                                                    \
-    -f <(jinja2                                                               \
-         -D trust_domain="$TRUST_DOMAIN"                                      \
-         -D network="$_network1"                                              \
-         -D cluster="$_cluster1"                                              \
-         -D address_type="$_address_type"                                     \
-         -D remote_address="$_remote_address"                                 \
-         "$TEMPLATES"/kgateway.eastwest_remote_gateway.template.yaml.j2 )
+  --context "$_context2"                                                      \
+  -f <(jinja2                                                                 \
+       -D trust_domain="$TRUST_DOMAIN"                                        \
+       -D network="$_network1"                                                \
+       -D cluster="$_cluster1"                                                \
+       -D address_type="$_address_type"                                       \
+       -D remote_address="$_remote_address"                                   \
+       "$TEMPLATES"/kgateway.eastwest_remote_gateway.template.yaml.j2 )
 }
 
 function uninstall_kgateway_ew_link {
@@ -301,8 +309,8 @@ function uninstall_kgateway_ew_link {
 
   kubectl delete                                                              \
           gateways.gateway.networking.k8s.io/istio-remote-peer-"${_cluster1}" \
-    --context "$_context2"                                                    \
-    --namesapce istio-eastwest
+  --context "$_context2"                                                      \
+  --namespace istio-eastwest
 }
 
 function install_gloo_mgmt_server {
@@ -454,28 +462,30 @@ function uninstall_gloo_agent {
 }
 
 function install_istio_ingressgateway {
-  local _context _size _network _azure
+  local _context _size _network _azure _aws
   _context=$1
   _network=$2
   _size=${3:-1}
   _azure=""
+  _aws=""
 
   #echo "_size=$_size"
   helm upgrade -i istio-ingressgateway "$HELM_REPO"/gateway                   \
-    --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
-    --kube-context="$_context"                                                \
-    --namespace istio-gateways                                                \
-    --create-namespace                                                        \
-    --values <(jinja2                                                         \
-               -D size="$_size"                                               \
-               -D network="$_network"                                         \
-               -D revision="$REVISION"                                        \
-               -D istio_repo="$ISTIO_REPO"                                    \
-               -D istio_ver="$ISTIO_VER"                                      \
-               -D flavor="$ISTIO_FLAVOR"                                      \
-               -D azure="$_azure"                                             \
-               "$TEMPLATES"/helm.istio-ingressgateway.yaml.j2 )               \
-    --wait
+  --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                     \
+  --kube-context="$_context"                                                  \
+  --namespace istio-gateways                                                  \
+  --create-namespace                                                          \
+  --values <(jinja2                                                           \
+             -D size="$_size"                                                 \
+             -D network="$_network"                                           \
+             -D revision="$REVISION"                                          \
+             -D istio_repo="$ISTIO_REPO"                                      \
+             -D istio_ver="$ISTIO_VER"                                        \
+             -D flavor="$ISTIO_FLAVOR"                                        \
+             -D azure="$_azure"                                               \
+             -D aws="$_aws"                                                   \
+             "$TEMPLATES"/helm.istio-ingressgateway.yaml.j2 )                 \
+  --wait
 }
 
 function uninstall_istio_ingressgateway {
@@ -483,36 +493,40 @@ function uninstall_istio_ingressgateway {
   _context=$1
 
   helm uninstall istio-ingressgateway                                         \
-    --kube-context="$_context"                                                \
-    --namespace istio-gateways
+  --kube-context="$_context"                                                  \
+  --namespace istio-gateways
 }
 
 function install_istio_eastwestgateway {
-  local _context _size _network
+  local _context _size _network _azure _aws
   _context=$1
   _network=$2
   _size=${3:-1}
+  _azure=""
+  _aws=""
 
 #  echo "_size=$_size"
   helm upgrade -i istio-eastwestgateway "$HELM_REPO"/gateway                  \
-    --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
-    --kube-context="$_context"                                                \
-    --namespace istio-eastwest                                                \
-    --create-namespace                                                        \
-    --values <(jinja2                                                         \
-               -D size="$_size"                                               \
-               -D network="$_network"                                         \
-               -D revision="$REVISION"                                        \
-               -D istio_repo="$ISTIO_REPO"                                    \
-               -D istio_ver="$ISTIO_VER"                                      \
-               -D flavor="$ISTIO_FLAVOR"                                      \
-               "$TEMPLATES"/helm.istio-eastwestgateway.yaml.j2 )              \
-    --wait
+  --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                     \
+  --kube-context="$_context"                                                  \
+  --namespace istio-eastwest                                                  \
+  --create-namespace                                                          \
+  --values <(jinja2                                                           \
+             -D size="$_size"                                                 \
+             -D network="$_network"                                           \
+             -D revision="$REVISION"                                          \
+             -D istio_repo="$ISTIO_REPO"                                      \
+             -D istio_ver="$ISTIO_VER"                                        \
+             -D flavor="$ISTIO_FLAVOR"                                        \
+             -D azure="$_azure"                                               \
+             -D aws="$_aws"                                                   \
+             "$TEMPLATES"/helm.istio-eastwestgateway.yaml.j2 )                \
+  --wait
 
   # Expose Services
   kubectl apply                                                               \
-    --context "$_context"                                                     \
-    -f -<<EOF
+  --context "$_context"                                                       \
+  -f -<<EOF
 ---
 apiVersion: networking.istio.io/v1
 kind: Gateway
@@ -550,30 +564,30 @@ function install_mutual_remote_secrets {
   _cluster1=$1
   _cluster2=$2
 
-# For K3D local clusters
+  # For K3D, Kind, and Rancher clusters
   if [[ "$_cluster1" =~ cluster ]]; then
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-      --context="$_cluster1"                                                  \
-      --name="$_cluster1"                                                     \
-      --server https://"$(kubectl --context "$_cluster1" get nodes "k3d-${_cluster1}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443 |
-        kubectl apply -f - --context="${_cluster2}"
+    --context "$_cluster1"                                                    \
+    --name "$_cluster1"                                                       \
+    --server https://"$(kubectl --context "$_cluster1" get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[0].address}')":6443 |
+    kubectl apply -f - --context="$_cluster2"
   
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-      --context="$_cluster2"                                                  \
-      --name="$_cluster2"                                                     \
-      --server https://"$(kubectl --context "$_cluster2" get nodes "k3d-${_cluster2}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443 |
-        kubectl apply -f - --context="${_cluster1}"
+    --context "$_cluster2"                                                    \
+    --name "$_cluster2"                                                       \
+    --server https://"$(kubectl --context "$_cluster2" get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[0].address}')":6443 |
+    kubectl apply -f - --context="$_cluster1"
   # For AWS and Azure (and GCP?) clusters
   else
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-      --context="${_cluster1}"                                                \
-      --name=cluster1                                                         |
-        kubectl apply -f - --context="${_cluster2}"
+    --context "$_cluster1"                                                    \
+    --name cluster1                                                           |
+    kubectl apply -f - --context="$_cluster2"
   
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-      --context="${_cluster2}"                                                \
-      --name=cluster2                                                         |
-        kubectl apply -f - --context="${_cluster1}"
+    --context "$_cluster2"                                                    \
+    --name cluster2                                                           |
+    kubectl apply -f - --context="$_cluster1"
   fi
 }
 
@@ -602,8 +616,8 @@ function get_istio_zones {
   _context=$1
 
   _zones=$(kubectl get nodes                                                  \
-             --context "$_context"                                            \
-             -o yaml                                                          |
+           --context "$_context"                                              \
+           -o yaml                                                            |
            yq '.items[].metadata.labels."topology.kubernetes.io/zone"'        |
            sort|uniq)
 
@@ -688,7 +702,7 @@ function install_curl_app {
   done
 
   kubectl apply                                                               \
-  --context="$_context"                                                       \
+  --context "$_context"                                                       \
   -f <(jinja2                                                                 \
        -D ambient_enabled="$_ambient"                                         \
        -D sidecar_enabled="$_sidecar"                                         \
@@ -714,7 +728,7 @@ function install_tools_app {
   done
 
   kubectl apply                                                               \
-  --context="$_context"                                                       \
+  --context "$_context"                                                       \
   -f <(jinja2                                                                 \
        -D ambient_enabled="$_ambient"                                         \
        -D sidecar_enabled="$_sidecar"                                         \
