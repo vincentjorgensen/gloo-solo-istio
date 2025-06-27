@@ -1,0 +1,17 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualDestination
+metadata:
+  name: {{ app_name }}
+  namespace: applications-config
+spec:
+  hosts:
+  # Arbitrary, internal-only hostname assigned to the endpoint
+  - {{ app_name }}.{{ tldn }}
+  ports:
+  - number: 8080
+    protocol: HTTP
+    targetPort:
+      number: {{ app_service_port }}
+  services:
+    - labels:
+        app: {{ app_name }}

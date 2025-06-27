@@ -7,10 +7,10 @@ global:
   tag: {{ istio_ver }}{{ flavor }}
 ambient:
   dnsCapture: true
-  resources:
-    limits:
-      cpu: 10m
-      memory: 64Mi
-    requests:
-      cpu: 1m
-      memory: 20Mi
+resources:
+  limits:
+    cpu: 10m
+    memory: 64Mi
+  requests:
+    cpu: 1m
+    memory: 20Mi

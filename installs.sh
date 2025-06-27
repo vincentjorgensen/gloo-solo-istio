@@ -62,6 +62,15 @@ function install_kgateway_crds {
   -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/standard-install.yaml
 }
 
+function install_kgateway_experimental_crds {
+  local _context
+  _context=$1
+
+  kubectl apply                                                               \
+  --context "$_context"                                                       \
+  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/experimental-install.yaml
+}
+
 function uninstall_kgateway_crds {
   local _context
   _context=$1
@@ -69,6 +78,31 @@ function uninstall_kgateway_crds {
   kubectl delete                                                              \
   --context "$_context"                                                       \
   -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/standard-install.yaml
+}
+
+function uninstall_kgateway_experimental_crds {
+  local _context
+  _context=$1
+
+  kubectl delete                                                              \
+  --context "$_context"                                                       \
+  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/experimental-install.yaml
+}
+
+function install_istio_base {
+  local _context
+  _context=$1
+
+  # shellcheck disable=SC2086
+  helm upgrade --install istio-base "$HELM_REPO"/base                         \
+  --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                     \
+  --kube-context="$_context"                                                  \
+  --namespace istio-system                                                    \
+  --create-namespace                                                          \
+  --values <(jinja2                                                           \
+             -D revision="$REVISION"                                          \
+             "$TEMPLATES"/helm.istio-base.yaml.j2 )                           \
+  --wait
 }
 
 function install_istio_sidecar {
@@ -334,20 +368,20 @@ function install_gloo_mgmt_server {
   [[ -z $_context ]] && _context="$_cluster"
 
   kubectl create namespace gloo-mesh                                          \
-    --context="$_context"
+  --context="$_context"
 
   kubectl apply                                                               \
-    --context="$_context"                                                     \
-    -f <(jinja2                                                               \
-         -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
-         "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
+  --context="$_context"                                                       \
+  -f <(jinja2                                                                 \
+       -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                       \
+       "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
   
   helm install gloo-platform-crds gloo-platform/gloo-platform-crds            \
-    --version="$GME_VER"                                                      \
-    --kube-context="$_context"                                                \
-    --namespace=gloo-mesh                                                     \
-    --create-namespace                                                        \
-    --wait
+  --version="$GME_VER"                                                        \
+  --kube-context="$_context"                                                  \
+  --namespace=gloo-mesh                                                       \
+  --create-namespace                                                          \
+  --wait
 
   helm upgrade -i gloo-platform-mgmt gloo-platform/gloo-platform              \
   --version="$GME_VER"                                                        \
@@ -362,7 +396,7 @@ function install_gloo_mgmt_server {
         -D gloo_agent="$_gloo_agent"                                          \
         -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"             \
         "$TEMPLATES"/helm.gloo-mgmt-server.yaml.j2 )                          \
-    --wait
+  --wait
 }
 
 function uninstall_gloo_mgmt_server {
@@ -370,12 +404,12 @@ function uninstall_gloo_mgmt_server {
   _context=$1
 
   helm uninstall gloo-platform-mgmt gloo-platform-crds                        \
-    --kube-context="$_context"                                                \
-    --namespace=gloo-mesh
+  --kube-context="$_context"                                                  \
+  --namespace=gloo-mesh
 
   kubectl delete secret/relay-token                                           \
-    --context "$_context"                                                     \
-    --namespace gloo-mesh
+  --context "$_context"                                                       \
+  --namespace gloo-mesh
 }
 
 function install_gloo_k8s_cluster {
@@ -384,10 +418,10 @@ function install_gloo_k8s_cluster {
   _mgmt_context=$2
 
   kubectl apply                                                               \
-    --context "$_mgmt_context"                                                \
-    -f <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
-         -D cluster="$_cluster"                                               \
-         "$TEMPLATES"/gloo.k8s_cluster.template.yaml.j2 )
+  --context "$_mgmt_context"                                                  \
+  -f <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	  \
+       -D cluster="$_cluster"                                                 \
+       "$TEMPLATES"/gloo.k8s_cluster.template.yaml.j2 )
 }
 
 function uninstall_gloo_k8s_cluster {
@@ -396,15 +430,29 @@ function uninstall_gloo_k8s_cluster {
   _mgmt_context=$2
 
   kubectl delete kubernetescluster/"$_cluster"                                \
-    --context "$_mgmt_context"                                                \
-    --namespace gloo-mesh
+  --context "$_mgmt_context"                                                  \
+  --namespace gloo-mesh
 }
 
 function install_gloo_agent {
-  local _cluster _context _mgmt_context
-  _cluster=$1
-  _context=$2
-  _mgmt_context=$3
+  local _cluster _context _mgmt_context _verbose
+  _verbose=false
+
+  while getopts "c:m:vx:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      c) 
+        _cluster=$OPTARG ;;
+      m)
+        _mgmt_context=$OPTARG ;;
+      v)
+        _verbose="true" ;;
+      x) 
+        _context=$OPTARG ;;
+    esac
+  done
+
+  [[ -z $_context ]] && _context="$_cluster"
 
   kubectl create namespace gloo-mesh                                          \
   --context="$_context"
@@ -438,7 +486,7 @@ function install_gloo_agent {
   --namespace=gloo-mesh                                                       \
   --values <(jinja2                                                           \
         -D cluster_name="$_cluster"                                           \
-        -D verbose="false"                                                    \
+        -D verbose="$_verbose"                                                \
         -D insights_enabled="true"                                            \
         -D analyzer_enabled="true"                                            \
         -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"             \
@@ -499,11 +547,27 @@ function uninstall_istio_ingressgateway {
 
 function install_istio_eastwestgateway {
   local _context _size _network _azure _aws
-  _context=$1
-  _network=$2
-  _size=${3:-1}
+  _size=1
   _azure=""
   _aws=""
+
+  while getopts "as:w:x:z" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      a)
+        _aws=enabled ;;
+      s)
+        _size=$OPTARG ;;
+      w)
+        _network=$OPTARG ;;
+      x) 
+        _context=$OPTARG ;;
+      z) 
+        _azure=enabled ;;
+    esac
+  done
+
+  [[ -z "$_network" ]] && _network="$_context"
 
 #  echo "_size=$_size"
   helm upgrade -i istio-eastwestgateway "$HELM_REPO"/gateway                  \
@@ -523,30 +587,12 @@ function install_istio_eastwestgateway {
              "$TEMPLATES"/helm.istio-eastwestgateway.yaml.j2 )                \
   --wait
 
-  # Expose Services
-  kubectl apply                                                               \
-  --context "$_context"                                                       \
-  -f -<<EOF
----
-apiVersion: networking.istio.io/v1
-kind: Gateway
-metadata:
-  name: cross-network-gateway
-  namespace: istio-system
-spec:
-  selector:
-    istio: eastwestgateway
-  servers:
-    - port:
-        number: 15443
-        name: tls
-        protocol: TLS
-      tls:
-        mode: AUTO_PASSTHROUGH
-      hosts:
-        - "*.local"
-...
-EOF
+  # OSS Expose Services
+  if ! "$GME_ENABLED"; then
+    kubectl apply                                                             \
+    --context "$_context"                                                     \
+    -f "$TEMPLATES"/istio.eastwestgateway.cross-network-gateway.manifest.yaml
+  fi
 }
 
 function uninstall_istio_eastwestgateway {
@@ -556,7 +602,6 @@ function uninstall_istio_eastwestgateway {
   helm uninstall istio-eastwestgateway                                        \
     --kube-context="$_context"                                                \
     --namespace istio-gateways
-
 }
 
 function install_mutual_remote_secrets {
@@ -737,12 +782,14 @@ function install_tools_app {
 }
 
 function install_istio_vs_and_gateway {
-  local _context _port _tldn _name _namespace
+  local _context _port _tldn _name _namespace _gme_enabled
   _context=$1
   _name=$2
   _namespace=$3
   _service_name=$4
   _service_port=$5
+
+  [[ $GME_ENABLED ]] && _gme_enabled=enabled
 
   kubectl apply                                                               \
   --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
@@ -752,6 +799,7 @@ function install_istio_vs_and_gateway {
        -D service_name="$_service_name"                                       \
        -D service_port="$_service_port"                                       \
        -D tldn="$TLDN"                                                        \
+       -D gme_enabled="$_gme_enabled"                                         \
        "$TEMPLATES"/istio.vs_and_gateway.template.yaml.j2 )
 }
 
@@ -996,4 +1044,129 @@ function uninstall_external_dns_for_pihole {
   --namespace "kube-system"
 }
 
+function install_gloo_workspace {
+  local _mgmt_context _name _ztemp _namespaces _workload_clusters _mgmt_cluster
+  _namespaces=()
+  _workload_clusters=()
+
+  while getopts "l:m:n:p:r:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      l)
+        _mgmt_cluster=$OPTARG ;;
+      m)
+        _mgmt_context=$OPTARG ;;
+      n)
+        _name=$OPTARG ;;
+      p)
+        _namespaces+=("$OPTARG") ;;
+      r)
+        _workload_clusters+=("$OPTARG") ;;
+    esac
+  done
+
+  [[ -z $_mgmt_cluster ]] && _mgmt_cluster="$_mgmt_context"
+
+  _ztemp=$(mktemp)
+
+  echo "namespaces:" >> "$_ztemp"
+  for ns in "${_namespaces[@]}"; do
+    echo "- $ns" >> "$_ztemp"
+  done
+
+  echo "workload_clusters:" >> "$_ztemp"
+  for wc in "${_workload_clusters[@]}"; do
+    echo "- $wc" >> "$_ztemp"
+  done
+
+  cp "$_ztemp" "$_ztemp".yaml
+
+  kubectl apply                                                               \
+  --context "$_mgmt_context"                                                  \
+  -f <(jinja2                                                                 \
+       -D name="$_name"                                                       \
+       -D namespace="$_namespace"                                             \
+       -D mgmt_cluster="$_mgmt_cluster"                                       \
+       "$TEMPLATES"/gloo.workspace.manifest.yaml.j2                           \
+       "$_ztemp".yaml )
+}
+
+function install_gloo_workspacesettings {
+  local _mgmt_context _name _ztemp _import_workspaces _export_workspaces
+  _import_workspaces=()
+  _export_workspaces=()
+
+  while getopts "e:i:m:n:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      m)
+        _mgmt_context=$OPTARG ;;
+      n)
+        _name=$OPTARG ;;
+      i)
+        _import_workspaces+=("$OPTARG") ;;
+      e)
+        _export_workspaces+=("$OPTARG") ;;
+    esac
+  done
+
+  _ztemp=$(mktemp)
+
+  echo "import_workspaces:" >> "$_ztemp"
+  for ws in "${_import_workspaces[@]}"; do
+    echo "- $ws" >> "$_ztemp"
+  done
+
+  echo "export_workspaces:" >> "$_ztemp"
+  for ws in "${_export_workspaces[@]}"; do
+    echo "- $ws" >> "$_ztemp"
+  done
+
+  cp "$_ztemp" "$_ztemp".yaml
+
+  kubectl apply                                                               \
+  --context "$_mgmt_context"                                                  \
+  -f <(jinja2                                                                 \
+       -D name="$_name"                                                       \
+       -D namespace="$_namespace"                                             \
+       "$TEMPLATES"/gloo.workspacesettings.manifest.yaml.j2                   \
+       "$_ztemp".yaml )
+}
+
+function install_root_trust_policy {
+  local _context
+  _context=$1
+
+  kubectl apply                                                               \
+  --context "$_context"                                                       \
+  -f "$TEMPLATES"/gloo.root-trust-policy.manifest.yaml
+}
+
+function install_gloo_virtual_destination {
+  local _context _app_name _app_service_port
+  _context=$1
+  _app_name=$2
+  _app_service_port=$3
+
+  kubectl apply                                                               \
+  --context "$_mgmt_context"                                                  \
+  -f <(jinja2                                                                 \
+       -D app_name="$_app_name"                                               \
+       -D app_service_port="$_app_service_port"                               \
+       -D tldn="$TLDN"                                                        \
+       "$TEMPLATES"/gloo.virtualdestination.manifest.yaml.j2 )
+}
+
+function install_gloo_route_table {
+  local _mgmt_context _app_name
+  _context=$1
+  _app_name=$2
+
+  kubectl apply                                                               \
+  --context "$_mgmt_context"                                                  \
+  -f <(jinja2                                                                 \
+       -D app_name="$_app_name"                                               \
+       -D tldn="$TLDN"                                                        \
+       "$TEMPLATES"/gloo.routetable.manifest.yaml.j2 )
+}
 # END

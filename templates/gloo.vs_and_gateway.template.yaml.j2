@@ -16,11 +16,7 @@ spec:
         prefix: /
     route:
     - destination:
-{% if gme_enabled %}
-        host: {{ service_name }}.{{ tldn }}
-{% else %}
         host: {{ service_name }}
-{% endif %}
         port:
           number: {{ service_port }}
 ---

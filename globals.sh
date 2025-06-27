@@ -7,7 +7,7 @@
 #-------------------------------------------------------------------------------
 # Global versions of Helm Repos, Istio Repos, and Istio settings
 #-------------------------------------------------------------------------------
-export REVISION GME_SECRET_TOKEN TLDN MESH_ID 
+export REVISION GME_SECRET_TOKEN TLDN MESH_ID
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR
 
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
@@ -33,6 +33,16 @@ export DEFAULT_GME_SECRET_TOKEN="my-lucky-secret-token"
 export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TLDN=example.com
 export DEFAULT_TRUST_DOMAIN="cluster.local"
+
+[[ -z "$GME_ENABLED" ]] && export GME_ENABLED=false
+
+function enable_gme {
+ export GME_ENABLED=true 
+}
+
+function disable_gme {
+ export GME_ENABLED=false 
+}
 
 function set_revision {
   local _revision
@@ -89,13 +99,22 @@ function set_tldn {
   export TLDN="$_tldn"
 }
 
-function set_defaults {
+function set_oss_defaults {
   set_revision main
   set_istio 1.26 solo
   set_trust_domain $DEFAULT_TRUST_DOMAIN
   set_mesh_id $DEFAULT_MESH_ID
   set_gme_secret_token $DEFAULT_GME_SECRET_TOKEN
   set_tldn $DEFAULT_TLDN
+}
+
+function set_gme_defaults {
+  set_oss_defaults
+  enable_gme
   set_gme $DEFAULT_GME
+}
+
+function set_defaults {
+  set_oss_defaults
 }
 # END
