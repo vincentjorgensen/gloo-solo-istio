@@ -725,6 +725,9 @@ function install_helloworld_app {
        -D sidecar_enabled="$_sidecar"                                         \
        -D size="$_size"                                                       \
        -D revision="$REVISION"                                                \
+       -D namespace="$HELLOWORLD_NAMESPACE"                                   \
+       -D service_port="$HELLOWORLD_SERVICE_PORT"                             \
+       -D service_name="$HELLOWORLD_SERVICE_NAME"                             \
        "$TEMPLATES"/helloworld.template.yaml.j2                               \
        "$_ztemp".yaml )
 }

@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: helloworld
+  name: {{ namespace }}
   labels:
-    name: helloworld
+    name: {{ namespace }}
 {% if ambient_enabled %}
     istio.io/dataplane-mode: ambient
 {% endif %}
@@ -23,17 +23,17 @@ metadata:
   annotations:
     networking.istio.io/traffic-distribution: {{ traffic_distribution }}
 {% endif %}
-  name: helloworld
-  namespace: helloworld
+  name: {{ service_name }}
+  namespace: {{ namespace }}
   labels:
     app: helloworld
-    service: helloworld
+    service: {{ service_name }}
 {% if ambient_enabled %}
     solo.io/service-scope: global
 {% endif %}
 spec:
   ports:
-  - port: 8001
+  - port: {{ service_port }}
     name: http
   selector:
     app: helloworld
@@ -42,14 +42,14 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: helloworld
-  namespace: helloworld
+  namespace: {{ namespace }}
 {% for zone in zones -%}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: helloworld-{{ zone }}
-  namespace: helloworld
+  namespace: {{ namespace }}
   labels:
     app: helloworld
     version: {{ service_version }}

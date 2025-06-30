@@ -9,7 +9,25 @@
 #-------------------------------------------------------------------------------
 export REVISION GME_SECRET_TOKEN TLDN MESH_ID
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR
+export GSI_MODE
 
+# Namespaces
+export ARGOCD_NAMESPACE=argocd
+export GLOO_MESH_NAMESPACE=gloo-mesh
+export ISTIO_EASTWEST_NAMESPACE=istio-eastwest
+export ISTIO_GATEWAYS_NAMESPACE=istio-gateways
+export ISTIO_SYSTEM_NAMESPACE=istio-system
+export KUBE_SYSTEM_NAMESPACE=kube-system
+
+export KGATEWAY_HTTP_INGRESS_PORT=80
+export KGATEWAY_HTTPS_INGRESS_PORT=443
+export INGRESS_GATEWAY_NAME=ingress-gateway
+
+export HELLOWORLD_NAMESPACE=helloworld
+export HELLOWORLD_SERVICE_NAME=helloworld
+export HELLOWORLD_SERVICE_PORT=8001
+
+# Istio repo versions
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
 export ISTIO_REPO_123=us-docker.pkg.dev/gloo-mesh/istio-207627c16668
 export ISTIO_VER_123=1.23.4
@@ -34,7 +52,17 @@ export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TLDN=example.com
 export DEFAULT_TRUST_DOMAIN="cluster.local"
 
+export DEFAULT_GSI_MODE=create # create | delete
+
 [[ -z "$GME_ENABLED" ]] && export GME_ENABLED=false
+[[ -z "$GSI_MODE" ]] && export GSI_MODE=$DEFAULT_GSI_MODE
+
+function set_gsi_mode {
+  local _gsi_mode
+  _gsi_mode=${1:-$DEFAULT_GSI_MODE}
+
+  export GSI_MODE=$_gsi_mode
+}
 
 function enable_gme {
  export GME_ENABLED=true 
