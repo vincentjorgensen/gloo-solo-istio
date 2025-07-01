@@ -70,8 +70,8 @@ function exec_istio_istiod {
   local _cluster _network _sidecar_enabled _ambient_enabled
   _cluster=$GSI_CLUSTER
   _network=$GSI_NETWORK
-  _sidecar_enabled=$GSI_SIDECAR_ENABLED
-  _ambient_enabled=$GSI_AMBIENT_ENABLED
+  "$SIDECAR_ENABLED" && _sidecar_enabled=enabled
+  "$AMBIENT_ENABLED" && _ambient_enabled=enabled
 
   if [[ $GSI_MODE == create ]]; then
     helm upgrade --install istiod "$HELM_REPO"/istiod                         \
@@ -224,22 +224,10 @@ function exec_kgateway_ew_link {
 }
 
 function exec_gloo_mgmt_server {
-  local _cluster _gloo_agent _verbose
-  _verbose=false
+  local _gloo_agent _aws_enabled _azure_enabled
 
-  while getopts "c:gv" opt; do
-    # shellcheck disable=SC2220
-    case $opt in
-      c) 
-        _cluster=$OPTARG ;;
-      g)
-        _gloo_agent="enabled" ;;
-      v)
-        _verbose="true" ;;
-    esac
-  done
-
-  [[ -z $_context ]] && _context="$_cluster"
+  $AWS_ENABLED && _aws_enabled=enabled
+  $AZURE_ENABLED && _azure_enabled=enabled
 
   kubectl "$GSI_MODE"                                                         \
   --context "$GSI_CONTEXT"                                                    \
@@ -260,66 +248,48 @@ function exec_gloo_mgmt_server {
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"                                        \
     --values <(jinja2                                                         \
-          -D cluster_name="$_cluster"                                         \
-          -D verbose="$_verbose"                                              \
-          -D azure_enabled="false"                                            \
+          -D cluster_name="$GSI_CLUSTER"                                      \
+          -D verbose="$GME_VERBOSE"                                           \
+          -D azure_enabled="$_azure_enabled"                                  \
+          -D aws_enabled="$_aws_enabled"                                      \
           -D analyzer_enabled="true"                                          \
           -D insights_enabled="true"                                          \
           -D gloo_agent="$_gloo_agent"                                        \
           -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"           \
           "$TEMPLATES"/helm.gloo-mgmt-server.yaml.j2 )                        \
     --wait
+
+    export GME_MGMT_CONTEXT=$GSI_CONTEXT
+    export GME_MGMT_CLUSTER=$GSI_CLUSTER
   else
     helm uninstall gloo-platform-mgmt gloo-platform-crds                      \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"
   fi
+
 }
 
 function exec_gloo_k8s_cluster {
-  local _mgmt_context _cluster
-  _cluster=$1
-  _mgmt_context=$2
-
   kubectl "$GSI_MODE"                                                         \
-  --context "$_mgmt_context"                                                  \
+  --context "$GME_MGMT_CONTEXT"                                               \
   -f <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	  \
-       -D cluster="$_cluster"                                                 \
+       -D cluster="$GSI_CLUSTER"                                              \
        "$TEMPLATES"/gloo.k8s_cluster.template.yaml.j2 )
 }
 
 function exec_gloo_agent {
-  local _cluster _context _mgmt_context _verbose
-  _verbose=false
-
-  while getopts "c:m:vx:" opt; do
-    # shellcheck disable=SC2220
-    case $opt in
-      c) 
-        _cluster=$OPTARG ;;
-      m)
-        _mgmt_context=$OPTARG ;;
-      v)
-        _verbose="true" ;;
-      x) 
-        _context=$OPTARG ;;
-    esac
-  done
-
-  [[ -z $_context ]] && _context="$_cluster"
-
   GLOO_MESH_SERVER=$(kubectl get svc gloo-mesh-mgmt-server                    \
-    --context "$_mgmt_context"                                                \
+    --context "$GME_MGMT_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"                                        \
     -o=jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
   GLOO_MESH_TELEMETRY_GATEWAY=$(kubectl get svc gloo-telemetry-gateway        \
-    --context "$_mgmt_context"                                                \
+    --context "$GME_MGMT_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"                                        \
     -o=jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
   kubectl "$GSI_MODE"                                                         \
-    --context="$_context"                                                     \
+    --context="$GSI_CONTEXT"                                                  \
     -f <(jinja2                                                               \
          -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
          "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
@@ -327,18 +297,18 @@ function exec_gloo_agent {
   if [[ $GSI_MODE == create ]]; then
     helm install gloo-platform-crds gloo-platform/gloo-platform-crds          \
     --version="$GME_VER"                                                      \
-    --kube-context="$_context"                                                \
+    --kube-context="$GSI_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"                                        \
     --create-namespace                                                        \
     --wait
 
     helm upgrade -i gloo-platform-agent gloo-platform/gloo-platform           \
     --version="$GME_VER"                                                      \
-    --kube-context="$_context"                                                \
+    --kube-context="$GSI_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"                                        \
     --values <(jinja2                                                         \
-          -D cluster_name="$_cluster"                                         \
-          -D verbose="$_verbose"                                              \
+          -D cluster_name="$GSI_CLUSTER"                                      \
+          -D verbose="$GME_VERBOSE"                                           \
           -D insights_enabled="true"                                          \
           -D analyzer_enabled="true"                                          \
           -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"           \
@@ -354,13 +324,11 @@ function exec_gloo_agent {
 }
 
 function exec_istio_ingressgateway {
-  local _size _network _azure _aws
-  _network=$1
-  _size=${2:-1}
-  _azure=""
-  _aws=""
+  local _azure_enabled _aws_enabled
 
-  #echo "_size=$_size"
+  $AWS_ENABLED && _aws_enabled=enabled
+  $AZURE_ENABLED && _azure_enabled=enabled
+
   if [[ $GSI_MODE == create ]]; then
     helm upgrade -i istio-ingressgateway "$HELM_REPO"/gateway                 \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
@@ -368,14 +336,14 @@ function exec_istio_ingressgateway {
     --namespace "$ISTIO_GATEWAYS_NAMESPACE"                                   \
     --create-namespace                                                        \
     --values <(jinja2                                                         \
-               -D size="$_size"                                               \
-               -D network="$_network"                                         \
+               -D size="$GSI_INGRESS_SIZE"                                    \
+               -D network="$GSI_NETWORK"                                      \
                -D revision="$REVISION"                                        \
                -D istio_repo="$ISTIO_REPO"                                    \
                -D istio_ver="$ISTIO_VER"                                      \
                -D flavor="$ISTIO_FLAVOR"                                      \
-               -D azure="$_azure"                                             \
-               -D aws="$_aws"                                                 \
+               -D azure="$_azure_enabled"                                     \
+               -D aws="$_aws_enabled"                                         \
                "$TEMPLATES"/helm.istio-ingressgateway.yaml.j2 )               \
     --wait
   else
@@ -385,92 +353,56 @@ function exec_istio_ingressgateway {
   fi
 }
 
-function exec_istio_eastwestgateway {
-  local _context _size _network _azure _aws
-  _size=1
-  _azure=""
-  _aws=""
+function exec_istio_eastwest {
+  local _aws_enabled _azure_enabled
+  $AWS_ENABLED && _aws_enabled=enabled
+  $AZURE_ENABLED && _azure_enabled=enabled
 
-  while getopts "as:w:x:z" opt; do
-    # shellcheck disable=SC2220
-    case $opt in
-      a)
-        _aws=enabled ;;
-      s)
-        _size=$OPTARG ;;
-      w)
-        _network=$OPTARG ;;
-      x) 
-        _context=$OPTARG ;;
-      z) 
-        _azure=enabled ;;
-    esac
-  done
-
-  [[ -z "$_network" ]] && _network="$_context"
-
-#  echo "_size=$_size"
   if [[ $GSI_MODE == create ]]; then
     helm upgrade -i istio-eastwestgateway "$HELM_REPO"/gateway                \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
-    --kube-context="$_context"                                                \
+    --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$ISTIO_EASTWEST_NAMESPACE"                                   \
     --create-namespace                                                        \
     --values <(jinja2                                                         \
-               -D size="$_size"                                               \
-               -D network="$_network"                                         \
+               -D size="${GSI_EW_SIZE:-1}"                                    \
+               -D network="$GSI_NETWORK"                                      \
                -D revision="$REVISION"                                        \
                -D istio_repo="$ISTIO_REPO"                                    \
                -D istio_ver="$ISTIO_VER"                                      \
                -D flavor="$ISTIO_FLAVOR"                                      \
-               -D azure="$_azure"                                             \
-               -D aws="$_aws"                                                 \
+               -D azure="$_azure_enabled"                                     \
+               -D aws="$_aws_enabled"                                         \
                "$TEMPLATES"/helm.istio-eastwestgateway.yaml.j2 )              \
     --wait
   else
     helm uninstall istio-eastwestgateway                                      \
-    --kube-context="$_context"                                                \
+    --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$ISTIO_EASTWEST_NAMESPACE"
   fi
 
   # OSS Expose Services
   if ! "$GME_ENABLED"; then
     kubectl "$GSI_MODE"                                                       \
-    --context "$_context"                                                     \
+    --context "$GSI_CONTEXT"                                                  \
     -f "$TEMPLATES"/istio.eastwestgateway.cross-network-gateway.manifest.yaml
   fi
-  
 }
 
-function exec_mutual_remote_secrets {
-  local _cluster1 _cluster2
-  _cluster1=$1
-  _cluster2=$2
-
+function exec_oss_istio_remote_secrets {
   # For K3D, Kind, and Rancher clusters
-  if [[ "$_cluster1" =~ cluster ]]; then
+  if "$DOCKER_DESKTOP_ENABLED"; then
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-    --context "$_cluster1"                                                    \
-    --name "$_cluster1"                                                       \
-    --server https://"$(kubectl --context "$_cluster1" get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[0].address}')":6443 |
-    kubectl "$GSI_MODE" -f - --context="$_cluster2"
-  
-    istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-    --context "$_cluster2"                                                    \
-    --name "$_cluster2"                                                       \
-    --server https://"$(kubectl --context "$_cluster2" get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[0].address}')":6443 |
-    kubectl "$GSI_MODE" -f - --context="$_cluster1"
+    --context "$GSI_CONTEXT1"                                                 \
+    --name "$GSI_CLUSTER1"                                                    \
+    --server https://"$(kubectl --context "$GSI_CONTEXT1" get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[0].address}')":6443 |
+    kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT2"
   # For AWS and Azure (and GCP?) clusters
   else
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-    --context "$_cluster1"                                                    \
-    --name cluster1                                                           |
-    kubectl "$GSI_MODE" -f - --context="$_cluster2"
-  
-    istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-    --context "$_cluster2"                                                    \
-    --name cluster2                                                           |
-    kubectl "$GSI_MODE" -f - --context="$_cluster1"
+    --context "$GSI_CONTEXT1"                                                 \
+    --name "$GSI_CLUSTER1"                                                    \
+    kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT2"
   fi
 }
 
@@ -515,12 +447,7 @@ function exec_helloworld_app {
 
   _region=$(get_istio_region "$GSI_CONTEXT")
 
-  _zones=$(kubectl get nodes                                                  \
-    --context "$GSI_CONTEXT"                                                  \
-    -o jsonpath='{.items[*].metadata.labels.topology\.kubernetes\.io/zone}')
-
-
-  _zones=$(get_istio_zones "$_context")
+  _zones=$(get_istio_zones "$GSI_CONTEXT")
 
   echo "zones:" > "$_ztemp"
 
@@ -600,22 +527,16 @@ function exec_tools_app {
 }
 
 function exec_istio_vs_and_gateway {
-  local _context _port _tldn _name _namespace _gme_enabled
-  _context=$1
-  _name=$2
-  _namespace=$3
-  _service_name=$4
-  _service_port=$5
-
-  [[ $GME_ENABLED ]] && _gme_enabled=enabled
+  local _gme_enabled
+  $GME_ENABLED && _gme_enabled=enabled
 
   kubectl "$GSI_MODE"                                                         \
-  --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
+  --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
   -f <(jinja2                                                                 \
-       -D name="$_name"                                                       \
-       -D namespace="$_namespace"                                             \
-       -D service_name="$_service_name"                                       \
-       -D service_port="$_service_port"                                       \
+       -D name="$GSI_APP_SERVICE_NAME"                                        \
+       -D namespace="$GSI_APP_SERVICE_NAMESPACE"                              \
+       -D service_name="$GSI_APP_SERVICE_NAME"                                \
+       -D service_port="$GSI_APP_SERVICE_PORT"                                \
        -D tldn="$TLDN"                                                        \
        -D gme_enabled="$_gme_enabled"                                         \
        "$TEMPLATES"/istio.vs_and_gateway.template.yaml.j2 )
@@ -635,7 +556,7 @@ function exec_kgateway_ingress_gateway {
        -D port="$KGATEWAY_HTTP_INGRESS_PORT"                                  \
        -D namespace="$ISTIO_GATEWAYS_NAMESPACE"                               \
        -D name="$INGRESS_GATEWAY_NAME"                                        \
-       -D size="${GSI_KGATEWAY_INGRESS_SIZE:-1}"                              \
+       -D size="${GSI_INGRESS_SIZE:-1}"                                       \
        -D istio_126="$_istio_126"                                             \
        -D tldn="$TLDN"                                                        \
      "$TEMPLATES"/kgateway.ingress_gateway.template.yaml.j2 )
@@ -792,128 +713,90 @@ function exec_external_dns_for_pihole {
 }
 
 function exec_gloo_workspace {
-  local _mgmt_context _name _ztemp _namespaces _workload_clusters _mgmt_cluster
-  _namespaces=()
-  _workload_clusters=()
-
-  while getopts "l:m:n:p:r:" opt; do
-    # shellcheck disable=SC2220
-    case $opt in
-      l)
-        _mgmt_cluster=$OPTARG ;;
-      m)
-        _mgmt_context=$OPTARG ;;
-      n)
-        _name=$OPTARG ;;
-      p)
-        _namespaces+=("$OPTARG") ;;
-      r)
-        _workload_clusters+=("$OPTARG") ;;
-    esac
-  done
-
-  [[ -z $_mgmt_cluster ]] && _mgmt_cluster="$_mgmt_context"
-
+  local _ztemp
   _ztemp=$(mktemp)
 
   echo "namespaces:" >> "$_ztemp"
-  for ns in "${_namespaces[@]}"; do
+  for ns in "${GSI_WORKSPACE_NAMESPACES[@]}"; do
     echo "- $ns" >> "$_ztemp"
   done
 
   echo "workload_clusters:" >> "$_ztemp"
-  for wc in "${_workload_clusters[@]}"; do
+  for wc in "${GSI_WORKSPACE_CLUSTERS[@]}"; do
     echo "- $wc" >> "$_ztemp"
   done
 
   cp "$_ztemp" "$_ztemp".yaml
 
   kubectl "$GSI_MODE"                                                         \
-  --context "$_mgmt_context"                                                  \
+  --context "$GME_MGMT_CONTEXT"                                               \
   -f <(jinja2                                                                 \
-       -D name="$_name"                                                       \
-       -D namespace="$_namespace"                                             \
-       -D mgmt_cluster="$_mgmt_cluster"                                       \
+       -D name="$GSI_WORKSPACE_NAME"                                          \
+       -D namespace="$GLOO_MESH_NAMESPACE"                                    \
+       -D mgmt_cluster="$GME_MGMT_CLUSTER"                                    \
        "$TEMPLATES"/gloo.workspace.manifest.yaml.j2                           \
        "$_ztemp".yaml )
 }
 
 function exec_gloo_workspacesettings {
-  local _mgmt_context _name _ztemp _import_workspaces _export_workspaces
-  _import_workspaces=()
-  _export_workspaces=()
-
-  while getopts "e:i:m:n:" opt; do
-    # shellcheck disable=SC2220
-    case $opt in
-      m)
-        _mgmt_context=$OPTARG ;;
-      n)
-        _name=$OPTARG ;;
-      i)
-        _import_workspaces+=("$OPTARG") ;;
-      e)
-        _export_workspaces+=("$OPTARG") ;;
-    esac
-  done
-
+  local _ztemp
   _ztemp=$(mktemp)
 
   echo "import_workspaces:" >> "$_ztemp"
-  for ws in "${_import_workspaces[@]}"; do
+  for ws in "${GSI_WORKSPACESETTTINGS_IMPORT_WORKSPACES[@]}"; do
     echo "- $ws" >> "$_ztemp"
   done
 
   echo "export_workspaces:" >> "$_ztemp"
-  for ws in "${_export_workspaces[@]}"; do
+  for ws in "${GSI_WORKSPACESETTTINGS_EXPORT_WORKSPACES[@]}"; do
     echo "- $ws" >> "$_ztemp"
   done
 
   cp "$_ztemp" "$_ztemp".yaml
 
   kubectl "$GSI_MODE"                                                         \
-  --context "$_mgmt_context"                                                  \
+  --context "$GME_MGMT_CONTEXT"                                               \
   -f <(jinja2                                                                 \
-       -D name="$_name"                                                       \
-       -D namespace="$_namespace"                                             \
+       -D name="$GSI_WORKSPACE_NAME"                                          \
        "$TEMPLATES"/gloo.workspacesettings.manifest.yaml.j2                   \
        "$_ztemp".yaml )
 }
 
 function exec_root_trust_policy {
-  local _context
-  _context=$1
-
   kubectl "$GSI_MODE"                                                         \
-  --context "$_context"                                                       \
+  --context "$GSI_CONTEXT"                                                    \
   -f "$TEMPLATES"/gloo.root-trust-policy.manifest.yaml
 }
 
 function exec_gloo_virtual_destination {
-  local _context _app_name _app_service_port
-  _context=$1
-  _app_name=$2
-  _app_service_port=$3
-
   kubectl "$GSI_MODE"                                                         \
-  --context "$_mgmt_context"                                                  \
+  --context "$GME_MGMT_CONTEXT"                                               \
   -f <(jinja2                                                                 \
-       -D app_name="$_app_name"                                               \
-       -D app_service_port="$_app_service_port"                               \
+       -D workspace="$GSI_WORKSPACE_NAME"                                     \
+       -D app_service_name="$GSI_APP_SERVICE_NAME"                            \
+       -D app_service_port="$GSI_APP_SERVICE_PORT"                            \
        -D tldn="$TLDN"                                                        \
        "$TEMPLATES"/gloo.virtualdestination.manifest.yaml.j2 )
 }
 
 function exec_gloo_route_table {
-  local _mgmt_context _app_name
-  _context=$1
-  _app_name=$2
-
   kubectl "$GSI_MODE"                                                         \
-  --context "$_mgmt_context"                                                  \
+  --context "$GME_MGMT_CONTEXT"                                               \
   -f <(jinja2                                                                 \
-       -D app_name="$_app_name"                                               \
+       -D workspace="$GSI_WORKSPACE_NAME"                                     \
+       -D app_service_name="$GSI_APP_SERVICE_NAME"                            \
        -D tldn="$TLDN"                                                        \
        "$TEMPLATES"/gloo.routetable.manifest.yaml.j2 )
+}
+
+function exec_gloo_virtual_gateway {
+  kubectl "$GSI_MODE"                                                         \
+  --context "$GME_MGMT_CONTEXT"                                               \
+  -f <(jinja2                                                                 \
+       -D gateways_workspace="$GME_GATEWAYS_WORKSPACE"                        \
+       -D ingress_gateway_cluster_name="$GSI_APP_SERVICE_NAME"                \
+       -D gateways_namespace="$ISTIO_GATEWAYS_NAMESPACE"                      \
+       -D tldn="$TLDN"                                                        \
+       "$TEMPLATES"/gloo.virtualgateway.manifest.yaml.j2 )
 }
 # END

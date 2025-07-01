@@ -11,6 +11,11 @@ export REVISION GME_SECRET_TOKEN TLDN MESH_ID
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR
 export GSI_MODE
 
+# Cloud Providers
+export DOCKER_DESKTOP_ENABLED=true
+export AWS_ENABLED=false
+export AZURE_ENABLED=false
+
 # Namespaces
 export ARGOCD_NAMESPACE=argocd
 export GLOO_MESH_NAMESPACE=gloo-mesh
@@ -41,10 +46,18 @@ export HELM_REPO_126=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_126=1.26.1-patch0
 
+# Dataplane Modes
+export AMBIENT_ENABLED=false
+export SIDECAR_ENABLED=false
+
+# GME Versions
 export GME_VER_26="2.6.12"
 export GME_VER_27="2.7.3"
 export GME_VER_28="2.8.1"
 export GME_VER_29="2.9.0"
+
+export GME_GATEWAYS_WORKSPACE=gateways
+export GME_APPLICATIONS_WORKSPACE=applications
 
 export DEFAULT_GME="2.9"
 export DEFAULT_GME_SECRET_TOKEN="my-lucky-secret-token"
@@ -56,6 +69,7 @@ export DEFAULT_GSI_MODE=create # create | delete
 
 [[ -z "$GME_ENABLED" ]] && export GME_ENABLED=false
 [[ -z "$GSI_MODE" ]] && export GSI_MODE=$DEFAULT_GSI_MODE
+[[ -z "$GME_VERBOSE" ]] && export GME_VERBOSE=false
 
 function set_gsi_mode {
   local _gsi_mode

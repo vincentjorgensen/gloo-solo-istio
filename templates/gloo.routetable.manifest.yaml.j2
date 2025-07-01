@@ -1,20 +1,20 @@
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
-  name: {{ app_name }}
-  namespace: applications-config
+  name: {{ app_service_name }}
+  namespace: {{ workspace }}-config
 spec:
   hosts:
   # Applies to the VD hostname that destination-app listens on
-  - '{{ app_name }}.{{ tldn }}'
+  - '{{ app_service_name }}.{{ tldn }}'
   # Applies to requests sent by this initiator app
   workloadSelectors:
   - selector:
       labels:
-        app: {{ app_name }}
+        app: {{ app_service_name }}
   http:
   # Route for the destination-app service
-  - name: {{ app_name }}
+  - name: {{ app_service_name }}
     # Prefix matching
     matchers:
     - uri:
@@ -23,7 +23,7 @@ spec:
     forwardTo:
       destinations:
       - ref:
-          name: {{ app_name }}
+          name: {{ app_service_name }}-vd
         kind: VIRTUAL_DESTINATION
         port:
           number: 8080

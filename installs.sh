@@ -700,10 +700,9 @@ function install_helloworld_app {
 
   _region=$(get_istio_region "$_context")
 
-  _zones=$(kubectl get nodes                                                  \
-    --context "$_context"                                                     \
-    -o jsonpath='{.items[*].metadata.labels.topology\.kubernetes\.io/zone}')
-
+#  _zones=$(kubectl get nodes                                                  \
+#    --context "$_context"                                                     \
+#    -o jsonpath='{.items[*].metadata.labels.topology\.kubernetes\.io/zone}')
 
   _zones=$(get_istio_zones "$_context")
 
