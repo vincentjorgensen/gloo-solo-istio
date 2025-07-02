@@ -9,6 +9,7 @@ export KGATEWAY_VER=v1.2.1
 export TEMPLATES CERTS
 TEMPLATES="$(dirname "$0")"/templates
 CERTS="$(dirname "$0")"/certs
+SPIRE_CERTS="$(dirname "$0")"/spire-certs
 
 function create_namespace {
   local _context _namespace
@@ -35,6 +36,21 @@ function exec_istio_secrets {
   fi
 }
 
+function exec_spire_secrets {
+  if [[ $GSI_MODE == create ]]; then
+    kubectl "$GSI_MODE" secret generic spiffe-upstream-cacacerts              \
+    --context "$GSI_CONTEXT"                                                  \
+    --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
+    --from-file=tls.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/"${GSI_CLUSTER}"-ca.crt \
+    --from-file=tls.key="$SPIRE_CERTS"/"${GSI_CLUSTER}"/"${GSI_CLUSTER}"-ca.key \ 
+    --from-file=bundle.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/"${GSI_CLUSTER}"-ca-chain.pem
+  else
+    kubectl delete secret spiffe-upstream-cacacerts                           \
+    --context "$GSI_CONTEXT"                                                  \
+    --namespace "$SPIRE_SERVER_NAMESPACE"
+  fi
+}
+
 function exec_kgateway_crds {
   kubectl "$GSI_MODE"                                                         \
   --context "$GSI_CONTEXT"                                                    \
@@ -47,6 +63,37 @@ function exec_kgateway_experimental_crds {
   -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/experimental-install.yaml
 }
 
+function exec_spire_crds {
+  if [[ $GSI_MODE == create ]]; then
+    # shellcheck disable=SC2086
+    helm upgrade --install spire-crds spire/spire-crds                        \
+    --version "$SPIRE_CRDS_VER"                                               \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
+  else
+    helm uninstall spire-crds                                                 \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$SPIRE_SERVER_NAMESPACE"
+  fi
+}
+
+function exec_spire_server {
+  if [[ $GSI_MODE == create ]]; then
+    # shellcheck disable=SC2086
+    helm upgrade --install spire spire/spire                                  \
+    --version "$SPIRE_SERVER_VER"                                             \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
+    --values <(jinja2                                                         \
+               -D trust_domain="$TRUST_DOMAIN"                                \
+               "$TEMPLATES"/helm.spire.yaml.j2 )                              \
+    --wait
+  else
+    helm uninstall spire                                                      \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$SPIRE_SERVER_NAMESPACE"
+  fi
+}
 function exec_istio_base {
   if [[ $GSI_MODE == create ]]; then
     # shellcheck disable=SC2086
@@ -67,11 +114,12 @@ function exec_istio_base {
 }
 
 function exec_istio_istiod {
-  local _cluster _network _sidecar_enabled _ambient_enabled
+  local _cluster _network _sidecar_enabled _ambient_enabled _spire_enabled
   _cluster=$GSI_CLUSTER
   _network=$GSI_NETWORK
   "$SIDECAR_ENABLED" && _sidecar_enabled=enabled
   "$AMBIENT_ENABLED" && _ambient_enabled=enabled
+  "$SPIRE_ENABLED" && _spire_enabled=enabled
 
   if [[ $GSI_MODE == create ]]; then
     helm upgrade --install istiod "$HELM_REPO"/istiod                         \
@@ -81,6 +129,7 @@ function exec_istio_istiod {
     --values <(jinja2                                                         \
                -D ambient="$_ambient_enabled"                                 \
                -D sidecar="$_sidecar_enabled"                                 \
+               -D spire="$_spire_enabled"                                     \
                -D cluster_name="$_cluster"                                    \
                -D revision="$REVISION"                                        \
                -D network="$_network"                                         \
@@ -120,9 +169,11 @@ function exec_istio_cni {
 }
 
 function exec_istio_ztunnel {
-  local _cluster _network
+  local _cluster _network _spire_enabled
   _cluster=$GSI_CLUSTER
   _network=$GSI_NETWORK
+
+  "$SPIRE_ENABLED" && _spire_enabled=enabled
 
   if [[ $GSI_MODE == create ]]; then
     helm upgrade --install ztunnel "$HELM_REPO"/ztunnel                       \
@@ -136,6 +187,7 @@ function exec_istio_ztunnel {
                -D istio_repo="$ISTIO_REPO"                                    \
                -D istio_ver="$ISTIO_VER"                                      \
                -D flavor="$ISTIO_FLAVOR"                                      \
+               -D spire="$_spire_enabled"                                     \
                "$TEMPLATES"/helm.ztunnel.yaml.j2 )                            \
     --wait
   else
@@ -151,26 +203,36 @@ function exec_telemetry_defaults {
   -f "$TEMPLATES"/telemetry.istio-system.manifest.yaml
 }
 
-function exec_istio_sidecar {
-  local _cluster _network
-  _cluster=$GSI_CLUSTER
-  _network=$GSI_NETWORK
-
-  kubectl label namespace "$ISTIO_SYSTEM_NAMESPACE" topology.istio.io/network="$_network"  \
-  --context "$GSI_CONTEXT" --overwrite
-
-  exec_istio_base
-  exec_istio_istiod
-}
-
-function exec_istio_ambient {
+###function exec_istio_sidecar {
+###  local _cluster _network
+###  _cluster=$GSI_CLUSTER
+###  _network=$GSI_NETWORK
+###
+###  kubectl label namespace "$ISTIO_SYSTEM_NAMESPACE" topology.istio.io/network="$_network"  \
+###  --context "$GSI_CONTEXT" --overwrite
+###
+###  exec_istio_base
+###  exec_istio_istiod
+###}
+###
+###function exec_istio_ambient {
+###  kubectl label namespace "$ISTIO_SYSTEM_NAMESPACE" topology.istio.io/network="$GSI_NETWORK"  \
+###    --context "$GSI_CONTEXT" --overwrite
+###
+###  exec_istio_base
+###  exec_istio_istiod
+###  exec_istio_cni
+###  exec_istio_ztunnel
+###}
+###
+function exec_istio {
   kubectl label namespace "$ISTIO_SYSTEM_NAMESPACE" topology.istio.io/network="$GSI_NETWORK"  \
     --context "$GSI_CONTEXT" --overwrite
 
   exec_istio_base
   exec_istio_istiod
-  exec_istio_cni
-  exec_istio_ztunnel
+  "$AMBIENT_ENABLED" && exec_istio_cni
+  "$AMBIENT_ENABLED" && exec_istio_ztunnel
 }
 
 function exec_kgateway_eastwest {
@@ -195,13 +257,13 @@ function exec_kgateway_ew_link {
 
   _remote_address=$(
     kubectl get svc -n "$ISTIO_EASTWEST_NAMESPACE" istio-eastwest             \
-    --context "$GSI_CONTEXT1"                                                 \
+    --context "$GSI_CONTEXT_REMOTE"                                           \
     -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
   while [[ -z $_remote_address ]]; do
     _remote_address=$(
       kubectl get svc -n "$ISTIO_EASTWEST_NAMESPACE" istio-eastwest           \
-      --context "$GSI_CONTEXT1"                                               \
+      --context "$GSI_CONTEXT_REMOTE"                                         \
       -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
     echo -n '.' && sleep 5
   done && echo
@@ -213,11 +275,11 @@ function exec_kgateway_ew_link {
   fi
 
   kubectl "$GSI_MODE"                                                         \
-  --context "$GSI_CONTEXT2"                                                   \
+  --context "$GSI_CONTEXT_LOCAL"                                              \
   -f <(jinja2                                                                 \
        -D trust_domain="$TRUST_DOMAIN"                                        \
-       -D network="$GSI_NETWORK1"                                             \
-       -D cluster="$GSI_CLUSTER1"                                             \
+       -D network="$GSI_NETWORK_REMOTE"                                       \
+       -D cluster="$GSI_CLUSTER_REMOTE"                                       \
        -D address_type="$_address_type"                                       \
        -D remote_address="$_remote_address"                                   \
        "$TEMPLATES"/kgateway.eastwest_remote_gateway.template.yaml.j2 )
@@ -393,16 +455,16 @@ function exec_oss_istio_remote_secrets {
   # For K3D, Kind, and Rancher clusters
   if "$DOCKER_DESKTOP_ENABLED"; then
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-    --context "$GSI_CONTEXT1"                                                 \
-    --name "$GSI_CLUSTER1"                                                    \
-    --server https://"$(kubectl --context "$GSI_CONTEXT1" get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[0].address}')":6443 |
-    kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT2"
+    --context "$GSI_CONTEXT_REMOTE"                                           \
+    --name "$GSI_CLUSTER_REMOTE"                                              \
+    --server https://"$(kubectl --context "$GSI_CONTEXT_REMOTE" get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[0].address}')":6443 |
+    kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT_LOCAL"
   # For AWS and Azure (and GCP?) clusters
   else
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-    --context "$GSI_CONTEXT1"                                                 \
-    --name "$GSI_CLUSTER1"                                                    \
-    kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT2"
+    --context "$GSI_CONTEXT_REMOTE"                                           \
+    --name "$GSI_CLUSTER_REMOTE"                                              \
+    kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT_LOCAL"
   fi
 }
 
@@ -440,7 +502,9 @@ function get_istio_zones {
 }
 
 function exec_helloworld_app {
-  local _region _zones _ztemp 
+  local _region _zones _ztemp _sidecar_enabled _ambient_enabled
+  "$SIDECAR_ENABLED" && _sidecar_enabled=enabled
+  "$AMBIENT_ENABLED" && _ambient_enabled=enabled
   
   # Traffic Distribution: PreferNetwork, PreferClose, PreferRegion, Any
 	_ztemp=$(mktemp)
@@ -462,9 +526,9 @@ function exec_helloworld_app {
   -f <(jinja2                                                                 \
        -D region="$_region"                                                   \
        -D service_version="${GSI_SERVICE_VERSION:-none}"                      \
-       -D ambient_enabled="$GSI_AMBIENT_ENABLED"                              \
+       -D ambient_enabled="$_ambient_enabled"                                 \
        -D traffic_distribution="${GSI_TRAFFIC_DISTRIBUTION:-Any}"             \
-       -D sidecar_enabled="$GSI_SIDECAR_ENABLED"                              \
+       -D sidecar_enabled="$_sidecar_enabled"                                 \
        -D size="${GSI_APP_SIZE:-1}"                                           \
        -D revision="$REVISION"                                                \
        -D namespace="$HELLOWORLD_NAMESPACE"                                   \
@@ -501,9 +565,9 @@ function exec_curl_app {
 }
 
 function exec_tools_app {
-  local _context _ambient _sidecar 
-  _sidecar=""
-  _ambient=""
+  local _ambient_enabled _sidecar_enabled
+  "$SIDECAR_ENABLED" && _sidecar_enabled=enabled
+  "$AMBIENT_ENABLED" && _ambient_enabled=enabled
 
   while getopts "aix:" opt; do
     # shellcheck disable=SC2220
@@ -518,7 +582,7 @@ function exec_tools_app {
   done
 
   kubectl "$GSI_MODE"                                                         \
-  --context "$_context"                                                       \
+  --context "$GSI_CONTEXT"                                                    \
   -f <(jinja2                                                                 \
        -D ambient_enabled="$_ambient"                                         \
        -D sidecar_enabled="$_sidecar"                                         \
@@ -744,12 +808,12 @@ function exec_gloo_workspacesettings {
 
   echo "import_workspaces:" >> "$_ztemp"
   for ws in "${GSI_WORKSPACESETTTINGS_IMPORT_WORKSPACES[@]}"; do
-    echo "- $ws" >> "$_ztemp"
+    echo "- \"$ws\"" >> "$_ztemp"
   done
 
   echo "export_workspaces:" >> "$_ztemp"
   for ws in "${GSI_WORKSPACESETTTINGS_EXPORT_WORKSPACES[@]}"; do
-    echo "- $ws" >> "$_ztemp"
+    echo "- \"$ws\"" >> "$_ztemp"
   done
 
   cp "$_ztemp" "$_ztemp".yaml
@@ -785,6 +849,7 @@ function exec_gloo_route_table {
   -f <(jinja2                                                                 \
        -D workspace="$GSI_WORKSPACE_NAME"                                     \
        -D app_service_name="$GSI_APP_SERVICE_NAME"                            \
+       -D mgmt_cluster="$GME_MGMT_CLUSTER"                                    \
        -D tldn="$TLDN"                                                        \
        "$TEMPLATES"/gloo.routetable.manifest.yaml.j2 )
 }
@@ -794,9 +859,61 @@ function exec_gloo_virtual_gateway {
   --context "$GME_MGMT_CONTEXT"                                               \
   -f <(jinja2                                                                 \
        -D gateways_workspace="$GME_GATEWAYS_WORKSPACE"                        \
-       -D ingress_gateway_cluster_name="$GSI_APP_SERVICE_NAME"                \
+       -D ingress_gateway_cluster_name="$GSI_GATEWAY_CLUSTER"                 \
        -D gateways_namespace="$ISTIO_GATEWAYS_NAMESPACE"                      \
        -D tldn="$TLDN"                                                        \
        "$TEMPLATES"/gloo.virtualgateway.manifest.yaml.j2 )
+}
+
+function exec_gsi_cluster_roll_forward {
+  if [[ "$GSI_MODE" == create ]]; then
+    export PREV_GSI_CLUSTER=$GSI_CLUSTER
+    export PREV_GSI_CONTEXT=$GSI_CONTEXT
+    export PREV_GSI_NETWORK=$GSI_NETWORK
+  
+    export GSI_CLUSTER=$NEXT_GSI_CLUSTER
+    export GSI_CONTEXT=$NEXT_GSI_CONTEXT
+    export GSI_NETWORK=$NEXT_GSI_NETWORK
+  else
+    export NEXT_GSI_CLUSTER=$GSI_CLUSTER
+    export NEXT_GSI_CONTEXT=$GSI_CONTEXT
+    export NEXT_GSI_NETWORK=$GSI_NETWORK
+  
+    export GSI_CLUSTER=$PREV_GSI_CLUSTER
+    export GSI_CONTEXT=$PREV_GSI_CONTEXT
+    export GSI_NETWORK=$PREV_GSI_NETWORK
+  fi
+
+  echo GSI_CLUSTER="$GSI_CLUSTER" GSI_CONTEXT="$GSI_CONTEXT" GSI_NETWORK="$GSI_NETWORK"
+  echo PREV_GSI_CLUSTER="$PREV_GSI_CLUSTER" PREV_GSI_CONTEXT="$PREV_GSI_CONTEXT" PREV_GSI_NETWORK="$PREV_GSI_NETWORK"
+  echo NEXT_GSI_CLUSTER="$NEXT_GSI_CLUSTER" NEXT_GSI_CONTEXT="$NEXT_GSI_CONTEXT" NEXT_GSI_NETWORK="$NEXT_GSI_NETWORK"
+}
+
+function exec_gsi_cluster_roll_back {
+  if [[ "$GSI_MODE" == delete ]]; then
+    export PREV_GSI_CLUSTER=$GSI_CLUSTER
+    export PREV_GSI_CONTEXT=$GSI_CONTEXT
+    export PREV_GSI_NETWORK=$GSI_NETWORK
+  
+    export GSI_CLUSTER=$NEXT_GSI_CLUSTER
+    export GSI_CONTEXT=$NEXT_GSI_CONTEXT
+    export GSI_NETWORK=$NEXT_GSI_NETWORK
+  else
+    export NEXT_GSI_CLUSTER=$GSI_CLUSTER
+    export NEXT_GSI_CONTEXT=$GSI_CONTEXT
+    export NEXT_GSI_NETWORK=$GSI_NETWORK
+  
+    export GSI_CLUSTER=$PREV_GSI_CLUSTER
+    export GSI_CONTEXT=$PREV_GSI_CONTEXT
+    export GSI_NETWORK=$PREV_GSI_NETWORK
+  fi
+
+  echo GSI_CLUSTER="$GSI_CLUSTER" GSI_CONTEXT="$GSI_CONTEXT" GSI_NETWORK="$GSI_NETWORK"
+  echo PREV_GSI_CLUSTER="$PREV_GSI_CLUSTER" PREV_GSI_CONTEXT="$PREV_GSI_CONTEXT" PREV_GSI_NETWORK="$PREV_GSI_NETWORK"
+  echo NEXT_GSI_CLUSTER="$NEXT_GSI_CLUSTER" NEXT_GSI_CONTEXT="$NEXT_GSI_CONTEXT" NEXT_GSI_NETWORK="$NEXT_GSI_NETWORK"
+}
+
+function exec_spire_server {
+
 }
 # END

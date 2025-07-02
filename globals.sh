@@ -23,6 +23,7 @@ export ISTIO_EASTWEST_NAMESPACE=istio-eastwest
 export ISTIO_GATEWAYS_NAMESPACE=istio-gateways
 export ISTIO_SYSTEM_NAMESPACE=istio-system
 export KUBE_SYSTEM_NAMESPACE=kube-system
+export SPIRE_SERVER_NAMESPACE=spire-server
 
 export KGATEWAY_HTTP_INGRESS_PORT=80
 export KGATEWAY_HTTPS_INGRESS_PORT=443
@@ -31,6 +32,10 @@ export INGRESS_GATEWAY_NAME=ingress-gateway
 export HELLOWORLD_NAMESPACE=helloworld
 export HELLOWORLD_SERVICE_NAME=helloworld
 export HELLOWORLD_SERVICE_PORT=8001
+
+# Spire
+export SPIRE_CRDS_VER=0.5.0
+export SPIRE_SERVER_VER=0.24.2
 
 # Istio repo versions
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
@@ -44,7 +49,7 @@ export ISTIO_REPO_125=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_125=1.25.3
 export HELM_REPO_126=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_126=1.26.1-patch0
+export ISTIO_VER_126=1.26.2
 
 # Dataplane Modes
 export AMBIENT_ENABLED=false

@@ -12,6 +12,10 @@ spec:
   - selector:
       labels:
         app: {{ app_service_name }}
+  virtualGateways:
+  - cluster: {{ mgmt_cluster }}
+    name: ingress-vg
+    namespace: {{ gateways_workspace }}-config
   http:
   # Route for the destination-app service
   - name: {{ app_service_name }}

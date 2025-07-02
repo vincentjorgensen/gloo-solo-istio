@@ -18,6 +18,11 @@ global:
     clusterName: {{ cluster_name }}
     enabled: true
   network: {{ network }}
+{%if spire %}
+gateways:
+  spire:
+    workloads: true
+{% endif %}
 env:
   PILOT_AUTO_RELOAD_PLUGIN_CERTS: true
   PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: false
