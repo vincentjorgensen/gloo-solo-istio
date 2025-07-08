@@ -22,8 +22,9 @@ spire-server:
       enabled: true
       secret:
         create: false
-        name: "spiffe-upstream-ca"
-
+        name: "{{ spire_secret }}"
+###    persistence:
+###        type: emptyDir
 spiffe-csi-driver:
     tolerations:
       - effect: NoSchedule
