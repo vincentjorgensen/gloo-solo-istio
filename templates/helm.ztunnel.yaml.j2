@@ -3,9 +3,12 @@ revision: {{ revision }}
 {% endif %}
 hub: {{ istio_repo }}
 tag: {{ istio_ver }}{{ flavor }}
+variant: {{ variant }}
+{% if multicluster %}
 multiCluster:
   clusterName: {{ cluster }}
 network: {{ network }}
+{% endif %}
 env:
   ISTIO_META_ENABLE_HBONE: true
   ISTIO_META_DNS_CAPTURE: true
