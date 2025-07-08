@@ -685,7 +685,7 @@ function exec_istio_ingressgateway_no_helm {
   --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
   -f <(jinja2                                                                 \
        -D revision="$REVISION"                                                \
-       -D port="$KGATEWAY_HTTP_INGRESS_PORT"                                  \
+       -D port="$HTTP_INGRESS_PORT"                                           \
        -D namespace="$INGRESS_NAMESPACE"                                      \
        -D name="$INGRESS_GATEWAY_NAME"                                        \
        -D size="${GSI_INGRESS_SIZE:-1}"                                       \
@@ -707,10 +707,11 @@ function exec_kgateway_ingressgateway {
        -D port="$HTTP_INGRESS_PORT"                                           \
        -D namespace="$INGRESS_NAMESPACE"                                      \
        -D name="$INGRESS_GATEWAY_NAME"                                        \
+       -D gateway_class_name="kgateway"                                       \
        -D size="${GSI_INGRESS_SIZE:-1}"                                       \
        -D istio_126="$_istio_126"                                             \
        -D tldn="$TLDN"                                                        \
-     "$TEMPLATES"/kgateway.ingress_gateway.manifest.yaml.j2 )
+     "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2 )
 }
 
 function exec_httproute {
