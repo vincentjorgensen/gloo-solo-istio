@@ -22,7 +22,7 @@ function create_namespace {
 
 function exec_istio_secrets {
   if [[ $GSI_MODE == create ]]; then
-    kubectl "$GSI_MODE" secret generic cacerts                                \
+    kubectl "$GSI_MODE" secret generic "$ISTIO_SECRET"                        \
     --context "$GSI_CONTEXT"                                                  \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
     --from-file="$CERTS"/"$GSI_CLUSTER"/ca-cert.pem                           \
@@ -38,12 +38,12 @@ function exec_istio_secrets {
 
 function exec_spire_secrets {
   if [[ $GSI_MODE == create ]]; then
-    kubectl "$GSI_MODE" secret generic spiffe-upstream-cacacerts              \
+    kubectl "$GSI_MODE" secret generic "$SPIRE_SECRET"                        \
     --context "$GSI_CONTEXT"                                                  \
     --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
-    --from-file=tls.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/"${GSI_CLUSTER}"-ca.crt \
-    --from-file=tls.key="$SPIRE_CERTS"/"${GSI_CLUSTER}"/"${GSI_CLUSTER}"-ca.key \ 
-    --from-file=bundle.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/"${GSI_CLUSTER}"-ca-chain.pem
+    --from-file=tls.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/ca-cert.pem           \
+    --from-file=tls.key="$SPIRE_CERTS"/"${GSI_CLUSTER}"/ca-key.pem            \
+    --from-file=bundle.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/cert-chain.pem
   else
     kubectl delete secret spiffe-upstream-cacacerts                           \
     --context "$GSI_CONTEXT"                                                  \
@@ -51,16 +51,52 @@ function exec_spire_secrets {
   fi
 }
 
-function exec_kgateway_crds {
+function exec_k8s_gateway_crds {
   kubectl "$GSI_MODE"                                                         \
   --context "$GSI_CONTEXT"                                                    \
   -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/standard-install.yaml
 }
 
-function exec_kgateway_experimental_crds {
+function exec_k8s_gateway_experimental_crds {
   kubectl "$GSI_MODE"                                                         \
   --context "$GSI_CONTEXT"                                                    \
   -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/experimental-install.yaml
+}
+
+function exec_kgateway_crds {
+  if [[ $GSI_MODE == create ]]; then
+    # shellcheck disable=SC2086
+    helm upgrade --install kgateway-crds "$KGATEWAY_CRDS_HELM_REPO"           \
+    --version "$KGATEWAY_HELM_VER"                                            \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$KGATEWAY_SYSTEM_NAMESPACE"                                  \
+    --wait
+  else
+    helm uninstall kgateway-crds                                              \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$KGATEWAY_SYSTEM_NAMESPACE"
+  fi
+}
+
+function exec_kgateway {
+  if [[ $GSI_MODE == create ]]; then
+    # shellcheck disable=SC2086
+    helm upgrade --install kgateway "$KGATEWAY_HELM_REPO"                     \
+    --version "$KGATEWAY_HELM_VER"                                            \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$KGATEWAY_SYSTEM_NAMESPACE"                                  \
+    --wait
+  else
+    helm uninstall kgateway                                                   \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$KGATEWAY_SYSTEM_NAMESPACE"
+  fi
+
+  if [[ $GSI_MODE != delete ]]; then
+    kubectl wait                                                              \
+    --namespace "$KGATEWAY_SYSTEM_NAMESPACE"                                  \
+    --for=condition=Ready pods --all
+  fi
 }
 
 function exec_spire_crds {
@@ -70,6 +106,7 @@ function exec_spire_crds {
     --version "$SPIRE_CRDS_VER"                                               \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
+    --wait
   else
     helm uninstall spire-crds                                                 \
     --kube-context="$GSI_CONTEXT"                                             \
@@ -86,13 +123,22 @@ function exec_spire_server {
     --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
     --values <(jinja2                                                         \
                -D trust_domain="$TRUST_DOMAIN"                                \
+               -D spire_secret="$SPIRE_SECRET"                                \
                "$TEMPLATES"/helm.spire.yaml.j2 )                              \
     --wait
+
+    kubectl wait                                                              \
+    --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
+    --for=condition=Ready pods --all
   else
     helm uninstall spire                                                      \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$SPIRE_SERVER_NAMESPACE"
   fi
+
+  kubectl "$GSI_MODE"                                                         \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$TEMPLATES"/spire.cluster-id.manifest.yaml
 }
 function exec_istio_base {
   if [[ $GSI_MODE == create ]]; then
@@ -120,6 +166,7 @@ function exec_istio_istiod {
   "$SIDECAR_ENABLED" && _sidecar_enabled=enabled
   "$AMBIENT_ENABLED" && _ambient_enabled=enabled
   "$SPIRE_ENABLED" && _spire_enabled=enabled
+  "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
 
   if [[ $GSI_MODE == create ]]; then
     helm upgrade --install istiod "$HELM_REPO"/istiod                         \
@@ -139,6 +186,8 @@ function exec_istio_istiod {
                -D mesh_id="$MESH_ID"                                          \
                -D flavor="$ISTIO_FLAVOR"                                      \
                -D license_key="$GLOO_MESH_LICENSE_KEY"                        \
+               -D multicluster="$_mc_enabled"                                 \
+               -D variant="$ISTIO_DISTRO"                                     \
                "$TEMPLATES"/helm.istiod.yaml.j2 )                             \
     --wait
   else
@@ -159,6 +208,7 @@ function exec_istio_cni {
                -D istio_repo="$ISTIO_REPO"                                    \
                -D istio_ver="$ISTIO_VER"                                      \
                -D flavor="$ISTIO_FLAVOR"                                      \
+               -D variant="$ISTIO_DISTRO"                                     \
                "$TEMPLATES"/helm.istio-cni.yaml.j2 )                          \
     --wait
   else
@@ -174,6 +224,7 @@ function exec_istio_ztunnel {
   _network=$GSI_NETWORK
 
   "$SPIRE_ENABLED" && _spire_enabled=enabled
+  "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
 
   if [[ $GSI_MODE == create ]]; then
     helm upgrade --install ztunnel "$HELM_REPO"/ztunnel                       \
@@ -188,6 +239,8 @@ function exec_istio_ztunnel {
                -D istio_ver="$ISTIO_VER"                                      \
                -D flavor="$ISTIO_FLAVOR"                                      \
                -D spire="$_spire_enabled"                                     \
+               -D multicluster="$_mc_enabled"                                 \
+               -D variant="$ISTIO_DISTRO"                                     \
                "$TEMPLATES"/helm.ztunnel.yaml.j2 )                            \
     --wait
   else
@@ -226,13 +279,27 @@ function exec_telemetry_defaults {
 ###}
 ###
 function exec_istio {
-  kubectl label namespace "$ISTIO_SYSTEM_NAMESPACE" topology.istio.io/network="$GSI_NETWORK"  \
+  local _k_label="=$GSI_NETWORK"
+
+  if [[ $GSI_MODE == delete ]]; then
+    _k_label="-"
+  fi
+    
+  if $MULTICLUSTER_ENABLED; then
+    kubectl label namespace "$ISTIO_SYSTEM_NAMESPACE" "topology.istio.io/network${_k_label}"  \
     --context "$GSI_CONTEXT" --overwrite
+  fi
 
   exec_istio_base
   exec_istio_istiod
   "$AMBIENT_ENABLED" && exec_istio_cni
   "$AMBIENT_ENABLED" && exec_istio_ztunnel
+
+  if [[ $GSI_MODE != delete ]]; then
+    kubectl wait                                                              \
+    --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
+    --for=condition=Ready pods --all
+  fi
 }
 
 function exec_kgateway_eastwest {
@@ -256,13 +323,13 @@ function exec_kgateway_ew_link {
   local _remote_address _address_type
 
   _remote_address=$(
-    kubectl get svc -n "$ISTIO_EASTWEST_NAMESPACE" istio-eastwest             \
+    kubectl get svc -n "$EASTWEST_NAMESPACE" istio-eastwest                   \
     --context "$GSI_CONTEXT_REMOTE"                                           \
     -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
   while [[ -z $_remote_address ]]; do
     _remote_address=$(
-      kubectl get svc -n "$ISTIO_EASTWEST_NAMESPACE" istio-eastwest           \
+      kubectl get svc -n "$EASTWEST_NAMESPACE" istio-eastwest                 \
       --context "$GSI_CONTEXT_REMOTE"                                         \
       -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
     echo -n '.' && sleep 5
@@ -395,7 +462,7 @@ function exec_istio_ingressgateway {
     helm upgrade -i istio-ingressgateway "$HELM_REPO"/gateway                 \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_GATEWAYS_NAMESPACE"                                   \
+    --namespace "$INGRESS_NAMESPACE"                                          \
     --create-namespace                                                        \
     --values <(jinja2                                                         \
                -D size="$GSI_INGRESS_SIZE"                                    \
@@ -411,7 +478,7 @@ function exec_istio_ingressgateway {
   else
     helm uninstall istio-ingressgateway                                       \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_GATEWAYS_NAMESPACE"
+    --namespace "$INGRESS_NAMESPACE"
   fi
 }
 
@@ -424,7 +491,7 @@ function exec_istio_eastwest {
     helm upgrade -i istio-eastwestgateway "$HELM_REPO"/gateway                \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_EASTWEST_NAMESPACE"                                   \
+    --namespace "$EASTWEST_NAMESPACE"                                         \
     --create-namespace                                                        \
     --values <(jinja2                                                         \
                -D size="${GSI_EW_SIZE:-1}"                                    \
@@ -440,7 +507,7 @@ function exec_istio_eastwest {
   else
     helm uninstall istio-eastwestgateway                                      \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_EASTWEST_NAMESPACE"
+    --namespace "$EASTWEST_NAMESPACE"
   fi
 
   # OSS Expose Services
@@ -536,32 +603,33 @@ function exec_helloworld_app {
        -D service_name="$HELLOWORLD_SERVICE_NAME"                             \
        "$TEMPLATES"/helloworld.template.yaml.j2                               \
        "$_ztemp".yaml )
+
+  if [[ $GSI_MODE != delete ]]; then
+    kubectl wait                                                              \
+    --namespace "$HELLOWORLD_NAMESPACE"                                       \
+    --for=condition=Ready pods --all
+  fi
 }
 
 function exec_curl_app {
-  local _context _ambient _sidecar 
-  _sidecar=""
-  _ambient=""
-
-  while getopts "aix:" opt; do
-    # shellcheck disable=SC2220
-    case $opt in
-      a)
-        _ambient="enabled" ;;
-      i) 
-        _sidecar="enabled" ;;
-      x) 
-        _context=$OPTARG ;;
-    esac
-  done
+  local __sidecar_enabled _ambient_enabled
+  "$SIDECAR_ENABLED" && _sidecar_enabled=enabled
+  "$AMBIENT_ENABLED" && _ambient_enabled=enabled
 
   kubectl "$GSI_MODE"                                                         \
-  --context "$_context"                                                       \
+  --context "$GSI_CONTEXT"                                                    \
   -f <(jinja2                                                                 \
-       -D ambient_enabled="$_ambient"                                         \
-       -D sidecar_enabled="$_sidecar"                                         \
+       -D ambient_enabled="$_ambient_enabled"                                 \
+       -D sidecar_enabled="$_sidecar_enabled"                                 \
+       -D namespace="$CURL_NAMESPACE"                                         \
        -D revision="$REVISION"                                                \
-       "$TEMPLATES"/curl.template.yaml.j2 )
+       "$TEMPLATES"/curl.manifest.yaml.j2 )
+
+  if [[ $GSI_MODE != delete ]]; then
+    kubectl wait                                                              \
+    --namespace "$CURL_NAMESPACE"                                             \
+    --for=condition=Ready pods --all
+  fi
 }
 
 function exec_tools_app {
@@ -606,7 +674,7 @@ function exec_istio_vs_and_gateway {
        "$TEMPLATES"/istio.vs_and_gateway.template.yaml.j2 )
 }
 
-function exec_kgateway_ingress_gateway {
+function exec_istio_ingressgateway_no_helm {
   local _istio_126
 
   if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
@@ -618,32 +686,74 @@ function exec_kgateway_ingress_gateway {
   -f <(jinja2                                                                 \
        -D revision="$REVISION"                                                \
        -D port="$KGATEWAY_HTTP_INGRESS_PORT"                                  \
-       -D namespace="$ISTIO_GATEWAYS_NAMESPACE"                               \
+       -D namespace="$INGRESS_NAMESPACE"                                      \
        -D name="$INGRESS_GATEWAY_NAME"                                        \
        -D size="${GSI_INGRESS_SIZE:-1}"                                       \
        -D istio_126="$_istio_126"                                             \
        -D tldn="$TLDN"                                                        \
-     "$TEMPLATES"/kgateway.ingress_gateway.template.yaml.j2 )
+     "$TEMPLATES"/istio.ingress_gateway.template.yaml.j2 )
 }
 
-function exec_kgateway_httproute {
+function exec_kgateway_ingressgateway {
+  local _istio_126
+
+  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
+    _istio_126="enabled"
+  fi
+
+  kubectl "$GSI_MODE"                                                         \
+  --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
+  -f <(jinja2                                                                 \
+       -D port="$HTTP_INGRESS_PORT"                                           \
+       -D namespace="$INGRESS_NAMESPACE"                                      \
+       -D name="$INGRESS_GATEWAY_NAME"                                        \
+       -D size="${GSI_INGRESS_SIZE:-1}"                                       \
+       -D istio_126="$_istio_126"                                             \
+       -D tldn="$TLDN"                                                        \
+     "$TEMPLATES"/kgateway.ingress_gateway.manifest.yaml.j2 )
+}
+
+function exec_httproute {
+  local _mc_enabled
+  "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
+
   kubectl "$GSI_MODE"                                                         \
   --context "$GSI_CONTEXT"                                                    \
   -f <(jinja2                                                                 \
        -D tldn="$TLDN"                                                        \
-       -D namespace="$ISTIO_GATEWAYS_NAMESPACE"                               \
+       -D namespace="$INGRESS_NAMESPACE"                                      \
        -D gateway_name="$INGRESS_GATEWAY_NAME"                                \
+       -D gateway_namespace="$INGRESS_NAMESPACE"                              \
        -D service="$GSI_APP_SERVICE_NAME"                                     \
        -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                      \
        -D service_port="$GSI_APP_SERVICE_PORT"                                \
-       "$TEMPLATES"/kgateway.httproute.template.yaml.j2 )
+       -D multicluster="$_mc_enabled"                                         \
+       "$TEMPLATES"/httproute.template.yaml.j2 )
 }
 
-function exec_kgateway_reference_grant {
+function exec_kgateway_httproute {
+  local _mc_enabled
+  "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
+
   kubectl "$GSI_MODE"                                                         \
   --context "$GSI_CONTEXT"                                                    \
   -f <(jinja2                                                                 \
-       -D gateway_namespace="$ISTIO_GATEWAYS_NAMESPACE"                       \
+       -D tldn="$TLDN"                                                        \
+       -D namespace="$GSI_APP_SERVICE_NAMESPACE"                              \
+       -D gateway_name="$INGRESS_GATEWAY_NAME"                                \
+       -D gateway_namespace="$KGATEWAY_SYSTEM_NAME"                           \
+       -D service="$GSI_APP_SERVICE_NAME"                                     \
+       -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                      \
+       -D service_port="$GSI_APP_SERVICE_PORT"                                \
+       -D multicluster="$_mc_enabled"                                         \
+       "$TEMPLATES"/httproute.template.yaml.j2 )
+}
+
+function exec_reference_grant {
+  kubectl "$GSI_MODE"                                                         \
+  --context "$GSI_CONTEXT"                                                    \
+  -f <(jinja2                                                                 \
+       -D gateway_namespace="$INGRESS_NAMESPACE"                              \
        -D service="$GSI_APP_SERVICE_NAME"                                     \
        -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                      \
        "$TEMPLATES"/kgateway.reference_grant.template.yaml.j2 )
@@ -860,7 +970,7 @@ function exec_gloo_virtual_gateway {
   -f <(jinja2                                                                 \
        -D gateways_workspace="$GME_GATEWAYS_WORKSPACE"                        \
        -D ingress_gateway_cluster_name="$GSI_GATEWAY_CLUSTER"                 \
-       -D gateways_namespace="$ISTIO_GATEWAYS_NAMESPACE"                      \
+       -D gateways_namespace="$INGRESS_NAMESPACE"                             \
        -D tldn="$TLDN"                                                        \
        "$TEMPLATES"/gloo.virtualgateway.manifest.yaml.j2 )
 }
@@ -911,9 +1021,5 @@ function exec_gsi_cluster_roll_back {
   echo GSI_CLUSTER="$GSI_CLUSTER" GSI_CONTEXT="$GSI_CONTEXT" GSI_NETWORK="$GSI_NETWORK"
   echo PREV_GSI_CLUSTER="$PREV_GSI_CLUSTER" PREV_GSI_CONTEXT="$PREV_GSI_CONTEXT" PREV_GSI_NETWORK="$PREV_GSI_NETWORK"
   echo NEXT_GSI_CLUSTER="$NEXT_GSI_CLUSTER" NEXT_GSI_CONTEXT="$NEXT_GSI_CONTEXT" NEXT_GSI_NETWORK="$NEXT_GSI_NETWORK"
-}
-
-function exec_spire_server {
-
 }
 # END
