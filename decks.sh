@@ -8,7 +8,7 @@ function deck_istio {
   export GSI_CONTEXT=$2
   export GSI_SIZE=1
   export GSI_TRAFFIC_DISTRIBUTION=Any
-  export GSI_DECK=(exec_istio_secrets exec_istio exec_telemetry_defaults exec_kgateway_crds exec_helloworld_app)
+  export GSI_DECK=(exec_istio_secrets exec_istio exec_telemetry_defaults exec_k8s_gateway_crds exec_helloworld_app)
 }
 
 function deck_istio_mc_sidecar {
@@ -17,7 +17,7 @@ function deck_istio_mc_sidecar {
   export GSI_EW_SIZE=1
   export GSI_APP_SIZE=1
   export GSI_TRAFFIC_DISTRIBUTION=Any
-  export GSI_DECK=(exec_istio_secrets exec_istio exec_telemetry_defaults exec_kgateway_crds exec_istio_eastwest exec_helloworld_app)
+  export GSI_DECK=(exec_istio_secrets exec_istio exec_telemetry_defaults exec_k8s_gateway_crds exec_istio_eastwest exec_helloworld_app)
 }
 
 function deck_istio_mc_ambient {
@@ -27,7 +27,7 @@ function deck_istio_mc_ambient {
   export GSI_EW_SIZE=1
   export GSI_APP_SIZE=1
   export GSI_TRAFFIC_DISTRIBUTION=Any
-  export GSI_DECK=(exec_istio_secrets exec_istio exec_telemetry_defaults exec_kgateway_crds exec_kgateway_eastwest exec_helloworld_app)
+  export GSI_DECK=(exec_istio_secrets exec_istio exec_telemetry_defaults exec_k8s_gateway_crds exec_kgateway_eastwest exec_helloworld_app)
 }
 
 function deck_istio_oss_eastwest_link {
@@ -93,4 +93,47 @@ function deck_gme_ingress_gateway {
   export GSI_NETWORK=$2
   export GSI_INGRESS_SIZE=1
   export GSI_DECK=(exec_istio_ingressgateway)
+}
+
+function deck_ambient {
+  export GSI_CLUSTER=$1
+  export GSI_CONTEXT=$2
+  export GSI_NETWORK=$3
+  export GSI_INGRESS_SIZE=1
+  export GSI_DECK=(exec_istio_secrets exec_istio exec_telemetry_defaults exec_helloworld_app)
+}
+
+function deck_ambient_spire {
+  export GSI_CLUSTER=$1
+  export GSI_CONTEXT=$2
+  export GSI_NETWORK=$3
+  export GSI_INGRESS_SIZE=1
+  export GSI_DECK=(exec_spire_secrets exec_spire_crds exec_spire_server exec_istio_secrets exec_istio exec_telemetry_defaults exec_k8s_gateway_crds exec_helloworld_app)
+}
+
+function deck_istio_ingressgateway_no_helm {
+  export GSI_CONTEXT=$1
+  export GSI_APP_SERVICE_NAMESPACE=$2
+  export GSI_APP_SERVICE_NAME=$3
+  export GSI_APP_SERVICE_PORT=$4
+  export GSI_INGRESS_SIZE=1
+  export GSI_DECK=(exec_external_dns_for_pihole exec_istio_ingressgateway_no_helm exec_httproute exec_reference_grant)
+}
+
+function deck_kgateway_ingressgateway_no_helm {
+  export GSI_CONTEXT=$1
+  export GSI_APP_SERVICE_NAMESPACE=$2
+  export GSI_APP_SERVICE_NAME=$3
+  export GSI_APP_SERVICE_PORT=$4
+  export GSI_INGRESS_SIZE=1
+  export GSI_DECK=(exec_kgateway_ingressgateway_no_helm exec_httproute exec_reference_grant)
+}
+
+function deck_kgateway {
+  export GSI_CONTEXT=$1
+  export GSI_APP_SERVICE_NAMESPACE=$2
+  export GSI_APP_SERVICE_NAME=$3
+  export GSI_APP_SERVICE_PORT=$4
+  export GSI_INGRESS_SIZE=1
+  export GSI_DECK=(exec_k8s_gateway_crds exec_kgateway_crds exec_kgateway exec_kgateway_ingressgateway exec_httproute exec_reference_grant)
 }

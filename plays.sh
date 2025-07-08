@@ -114,7 +114,7 @@ function play_sidecar_gme_multicluster {
   deck_gme_ingress_gateway "$_cluster1" "$_cluster1" 
   play_gsi
   
-  export GSI_WORKSPACE_NAMESPACES=("$ISTIO_EASTWEST_NAMESPACE" "$ISTIO_GATEWAYS_NAMESPACE")
+  export GSI_WORKSPACE_NAMESPACES=("$EASTWEST_NAMESPACE" "$INGRESS_NAMESPACE")
   export GSI_WORKSPACE_CLUSTERS=("$_cluster1" "$_cluster2")
   export GSI_WORKSPACESETTTINGS_IMPORT_WORKSPACES=("$GME_APPLICATIONS_WORKSPACE")
   export GSI_WORKSPACESETTTINGS_EXPORT_WORKSPACES=("*")
@@ -129,5 +129,71 @@ function play_sidecar_gme_multicluster {
   play_gsi
 
   deck_gloo_virtual_service "$GME_APPLICATIONS_WORKSPACE" "$HELLOWORLD_SERVICE_NAME" "$HELLOWORLD_SERVICE_PORT" "$_cluster1"
+  play_gsi
+}
+
+function play_ambient_spire_istiogateway {
+  local _cluster
+  _cluster=${1:-cluster1}
+
+  set_defaults
+  export AMBIENT_ENABLED=true
+  export SIDECAR_ENABLED=false
+  export SPIRE_ENABLED=true
+  export MULTICLUSTER_ENABLED=false
+
+  create_namespace "$_cluster" "$SPIRE_SERVER_NAMESPACE"
+  create_namespace "$_cluster" "$ISTIO_SYSTEM_NAMESPACE"
+  create_namespace "$_cluster" "$INGRESS_NAMESPACE"
+
+  deck_ambient_spire "$_cluster" "$_cluster" "$_cluster"
+  play_gsi
+
+  deck_istio_ingressgateway_no_helm "$_cluster" "$HELLOWORLD_NAMESPACE" "$HELLOWORLD_SERVICE_NAME" "$HELLOWORLD_SERVICE_PORT"
+  play_gsi
+}
+
+function play_ambient_kgateway {
+  local _cluster
+  _cluster=${1:-cluster1}
+
+  set_defaults
+  export AMBIENT_ENABLED=true
+  export SIDECAR_ENABLED=false
+  export SPIRE_ENABLED=false
+  export MULTICLUSTER_ENABLED=false
+
+  create_namespace "$_cluster" "$KGATEWAY_SYSTEM_NAMESPACE"
+  create_namespace "$_cluster" "$ISTIO_SYSTEM_NAMESPACE"
+  create_namespace "$_cluster" "$INGRESS_NAMESPACE"
+
+  export GSI_SERVICE_VERSION=v1
+  deck_ambient "$_cluster" "$_cluster" "$_cluster" "$_cluster"
+  play_gsi
+
+  deck_kgateway "$_cluster" "$HELLOWORLD_NAMESPACE" "$HELLOWORLD_SERVICE_NAME" "$HELLOWORLD_SERVICE_PORT"
+  play_gsi
+}
+
+function play_ambient_spire_kgateway {
+  local _cluster
+  _cluster=${1:-cluster1}
+
+  set_defaults
+  export AMBIENT_ENABLED=true
+  export SIDECAR_ENABLED=false
+  export SPIRE_ENABLED=true
+  export MULTICLUSTER_ENABLED=false
+
+  create_namespace "$_cluster" "$SPIRE_SERVER_NAMESPACE"
+  create_namespace "$_cluster" "$KGATEWAY_SYSTEM_NAMESPACE"
+  create_namespace "$_cluster" "$ISTIO_SYSTEM_NAMESPACE"
+  create_namespace "$_cluster" "$INGRESS_NAMESPACE"
+
+  export GSI_SERVICE_VERSION=v1
+  deck_ambient_spire "$_cluster" "$_cluster" "$_cluster"
+  play_gsi
+
+  deck_kgateway "$_cluster" "$HELLOWORLD_NAMESPACE" "$HELLOWORLD_SERVICE_NAME" "$HELLOWORLD_SERVICE_PORT"
   play_gsi
 }
