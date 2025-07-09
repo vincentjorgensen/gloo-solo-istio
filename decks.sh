@@ -108,7 +108,31 @@ function deck_ambient_spire {
   export GSI_CONTEXT=$2
   export GSI_NETWORK=$3
   export GSI_INGRESS_SIZE=1
-  export GSI_DECK=(exec_spire_secrets exec_spire_crds exec_spire_server exec_istio_secrets exec_istio exec_telemetry_defaults exec_k8s_gateway_crds exec_helloworld_app)
+  export GSI_DECK=(exec_spire_secrets exec_spire_crds exec_spire_server exec_istio_secrets exec_istio exec_telemetry_defaults exec_helloworld_app)
+}
+
+function deck_spire_ambient_kgateway {
+  export GSI_CLUSTER=$1
+  export GSI_CONTEXT=$1
+  export GSI_NETWORK=$1
+  export GSI_APP_SERVICE_NAMESPACE=$HELLOWORLD_NAMESPACE
+  export GSI_APP_SERVICE_NAME=$HELLOWORLD_SERVICE_NAME
+  export GSI_APP_SERVICE_PORT=$HELLOWORLD_SERVICE_PORT
+  export GSI_INGRESS_SIZE=1
+
+  export AMBIENT_ENABLED=true
+  export INGRESS_ENABLED=true
+  export KGATEWAY_ENABLED=true
+  export MULTICLUSTER_ENABLED=false
+  export SIDECAR_ENABLED=false
+  export SPIRE_ENABLED=true
+
+  export GSI_DECK=(exec_create_namespaces
+                   exec_spire_secrets exec_spire_crds exec_spire_server
+                   exec_istio_secrets exec_istio exec_telemetry_defaults
+                   exec_helloworld_app
+                   exec_k8s_gateway_crds exec_kgateway_crds exec_kgateway
+                   exec_kgateway_ingressgateway exec_httproute exec_reference_grant)
 }
 
 function deck_istio_ingressgateway_no_helm {
@@ -117,7 +141,7 @@ function deck_istio_ingressgateway_no_helm {
   export GSI_APP_SERVICE_NAME=$3
   export GSI_APP_SERVICE_PORT=$4
   export GSI_INGRESS_SIZE=1
-  export GSI_DECK=(exec_external_dns_for_pihole exec_istio_ingressgateway_no_helm exec_httproute exec_reference_grant)
+  export GSI_DECK=(exec_external_dns_for_pihole exec_istio_ingressgateway_no_helm exec_httproute exec_reference_granopenssl x509 -in sleep.pem -noout -textt)
 }
 
 function deck_kgateway_ingressgateway_no_helm {

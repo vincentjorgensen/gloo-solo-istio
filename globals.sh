@@ -21,10 +21,11 @@ export ARGOCD_NAMESPACE=argocd
 export GLOO_MESH_NAMESPACE=gloo-mesh
 export EASTWEST_NAMESPACE=eastwest-gateways
 export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system
+export KGATEWAY_NAMESPACE=$KGATEWAY_SYSTEM_NAMESPACE
 export ISTIO_SYSTEM_NAMESPACE=istio-system
 export KUBE_SYSTEM_NAMESPACE=kube-system
-export SPIRE_SERVER_NAMESPACE=spire-server
-export CURL_NAMESPACE=curl
+export AMBIENT_NAMESPACE=$ISTIO_SYSTEM_NAMESPACE
+export SIDECAR_NAMESPACE=$ISTIO_SYSTEM_NAMESPACE
 
 # Ingress
 export INGRESS_NAMESPACE=ingress-gateways
@@ -32,11 +33,14 @@ export HTTP_INGRESS_PORT=80
 export HTTPS_INGRESS_PORT=443
 export INGRESS_GATEWAY_NAME=ingress-gateway
 
+# Testing Apps
 export HELLOWORLD_NAMESPACE=helloworld
 export HELLOWORLD_SERVICE_NAME=helloworld
 export HELLOWORLD_SERVICE_PORT=8001
+export CURL_NAMESPACE=curl
 
 # Spire
+export SPIRE_NAMESPACE=spire-server
 export SPIRE_CRDS_VER=0.5.0
 export SPIRE_SERVER_VER=0.24.2
 export SPIRE_SECRET=spiffe-upstream-ca

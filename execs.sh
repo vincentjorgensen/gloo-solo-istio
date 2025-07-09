@@ -11,6 +11,26 @@ TEMPLATES="$(dirname "$0")"/templates
 CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
 
+function is_create_mode {
+  if [[ $GSI_MODE =~ (create|apply) ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+function exec_create_namespaces {
+  for enabled_var in $(env|grep _ENABLED); do
+    enabled=$(echo "$enabled_var" | awk -F= '{print $1}')
+    if eval '$'${enabled}; then
+      echo ${enabled%%_ENABLED} is enabled
+      if [[ -n "$(eval echo '$'$(echo ${enabled%%_ENABLED}_NAMESPACE))" ]]; then
+        create_namespace "$GSI_CONTEXT" "$(eval echo '$'$(echo ${enabled%%_ENABLED}_NAMESPACE))"
+      fi
+    fi
+  done
+}
+
 function create_namespace {
   local _context _namespace
   _context=$1
@@ -21,7 +41,7 @@ function create_namespace {
 }
 
 function exec_istio_secrets {
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     kubectl "$GSI_MODE" secret generic "$ISTIO_SECRET"                        \
     --context "$GSI_CONTEXT"                                                  \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
@@ -37,17 +57,17 @@ function exec_istio_secrets {
 }
 
 function exec_spire_secrets {
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     kubectl "$GSI_MODE" secret generic "$SPIRE_SECRET"                        \
     --context "$GSI_CONTEXT"                                                  \
-    --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
+    --namespace "$SPIRE_NAMESPACE"                                            \
     --from-file=tls.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/ca-cert.pem           \
     --from-file=tls.key="$SPIRE_CERTS"/"${GSI_CLUSTER}"/ca-key.pem            \
     --from-file=bundle.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/cert-chain.pem
   else
     kubectl delete secret spiffe-upstream-cacacerts                           \
     --context "$GSI_CONTEXT"                                                  \
-    --namespace "$SPIRE_SERVER_NAMESPACE"
+    --namespace "$SPIRE_NAMESPACE"
   fi
 }
 
@@ -64,7 +84,7 @@ function exec_k8s_gateway_experimental_crds {
 }
 
 function exec_kgateway_crds {
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     # shellcheck disable=SC2086
     helm upgrade --install kgateway-crds "$KGATEWAY_CRDS_HELM_REPO"           \
     --version "$KGATEWAY_HELM_VER"                                            \
@@ -79,7 +99,7 @@ function exec_kgateway_crds {
 }
 
 function exec_kgateway {
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     # shellcheck disable=SC2086
     helm upgrade --install kgateway "$KGATEWAY_HELM_REPO"                     \
     --version "$KGATEWAY_HELM_VER"                                            \
@@ -92,7 +112,7 @@ function exec_kgateway {
     --namespace "$KGATEWAY_SYSTEM_NAMESPACE"
   fi
 
-  if [[ $GSI_MODE != delete ]]; then
+  if is_create_mode; then
     kubectl wait                                                              \
     --namespace "$KGATEWAY_SYSTEM_NAMESPACE"                                  \
     --for=condition=Ready pods --all
@@ -100,27 +120,27 @@ function exec_kgateway {
 }
 
 function exec_spire_crds {
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     # shellcheck disable=SC2086
     helm upgrade --install spire-crds spire/spire-crds                        \
     --version "$SPIRE_CRDS_VER"                                               \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
+    --namespace "$SPIRE_NAMESPACE"                                            \
     --wait
   else
     helm uninstall spire-crds                                                 \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$SPIRE_SERVER_NAMESPACE"
+    --namespace "$SPIRE_NAMESPACE"
   fi
 }
 
 function exec_spire_server {
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     # shellcheck disable=SC2086
     helm upgrade --install spire spire/spire                                  \
     --version "$SPIRE_SERVER_VER"                                             \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
+    --namespace "$SPIRE_NAMESPACE"                                            \
     --values <(jinja2                                                         \
                -D trust_domain="$TRUST_DOMAIN"                                \
                -D spire_secret="$SPIRE_SECRET"                                \
@@ -128,12 +148,12 @@ function exec_spire_server {
     --wait
 
     kubectl wait                                                              \
-    --namespace "$SPIRE_SERVER_NAMESPACE"                                     \
+    --namespace "$SPIRE_NAMESPACE"                                            \
     --for=condition=Ready pods --all
   else
     helm uninstall spire                                                      \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$SPIRE_SERVER_NAMESPACE"
+    --namespace "$SPIRE_NAMESPACE"
   fi
 
   kubectl "$GSI_MODE"                                                         \
@@ -141,7 +161,7 @@ function exec_spire_server {
   -f "$TEMPLATES"/spire.cluster-id.manifest.yaml
 }
 function exec_istio_base {
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     # shellcheck disable=SC2086
     helm upgrade --install istio-base "$HELM_REPO"/base                       \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
@@ -168,7 +188,7 @@ function exec_istio_istiod {
   "$SPIRE_ENABLED" && _spire_enabled=enabled
   "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
 
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     helm upgrade --install istiod "$HELM_REPO"/istiod                         \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
@@ -198,12 +218,13 @@ function exec_istio_istiod {
 }
 
 function exec_istio_cni {
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     helm upgrade --install istio-cni "$HELM_REPO"/cni                         \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
-    --values <(jinja2                                                         \
+    --values <(
+jinja2                                                         \
                -D revision="$REVISION"                                        \
                -D istio_repo="$ISTIO_REPO"                                    \
                -D istio_ver="$ISTIO_VER"                                      \
@@ -226,7 +247,7 @@ function exec_istio_ztunnel {
   "$SPIRE_ENABLED" && _spire_enabled=enabled
   "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
 
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     helm upgrade --install ztunnel "$HELM_REPO"/ztunnel                       \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
@@ -256,28 +277,6 @@ function exec_telemetry_defaults {
   -f "$TEMPLATES"/telemetry.istio-system.manifest.yaml
 }
 
-###function exec_istio_sidecar {
-###  local _cluster _network
-###  _cluster=$GSI_CLUSTER
-###  _network=$GSI_NETWORK
-###
-###  kubectl label namespace "$ISTIO_SYSTEM_NAMESPACE" topology.istio.io/network="$_network"  \
-###  --context "$GSI_CONTEXT" --overwrite
-###
-###  exec_istio_base
-###  exec_istio_istiod
-###}
-###
-###function exec_istio_ambient {
-###  kubectl label namespace "$ISTIO_SYSTEM_NAMESPACE" topology.istio.io/network="$GSI_NETWORK"  \
-###    --context "$GSI_CONTEXT" --overwrite
-###
-###  exec_istio_base
-###  exec_istio_istiod
-###  exec_istio_cni
-###  exec_istio_ztunnel
-###}
-###
 function exec_istio {
   local _k_label="=$GSI_NETWORK"
 
@@ -295,7 +294,7 @@ function exec_istio {
   "$AMBIENT_ENABLED" && exec_istio_cni
   "$AMBIENT_ENABLED" && exec_istio_ztunnel
 
-  if [[ $GSI_MODE != delete ]]; then
+  if is_create_mode; then
     kubectl wait                                                              \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
     --for=condition=Ready pods --all
@@ -364,7 +363,7 @@ function exec_gloo_mgmt_server {
        -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                       \
        "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
   
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     helm install gloo-platform-crds gloo-platform/gloo-platform-crds          \
     --version="$GME_VER"                                                      \
     --kube-context="$GSI_CONTEXT"                                             \
@@ -423,7 +422,7 @@ function exec_gloo_agent {
          -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
          "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
   
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     helm install gloo-platform-crds gloo-platform/gloo-platform-crds          \
     --version="$GME_VER"                                                      \
     --kube-context="$GSI_CONTEXT"                                             \
@@ -458,7 +457,7 @@ function exec_istio_ingressgateway {
   $AWS_ENABLED && _aws_enabled=enabled
   $AZURE_ENABLED && _azure_enabled=enabled
 
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     helm upgrade -i istio-ingressgateway "$HELM_REPO"/gateway                 \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
@@ -487,7 +486,7 @@ function exec_istio_eastwest {
   $AWS_ENABLED && _aws_enabled=enabled
   $AZURE_ENABLED && _azure_enabled=enabled
 
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     helm upgrade -i istio-eastwestgateway "$HELM_REPO"/gateway                \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
@@ -604,7 +603,7 @@ function exec_helloworld_app {
        "$TEMPLATES"/helloworld.template.yaml.j2                               \
        "$_ztemp".yaml )
 
-  if [[ $GSI_MODE != delete ]]; then
+  if is_create_mode; then
     kubectl wait                                                              \
     --namespace "$HELLOWORLD_NAMESPACE"                                       \
     --for=condition=Ready pods --all
@@ -625,7 +624,7 @@ function exec_curl_app {
        -D revision="$REVISION"                                                \
        "$TEMPLATES"/curl.manifest.yaml.j2 )
 
-  if [[ $GSI_MODE != delete ]]; then
+  if is_create_mode; then
     kubectl wait                                                              \
     --namespace "$CURL_NAMESPACE"                                             \
     --for=condition=Ready pods --all
@@ -779,7 +778,7 @@ function exec_tls_cert_secret {
 
   [[ -z $_context ]] && _context="$_cluster"
 
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     kubectl "$GSI_MODE" secret tls "$_secret_name"                            \
     --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        	\
     --namespace "$_namespace"                                                 \
@@ -809,7 +808,7 @@ function exec_argocd_server {
 
   [[ -z $_context ]] && _context="$_cluster"
 
-  if [[ $GSI_MODE == create ]]; then
+  if is_create_mode; then
     helm upgrade --install argocd argo/argo-cd                                \
     --kube-context "$_context"                                                \
     --namespace "$ARGOCD_NAMESPACE"                                           \
@@ -977,7 +976,7 @@ function exec_gloo_virtual_gateway {
 }
 
 function exec_gsi_cluster_roll_forward {
-  if [[ "$GSI_MODE" == create ]]; then
+  if is_create_mode; then
     export PREV_GSI_CLUSTER=$GSI_CLUSTER
     export PREV_GSI_CONTEXT=$GSI_CONTEXT
     export PREV_GSI_NETWORK=$GSI_NETWORK
@@ -1001,7 +1000,7 @@ function exec_gsi_cluster_roll_forward {
 }
 
 function exec_gsi_cluster_roll_back {
-  if [[ "$GSI_MODE" == delete ]]; then
+  if is_create_mode; then
     export PREV_GSI_CLUSTER=$GSI_CLUSTER
     export PREV_GSI_CONTEXT=$GSI_CONTEXT
     export PREV_GSI_NETWORK=$GSI_NETWORK
