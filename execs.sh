@@ -77,6 +77,14 @@ function exec_spire_secrets {
   fi
 }
 
+function exec_gme_secrets {
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f <(jinja2                                                                 \
+       -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                       \
+       "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
+}
+
 function exec_k8s_gateway_crds {
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
@@ -308,19 +316,13 @@ function exec_istio {
 }
 
 function exec_kgateway_eastwest {
-  local _istio_126
-
-  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
-    _istio_126="enabled"
-  fi
-
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f <(jinja2                                                                 \
        -D network="$GSI_NETWORK"                                              \
        -D revision="$REVISION"                                                \
        -D size="$GSI_EW_SIZE"                                                 \
-       -D istio_126="$_istio_126"                                             \
+       -D istio_126="$ISTIO_126_FLAG"                                         \
        "$TEMPLATES"/kgateway.eastwest_gateway.template.yaml.j2 )
 }
 
@@ -357,26 +359,28 @@ function exec_kgateway_ew_link {
        "$TEMPLATES"/kgateway.eastwest_remote_gateway.template.yaml.j2 )
 }
 
+function exec_gloo_platform_crds {
+  if is_create_mode; then
+    $DRY_RUN helm upgrade -i gloo-platform-crds gloo-platform/gloo-platform-crds \
+    --version="$GME_VER"                                                      \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace="$GLOO_MESH_NAMESPACE"                                        \
+    --create-namespace                                                        \
+    --wait
+  else
+    $DRY_RUN helm uninstall gloo-platform-crds                                \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace="$GLOO_MESH_NAMESPACE"
+  fi
+}
+
 function exec_gloo_mgmt_server {
   local _gloo_agent _aws_enabled _azure_enabled
 
   $AWS_ENABLED && _aws_enabled=enabled
   $AZURE_ENABLED && _azure_enabled=enabled
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f <(jinja2                                                                 \
-       -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                       \
-       "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
-  
   if is_create_mode; then
-    $DRY_RUN helm install gloo-platform-crds gloo-platform/gloo-platform-crds \
-    --version="$GME_VER"                                                      \
-    --kube-context="$GSI_CONTEXT"                                             \
-    --namespace="$GLOO_MESH_NAMESPACE"                                        \
-    --create-namespace                                                        \
-    --wait
-
     $DRY_RUN helm upgrade -i gloo-platform-mgmt gloo-platform/gloo-platform   \
     --version="$GME_VER"                                                      \
     --kube-context="$GSI_CONTEXT"                                             \
@@ -396,11 +400,10 @@ function exec_gloo_mgmt_server {
     export GME_MGMT_CONTEXT=$GSI_CONTEXT
     export GME_MGMT_CLUSTER=$GSI_CLUSTER
   else
-    $DRY_RUN helm uninstall gloo-platform-mgmt gloo-platform-crds             \
+    $DRY_RUN helm uninstall gloo-platform-mgmt                                \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"
   fi
-
 }
 
 function exec_gloo_k8s_cluster {
@@ -422,12 +425,6 @@ function exec_gloo_agent {
     --namespace="$GLOO_MESH_NAMESPACE"                                        \
     -o=jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-    --context="$GSI_CONTEXT"                                                  \
-    -f <(jinja2                                                               \
-         -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
-         "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
-  
   if is_create_mode; then
     $DRY_RUN helm install gloo-platform-crds gloo-platform/gloo-platform-crds \
     --version="$GME_VER"                                                      \
@@ -678,14 +675,22 @@ function exec_istio_vs_and_gateway {
        -D gme_enabled="$_gme_enabled"                                         \
        "$TEMPLATES"/istio.vs_and_gateway.template.yaml.j2 )
 }
+function exec_ingress_gateway_api {
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
+  -f <(jinja2                                                                 \
+       -D revision="$REVISION"                                                \
+       -D port="$HTTP_INGRESS_PORT"                                           \
+       -D namespace="$INGRESS_NAMESPACE"                                      \
+       -D name="$INGRESS_GATEWAY_NAME"                                        \
+       -D gateway_class_name="$GATEWAY_CLASS_NAME"                            \
+       -D size="${GSI_INGRESS_SIZE:-1}"                                       \
+       -D istio_126="$ISTIO_126_FLAG"                                         \
+       -D tldn="$TLDN"                                                        \
+     "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2 )
+}
 
-function exec_istio_ingressgateway_no_helm {
-  local _istio_126
-
-  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
-    _istio_126="enabled"
-  fi
-
+function exec_ingress_istiogateway {
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
   -f <(jinja2                                                                 \
@@ -694,18 +699,12 @@ function exec_istio_ingressgateway_no_helm {
        -D namespace="$INGRESS_NAMESPACE"                                      \
        -D name="$INGRESS_GATEWAY_NAME"                                        \
        -D size="${GSI_INGRESS_SIZE:-1}"                                       \
-       -D istio_126="$_istio_126"                                             \
+       -D istio_126="$ISTIO_126_FLAG"                                         \
        -D tldn="$TLDN"                                                        \
-     "$TEMPLATES"/istio.ingress_gateway.template.yaml.j2 )
+     "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2 )
 }
 
-function exec_kgateway_ingressgateway {
-  local _istio_126
-
-  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
-    _istio_126="enabled"
-  fi
-
+function exec_ingress_kgateway {
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
   -f <(jinja2                                                                 \
@@ -714,7 +713,7 @@ function exec_kgateway_ingressgateway {
        -D name="$INGRESS_GATEWAY_NAME"                                        \
        -D gateway_class_name="kgateway"                                       \
        -D size="${GSI_INGRESS_SIZE:-1}"                                       \
-       -D istio_126="$_istio_126"                                             \
+       -D istio_126="$ISTIO_126_FLAG"                                         \
        -D tldn="$TLDN"                                                        \
      "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2 )
 }

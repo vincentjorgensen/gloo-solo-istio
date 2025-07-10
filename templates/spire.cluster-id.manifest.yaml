@@ -42,5 +42,4 @@ spec:
   spiffeIDTemplate: "spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}"
   workloadSelectorTemplates:
     - "k8s:ns:ingress-gateways"
-    - "k8s:ns:eastwest-gateways"
 ...

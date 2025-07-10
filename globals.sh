@@ -8,7 +8,7 @@
 # Global versions of Helm Repos, Istio Repos, and Istio settings
 #-------------------------------------------------------------------------------
 export REVISION GME_SECRET_TOKEN TLDN MESH_ID
-export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO
+export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
 export GSI_MODE
 
 export DRY_RUN=""
@@ -126,6 +126,10 @@ function set_istio {
   HELM_REPO=$(eval echo \$HELM_REPO_"${_istio//.}")
   [[ -n $_flavor ]] && ISTIO_FLAVOR="-${_flavor}"
   [[ -n $_variant ]] && ISTIO_DISTRO="${_variant}"
+
+  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
+    ISTIO_126_FLAG="enabled"
+  fi
 }
 
 function set_gme {

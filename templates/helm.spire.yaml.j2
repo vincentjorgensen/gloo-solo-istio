@@ -23,8 +23,8 @@ spire-server:
       secret:
         create: false
         name: "{{ spire_secret }}"
-###    persistence:
-###        type: emptyDir
+###  persistence:
+###    type: emptyDir
 spiffe-csi-driver:
     tolerations:
       - effect: NoSchedule

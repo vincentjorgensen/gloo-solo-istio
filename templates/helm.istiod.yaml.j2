@@ -4,9 +4,11 @@ revision: {{ revision }}
 {% endif %}
 {% if ambient %}
 profile: ambient
+{% if multicluster %}
 platforms:
   peering:
     enabled: true
+{% endif %}
 license:
   value: {{  license_key }}
 {% endif %}

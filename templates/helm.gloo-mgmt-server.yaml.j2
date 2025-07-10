@@ -69,5 +69,14 @@ telemetryGateway:
     annotations:
       service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 {% endif %}
+######rateLimit:
+######  enabled: true
+######  deployment:
+######    dynamodb:
+######      secretName: aws-credentials 
+######      region: us-west-2
+######      tableName: rate-limits
+######      consistentReads: false
+######      batchSize: 100
 ...
 

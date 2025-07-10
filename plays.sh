@@ -184,3 +184,23 @@ function play_spire_ambient_kgateway {
   deck_spire_ambient_kgateway "$_cluster"
   play_gsi
 }
+
+function play_ambient_kgateway {
+  local _cluster
+  _cluster=${1:-cluster1}
+
+  set_defaults
+
+  deck_ambient_kgateway "$_cluster"
+  play_gsi
+}
+
+function play_spire_ambient_istiogateway {
+  local _cluster
+  _cluster=${1:-cluster1}
+
+  set_defaults
+
+  deck_spire_ambient_istiogateway "$_cluster"
+  play_gsi
+}
