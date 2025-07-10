@@ -254,7 +254,7 @@ function exec_istio_ztunnel {
   "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
 
   if is_create_mode; then
-    $DRY_RUN helm upgrade --install ztunnel "$HELM_REPO"/ztunnel              
+    $DRY_RUN helm upgrade --install ztunnel "$HELM_REPO"/ztunnel              \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
@@ -271,7 +271,7 @@ function exec_istio_ztunnel {
                "$TEMPLATES"/helm.ztunnel.yaml.j2 )                            \
     --wait
   else
-    $DRY_RUN helm uninstall ztunnel                                           
+    $DRY_RUN helm uninstall ztunnel                                           \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"
   fi
@@ -535,7 +535,7 @@ function exec_oss_istio_remote_secrets {
   else
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
     --context "$GSI_CONTEXT_REMOTE"                                           \
-    --name "$GSI_CLUSTER_REMOTE"                                              \
+    --name "$GSI_CLUSTER_REMOTE"                                              |
     $DRY_RUN kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT_LOCAL"
   fi
 }
@@ -679,7 +679,7 @@ function exec_istio_vs_and_gateway {
        "$TEMPLATES"/istio.vs_and_gateway.template.yaml.j2 )
 }
 
-function exec_istio_ingressgateway_no_$DRY_RUN helm {
+function exec_istio_ingressgateway_no_helm {
   local _istio_126
 
   if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
