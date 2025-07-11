@@ -96,7 +96,7 @@ function exec_gme_secrets {
   local _manifest="$MANIFESTS/gme.secret.relay-token.manifest.yaml"
 
   jinja2 -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
-         "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2                 \
+         "$TEMPLATES"/gme.secret.relay-token.manifest.yaml.j2                 \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
