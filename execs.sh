@@ -838,50 +838,51 @@ function exec_argocd_server {
 }
 
 function exec_argocd_cluster {
-  local _argo_context _cluster _cluster_server _cert_data _key_data _ca_data
-  local _context _k8s_user _k8s_cluster
-  _cluster=$1
-  _context=$2
-  _argo_context=$3
+  local _manifest="$MANIFESTS/argocd.secret.cluster.manifest.yaml"
 
-  if [[ $($DRY_RUN kubectl config get-contexts "$_context" --no-headers=true | awk '{print $1}') == '*' ]]; then
-    _k8s_user=$($DRY_RUN kubectl config get-contexts "$_context" --no-headers=true | awk '{print $4}')
-    _k8s_cluster=$($DRY_RUN kubectl config get-contexts "$_context" --no-headers=true | awk '{print $3}')
+  local _cluster_server _cert_data _key_data _ca_data _k8s_user _k8s_cluster
+
+  if [[ $(kubectl config get-contexts "$GSI_CONTEXT" --no-headers=true | awk '{print $1}') == '*' ]]; then
+    _k8s_user=$(kubectl config get-contexts "$GSI_CONTEXT" --no-headers=true | awk '{print $4}')
+    _k8s_cluster=$(kubectl config get-contexts "$GSI_CONTEXT" --no-headers=true | awk '{print $3}')
   else
-    _k8s_user=$($DRY_RUN kubectl config get-contexts "$_context" --no-headers=true | awk '{print $3}')
-    _k8s_cluster=$($DRY_RUN kubectl config get-contexts "$_context" --no-headers=true | awk '{print $2}')
+    _k8s_user=$(kubectl config get-contexts "$GSI_CONTEXT" --no-headers=true | awk '{print $3}')
+    _k8s_cluster=$(kubectl config get-contexts "$GSI_CONTEXT" --no-headers=true | awk '{print $2}')
   fi
 
-  _cluster_server=https://"$($DRY_RUN kubectl --context "$_context" get nodes "k3d-${_cluster}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443
+  _cluster_server=https://"$(kubectl --context "$GSI_CONTEXT" get nodes "k3d-${GSI_CLUSTER}-server-0" -o jsonpath='{.status.addresses[0].address}')":6443
 
   _ca_data=$(
-    $DRY_RUN kubectl config view                                                       \
+    kubectl config view                                                       \
     --raw=true                                                                \
     -o jsonpath='{.clusters[?(@.name == "'"$_k8s_cluster"'")].cluster.certificate-authority-data}')
 
   _cert_data=$(
-    $DRY_RUN kubectl config view                                                       \
+    kubectl config view                                                       \
     --raw=true                                                                \
     -o jsonpath='{.users[?(@.name == "'"$_k8s_user"'")].user.client-certificate-data}')
 
   _key_data=$(
-    $DRY_RUN kubectl config view                                                       \
+    kubectl config view                                                       \
     --raw=true                                                                \
     -o jsonpath='{.users[?(@.name == "'"$_k8s_user"'")].user.client-key-data}')
 
+  jinja2 -D cluster="$GSI_CLUSTER"                                            \
+         -D cluster_server="$_cluster_server"                                 \
+         -D cluster_server="$_cluster_server"                                 \
+         -D cert_data="$_cert_data"                                           \
+         -D key_data="$_key_data"                                             \
+         -D ca_data="$_ca_data"                                               \
+      "$TEMPLATES"/argocd.secret.cluster.manifest.yaml.j2                     \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$ARGO_CONTEXT"                                                   \
-  -f <(jinja2                                                                 \
-       -D cluster="$_cluster"                                                 \
-       -D cluster_server="$_cluster_server"                                   \
-       -D cluster_server="$_cluster_server"                                   \
-       -D cert_data="$_cert_data"                                             \
-       -D key_data="$_key_data"                                               \
-       -D ca_data="$_ca_data"                                                 \
-      "$TEMPLATES"/argocd.secret.cluster.template.yaml.j2 )
+  --context "$ARGOCD_CONTEXT"                                                 \
+  -f "$_manifest" 
 }
 
 function exec_external_dns_for_pihole {
+  local _manifest="$MANIFESTS/externaldns.pihole.manifest.yaml"
   local _pihole_server_address
 
   _pihole_server_address=$(docker inspect pihole | jq -r '.[].NetworkSettings.Networks."'"$DOCKER_NETWORK"'".IPAddress')
@@ -891,11 +892,13 @@ function exec_external_dns_for_pihole {
   --namespace "$KUBE_SYSTEM_NAMESPACE"                                        \
   --from-literal EXTERNAL_DNS_PIHOLE_PASSWORD="$(yq -r '.services.pihole.environment.FTLCONF_webserver_api_password' "$K3D_DIR"/pihole.docker-compose.yaml.j2)"
 
+  jinja2 -D pihole_server_address="$_pihole_server_address"                   \
+       "$TEMPLATES"/externaldns.pihole.manifest.yaml.j2                       \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f <(jinja2                                                                 \
-       -D pihole_server_address="$_pihole_server_address"                     \
-       "$TEMPLATES"/externaldns.pihole.manifest.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_gloo_workspace {
