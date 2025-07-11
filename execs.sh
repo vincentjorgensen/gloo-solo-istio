@@ -241,7 +241,6 @@ function exec_istio_istiod {
            -D multicluster="$MC_FLAG"                                         \
            -D variant="$ISTIO_DISTRO"                                         \
            "$TEMPLATES"/helm.istiod.yaml.j2                                   \
-           p
       > "$_manifest"
 
     $DRY_RUN helm upgrade --install istiod "$HELM_REPO"/istiod                \
@@ -424,7 +423,7 @@ function exec_gloo_mgmt_server {
            -D aws_enabled="$AWS_FLAG"                                         \
            -D analyzer_enabled="true"                                         \
            -D insights_enabled="true"                                         \
-           -D gloo_agent="$GLOO_MGMT_AGENT_FLAG"                              \
+           -D gloo_agent="$GME_MGMT_AGENT_FLAG"                               \
            -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"          \
            "$TEMPLATES"/helm.gloo-mgmt-server.yaml.j2                         \
       > "$_manifest"
