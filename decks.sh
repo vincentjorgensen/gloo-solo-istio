@@ -128,6 +128,8 @@ function deck_spire_ambient_kgateway {
   export SIDECAR_ENABLED=false
   export SPIRE_ENABLED=true
 
+  gsi_init
+
   export GSI_DECK=(exec_create_namespaces
                    exec_spire_secrets exec_spire_crds exec_spire_server
                    exec_istio exec_telemetry_defaults
@@ -178,6 +180,8 @@ function deck_ambient_kgateway {
   export MULTICLUSTER_ENABLED=false
   export SIDECAR_ENABLED=false
   export SPIRE_ENABLED=false
+
+  gsi_init
 
   export GSI_DECK=(exec_create_namespaces
                    exec_istio exec_telemetry_defaults

@@ -2,7 +2,7 @@
 ###############################################################################
 # execs.sh
 #
-# like installs.sh, but every function takes care of its own destructor if 
+# like installs.sh, but every function takes care of its own destructor if
 # GSI_MODE is set to "delete"
 ###############################################################################
 export KGATEWAY_VER=v1.2.1
@@ -101,7 +101,7 @@ function exec_gme_secrets {
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
+  -f "$_manifest"
 }
 
 function exec_k8s_gateway_crds {
@@ -329,7 +329,7 @@ function exec_istio {
   if [[ $GSI_MODE == delete ]]; then
     _k_label="-"
   fi
-    
+
   if $MULTICLUSTER_ENABLED; then
     $DRY_RUN kubectl label namespace "$ISTIO_SYSTEM_NAMESPACE" "topology.istio.io/network${_k_label}"  \
     --context "$GSI_CONTEXT" --overwrite
@@ -359,7 +359,7 @@ function exec_kgateway_eastwest {
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
+  -f "$_manifest"
 }
 
 function exec_kgateway_ew_link {
@@ -395,7 +395,7 @@ function exec_kgateway_ew_link {
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT_LOCAL"                                              \
-  -f "$_manifest" 
+  -f "$_manifest"
 }
 
 function exec_gloo_platform_crds {
@@ -459,7 +459,7 @@ function exec_gloo_k8s_cluster {
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GME_MGMT_CONTEXT"                                               \
-  -f "$_manifest" 
+  -f "$_manifest"
 }
 
 function exec_gloo_agent {
@@ -626,9 +626,9 @@ function get_istio_zones {
 function exec_helloworld_app {
   local _manifest="$MANIFESTS/helloworld.manifest.yaml.j2"
   local _region _zones _ztemp
-  
+
   # Traffic Distribution: PreferNetwork, PreferClose, PreferRegion, Any
-	_ztemp=$(mktemp)
+  _ztemp=$(mktemp)
   _region=$(get_istio_region "$GSI_CONTEXT")
   _zones=$(get_istio_zones "$GSI_CONTEXT")
 
@@ -656,7 +656,7 @@ function exec_helloworld_app {
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
+  -f "$_manifest"
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
@@ -677,7 +677,7 @@ function exec_curl_app {
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
+  -f "$_manifest"
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
@@ -692,11 +692,11 @@ function exec_tools_app {
   jinja2 -D ambient_enabled="$AMBIENT_FLAG"                                   \
          -D sidecar_enabled="$SIDECAR_FLAG"                                   \
          -D revision="$REVISION"                                              \
-  -f "$_manifest" 
+  -f "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
+  -f "$_manifest"
 }
 
 function exec_istio_vs_and_gateway {
@@ -709,10 +709,10 @@ function exec_istio_vs_and_gateway {
          -D tldn="$TLDN"                                                      \
          -D gme_enabled="$GME_FLAG"                                           \
        "$TEMPLATES"/istio.vs_and_gateway.manifest.yaml.j2                     \
-  -f "$_manifest" 
+  -f "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
+  --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 }
 
@@ -731,8 +731,8 @@ function exec_ingress_gateway_api {
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
-  -f "$_manifest" 
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest"
 }
 
 function exec_httproute {
@@ -751,7 +751,7 @@ function exec_httproute {
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
+  -f "$_manifest"
 }
 
 function exec_reference_grant {
@@ -765,7 +765,7 @@ function exec_reference_grant {
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
+  -f "$_manifest"
 }
 
 function exec_tls_cert_secret {
@@ -789,13 +789,13 @@ function exec_tls_cert_secret {
 
   if is_create_mode; then
     $DRY_RUN kubectl "$GSI_MODE" secret tls "$_secret_name"                   \
-    --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        	\
+    --context "$GSI_CONTEXT"                                                  \
     --namespace "$_namespace"                                                 \
     --cert="${CERTS}"/"${_cluster}"/ca-cert.pem                               \
     --key="${CERTS}"/"${_cluster}"/ca-key.pem
   else
     $DRY_RUN kubectl "$GSI_MODE" secret "$_secret_name"                       \
-    --context "$_context"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        	\
+    --context "$GSI_CONTEXT"                                                  \
     --namespace "$_namespace"
   fi
 }
@@ -822,7 +822,7 @@ function exec_argocd_server {
     --kube-context "$_context"                                                \
     --namespace "$ARGOCD_NAMESPACE"                                           \
     --create-namespace                                                        \
-    --values <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
+    --values <(jinja2                                                         \
                -D cluster="$_cluster"                                         \
                -D tldn="$TLDN"                                                \
                "$TEMPLATES"/helm.argocd.yaml.j2 )                             \
@@ -866,9 +866,9 @@ function exec_argocd_cluster {
     --raw=true                                                                \
     -o jsonpath='{.users[?(@.name == "'"$_k8s_user"'")].user.client-key-data}')
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                         \
-  --context "$_argo_context"    	  	  	  	  	  	  	  	  	  	  	  	\
-  -f <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$ARGO_CONTEXT"                                                   \
+  -f <(jinja2                                                                 \
        -D cluster="$_cluster"                                                 \
        -D cluster_server="$_cluster_server"                                   \
        -D cluster_server="$_cluster_server"                                   \
@@ -989,7 +989,7 @@ function exec_gsi_cluster_roll_forward {
     export PREV_GSI_CLUSTER=$GSI_CLUSTER
     export PREV_GSI_CONTEXT=$GSI_CONTEXT
     export PREV_GSI_NETWORK=$GSI_NETWORK
-  
+
     export GSI_CLUSTER=$NEXT_GSI_CLUSTER
     export GSI_CONTEXT=$NEXT_GSI_CONTEXT
     export GSI_NETWORK=$NEXT_GSI_NETWORK
@@ -997,7 +997,7 @@ function exec_gsi_cluster_roll_forward {
     export NEXT_GSI_CLUSTER=$GSI_CLUSTER
     export NEXT_GSI_CONTEXT=$GSI_CONTEXT
     export NEXT_GSI_NETWORK=$GSI_NETWORK
-  
+
     export GSI_CLUSTER=$PREV_GSI_CLUSTER
     export GSI_CONTEXT=$PREV_GSI_CONTEXT
     export GSI_NETWORK=$PREV_GSI_NETWORK
@@ -1013,7 +1013,7 @@ function exec_gsi_cluster_roll_back {
     export PREV_GSI_CLUSTER=$GSI_CLUSTER
     export PREV_GSI_CONTEXT=$GSI_CONTEXT
     export PREV_GSI_NETWORK=$GSI_NETWORK
-  
+
     export GSI_CLUSTER=$NEXT_GSI_CLUSTER
     export GSI_CONTEXT=$NEXT_GSI_CONTEXT
     export GSI_NETWORK=$NEXT_GSI_NETWORK
@@ -1021,7 +1021,7 @@ function exec_gsi_cluster_roll_back {
     export NEXT_GSI_CLUSTER=$GSI_CLUSTER
     export NEXT_GSI_CONTEXT=$GSI_CONTEXT
     export NEXT_GSI_NETWORK=$GSI_NETWORK
-  
+
     export GSI_CLUSTER=$PREV_GSI_CLUSTER
     export GSI_CONTEXT=$PREV_GSI_CONTEXT
     export GSI_NETWORK=$PREV_GSI_NETWORK
