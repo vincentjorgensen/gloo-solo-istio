@@ -20,9 +20,9 @@ function rew_gsi {
 }
 
 function dry_run_gsi {
-  export GSI_MODE=create
   export DRY_RUN="echo"
   for exe in "${GSI_DECK[@]}"; do
+    echo '#'"$exe"
     eval "$exe"
   done
   export DRY_RUN=""

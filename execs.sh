@@ -6,7 +6,7 @@
 # GSI_MODE is set to "delete"
 ###############################################################################
 export KGATEWAY_VER=v1.2.1
-export TEMPLATES CERTS
+export TEMPLATES CERTS MANIFESTS
 TEMPLATES="$(dirname "$0")"/templates
 CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
@@ -17,6 +17,21 @@ function is_create_mode {
   else
     return 1
   fi
+}
+
+function gsi_init {
+  MANIFESTS="$(dirname "$0")"/manifests/$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
+  mkdir -p "$MANIFESTS"
+  echo '#' "MANIFESTS=$MANIFESTS"
+
+  $GME_ENABLED && GME_FLAG=enabled
+  $GME_MGMT_AGENT_ENABLED && GME_MGMT_AGENT_FLAG=enabled
+  $AWS_ENABLED && AWS_FLAG=enabled
+  $AZURE_ENABLED && AZURE_FLAG=enabled
+  $SIDECAR_ENABLED && SIDECAR_FLAG=enabled
+  $AMBIENT_ENABLED && AMBIENT_FLAG=enabled
+  $SPIRE_ENABLED && SPIRE_FLAG=enabled
+  $MULTICLUSTER_ENABLED && MC_FLAG=enabled
 }
 
 function exec_create_namespaces {
@@ -71,18 +86,22 @@ function exec_spire_secrets {
     --from-file=tls.crt="$SPIRE_CERTS"/root-cert.pem                          \
     --from-file=tls.key="$SPIRE_CERTS"/root-key.pem
   else
-    $DRY_RUN kubectl "$GSI_MODE" secret spiffe-upstream-cacacerts             \
+    $DRY_RUN kubectl "$GSI_MODE" secret "$SPIRE_SECRET"                       \
     --context "$GSI_CONTEXT"                                                  \
     --namespace "$SPIRE_NAMESPACE"
   fi
 }
 
 function exec_gme_secrets {
+  local _manifest="$MANIFESTS/gme.secret.relay-token.manifest.yaml"
+
+  jinja2 -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
+         "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2                 \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f <(jinja2                                                                 \
-       -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                       \
-       "$TEMPLATES"/gme.secret.relay-token.template.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_k8s_gateway_crds {
@@ -137,29 +156,33 @@ function exec_kgateway {
 function exec_spire_crds {
   if is_create_mode; then
     # shellcheck disable=SC2086
-    helm upgrade --install spire-crds spire/spire-crds                        \
+    $DRY_RUN helm upgrade --install spire-crds spire/spire-crds                        \
     --version "$SPIRE_CRDS_VER"                                               \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$SPIRE_NAMESPACE"                                            \
     --wait
   else
-    helm uninstall spire-crds                                                 \
+    $DRY_RUN helm uninstall spire-crds                                                 \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$SPIRE_NAMESPACE"
   fi
 }
 
 function exec_spire_server {
+  local _manifest="$MANIFESTS/helm.spire.yaml"
+
   if is_create_mode; then
+    jinja2 -D trust_domain="$TRUST_DOMAIN"                                    \
+           -D spire_secret="$SPIRE_SECRET"                                    \
+           "$TEMPLATES"/helm.spire.yaml.j2                                    \
+      > "$_manifest"
+
     # shellcheck disable=SC2086
     $DRY_RUN helm upgrade --install spire spire/spire                         \
     --version "$SPIRE_SERVER_VER"                                             \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$SPIRE_NAMESPACE"                                            \
-    --values <(jinja2                                                         \
-               -D trust_domain="$TRUST_DOMAIN"                                \
-               -D spire_secret="$SPIRE_SECRET"                                \
-               "$TEMPLATES"/helm.spire.yaml.j2 )                              \
+    --values "$_manifest"                                                     \
     --wait
 
     $DRY_RUN kubectl wait                                                     \
@@ -171,21 +194,26 @@ function exec_spire_server {
     --namespace "$SPIRE_NAMESPACE"
   fi
 
+  cp "$TEMPLATES"/spire.cluster-id.manifest.yaml                              \
+     "$MANIFESTS"/spire.cluster-id.manifest.yaml
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$TEMPLATES"/spire.cluster-id.manifest.yaml
+  -f "$MANIFESTS"/spire.cluster-id.manifest.yaml
 }
 function exec_istio_base {
   if is_create_mode; then
+    jinja2 -D revision="$REVISION"                                            \
+           "$TEMPLATES"/helm.istio-base.yaml.j2                               \
+      > "$_manifest"
+
     # shellcheck disable=SC2086
     $DRY_RUN helm upgrade --install istio-base "$HELM_REPO"/base              \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
     --create-namespace                                                        \
-    --values <(jinja2                                                         \
-               -D revision="$REVISION"                                        \
-               "$TEMPLATES"/helm.istio-base.yaml.j2 )                         \
+    --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall istio-base                                        \
@@ -195,35 +223,32 @@ function exec_istio_base {
 }
 
 function exec_istio_istiod {
-  local _cluster _network _sidecar_enabled _ambient_enabled _spire_enabled
-  _cluster=$GSI_CLUSTER
-  _network=$GSI_NETWORK
-  "$SIDECAR_ENABLED" && _sidecar_enabled=enabled
-  "$AMBIENT_ENABLED" && _ambient_enabled=enabled
-  "$SPIRE_ENABLED" && _spire_enabled=enabled
-  "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
+  local _manifest="$MANIFESTS/helm.istiod.yaml"
 
   if is_create_mode; then
+    jinja2 -D ambient="$AMBIENT_FLAG"                                         \
+           -D sidecar="$SIDECAR_FLAG"                                         \
+           -D spire="$SPIRE_FLAG"                                             \
+           -D cluster_name="$$GSI_CLUSTER"                                    \
+           -D revision="$REVISION"                                            \
+           -D network="$GSI_NETWORK"                                          \
+           -D istio_repo="$ISTIO_REPO"                                        \
+           -D istio_ver="$ISTIO_VER"                                          \
+           -D trust_domain="$TRUST_DOMAIN"                                    \
+           -D mesh_id="$MESH_ID"                                              \
+           -D flavor="$ISTIO_FLAVOR"                                          \
+           -D license_key="$GLOO_MESH_LICENSE_KEY"                            \
+           -D multicluster="$MC_FLAG"                                         \
+           -D variant="$ISTIO_DISTRO"                                         \
+           "$TEMPLATES"/helm.istiod.yaml.j2                                   \
+           p
+      > "$_manifest"
+
     $DRY_RUN helm upgrade --install istiod "$HELM_REPO"/istiod                \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
-    --values <(jinja2                                                         \
-               -D ambient="$_ambient_enabled"                                 \
-               -D sidecar="$_sidecar_enabled"                                 \
-               -D spire="$_spire_enabled"                                     \
-               -D cluster_name="$_cluster"                                    \
-               -D revision="$REVISION"                                        \
-               -D network="$_network"                                         \
-               -D istio_repo="$ISTIO_REPO"                                    \
-               -D istio_ver="$ISTIO_VER"                                      \
-               -D trust_domain="$TRUST_DOMAIN"                                \
-               -D mesh_id="$MESH_ID"                                          \
-               -D flavor="$ISTIO_FLAVOR"                                      \
-               -D license_key="$GLOO_MESH_LICENSE_KEY"                        \
-               -D multicluster="$_mc_enabled"                                 \
-               -D variant="$ISTIO_DISTRO"                                     \
-               "$TEMPLATES"/helm.istiod.yaml.j2 )                             \
+    --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall istiod                                            \
@@ -233,18 +258,22 @@ function exec_istio_istiod {
 }
 
 function exec_istio_cni {
+  local _manifest="$MANIFESTS/helm.istio-cni.yaml"
+
   if is_create_mode; then
+      jinja2 -D revision="$REVISION"                                          \
+             -D istio_repo="$ISTIO_REPO"                                      \
+             -D istio_ver="$ISTIO_VER"                                        \
+             -D flavor="$ISTIO_FLAVOR"                                        \
+             -D variant="$ISTIO_DISTRO"                                       \
+             "$TEMPLATES"/helm.istio-cni.yaml.j2                              \
+        > "$_manifest"
+
     $DRY_RUN helm upgrade --install istio-cni "$HELM_REPO"/cni                \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
-    --values <(jinja2                                                         \
-               -D revision="$REVISION"                                        \
-               -D istio_repo="$ISTIO_REPO"                                    \
-               -D istio_ver="$ISTIO_VER"                                      \
-               -D flavor="$ISTIO_FLAVOR"                                      \
-               -D variant="$ISTIO_DISTRO"                                     \
-               "$TEMPLATES"/helm.istio-cni.yaml.j2 )                          \
+    --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall istio-cni                                         \
@@ -254,29 +283,30 @@ function exec_istio_cni {
 }
 
 function exec_istio_ztunnel {
-  local _cluster _network _spire_enabled
-  _cluster=$GSI_CLUSTER
-  _network=$GSI_NETWORK
+  local _manifest="$MANIFESTS/helm.ztunnel.yaml"
+  local _spire_enabled _mc_enabled
 
   "$SPIRE_ENABLED" && _spire_enabled=enabled
   "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
 
   if is_create_mode; then
+    jinja2 -D cluster="$GSI_CLUSTER"                                          \
+           -D network="$GSI_NETWORK"                                          \
+           -D revision="$REVISION"                                            \
+           -D istio_repo="$ISTIO_REPO"                                        \
+           -D istio_ver="$ISTIO_VER"                                          \
+           -D flavor="$ISTIO_FLAVOR"                                          \
+           -D spire="$_spire_enabled"                                         \
+           -D multicluster="$_mc_enabled"                                     \
+           -D variant="$ISTIO_DISTRO"                                         \
+           "$TEMPLATES"/helm.ztunnel.yaml.j2                                  \
+      > "$_manifest"
+
     $DRY_RUN helm upgrade --install ztunnel "$HELM_REPO"/ztunnel              \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
-    --values <(jinja2                                                         \
-               -D cluster="$_cluster"                                         \
-               -D network="$_network"                                         \
-               -D revision="$REVISION"                                        \
-               -D istio_repo="$ISTIO_REPO"                                    \
-               -D istio_ver="$ISTIO_VER"                                      \
-               -D flavor="$ISTIO_FLAVOR"                                      \
-               -D spire="$_spire_enabled"                                     \
-               -D multicluster="$_mc_enabled"                                 \
-               -D variant="$ISTIO_DISTRO"                                     \
-               "$TEMPLATES"/helm.ztunnel.yaml.j2 )                            \
+    --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall ztunnel                                           \
@@ -286,9 +316,12 @@ function exec_istio_ztunnel {
 }
 
 function exec_telemetry_defaults {
+  cp "$TEMPLATES"/telemetry.istio-system.manifest.yaml                        \
+     "$MANIFESTS"/telemetry.istio-system.manifest.yaml
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$TEMPLATES"/telemetry.istio-system.manifest.yaml
+  -f "$MANIFESTS"/telemetry.istio-system.manifest.yaml
 }
 
 function exec_istio {
@@ -316,21 +349,26 @@ function exec_istio {
 }
 
 function exec_kgateway_eastwest {
+  local _manifest="$MANIFESTS/gateway_api.eastwest_gateway.manifest.yaml"
+
+  jinja2 -D network="$GSI_NETWORK"                                            \
+         -D revision="$REVISION"                                              \
+         -D size="$GSI_EW_SIZE"                                               \
+         -D istio_126="$ISTIO_126_FLAG"                                       \
+         "$TEMPLATES"/gateway_api.eastwest_gateway.manifest.yaml.j2           \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f <(jinja2                                                                 \
-       -D network="$GSI_NETWORK"                                              \
-       -D revision="$REVISION"                                                \
-       -D size="$GSI_EW_SIZE"                                                 \
-       -D istio_126="$ISTIO_126_FLAG"                                         \
-       "$TEMPLATES"/kgateway.eastwest_gateway.template.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_kgateway_ew_link {
+  local _manifest="$MANIFESTS/gateway_api.eastwest_remote_gateway.${GSI_CONTEXT_LOCAL}.manifest.yaml"
   local _remote_address _address_type
 
   _remote_address=$(
-    $DRY_RUN kubectl get svc -n "$EASTWEST_NAMESPACE" istio-eastwest          \
+    kubectl get svc -n "$EASTWEST_NAMESPACE" istio-eastwest                   \
     --context "$GSI_CONTEXT_REMOTE"                                           \
     -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
@@ -348,15 +386,17 @@ function exec_kgateway_ew_link {
     _address_type=Hostname
   fi
 
+  jinja2 -D trust_domain="$TRUST_DOMAIN"                                      \
+         -D network="$GSI_NETWORK_REMOTE"                                     \
+         -D cluster="$GSI_CLUSTER_REMOTE"                                     \
+         -D address_type="$_address_type"                                     \
+         -D remote_address="$_remote_address"                                 \
+         "$TEMPLATES"/gateway_api.eastwest_remote_gateway.manifest.yaml.j2    \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT_LOCAL"                                              \
-  -f <(jinja2                                                                 \
-       -D trust_domain="$TRUST_DOMAIN"                                        \
-       -D network="$GSI_NETWORK_REMOTE"                                       \
-       -D cluster="$GSI_CLUSTER_REMOTE"                                       \
-       -D address_type="$_address_type"                                       \
-       -D remote_address="$_remote_address"                                   \
-       "$TEMPLATES"/kgateway.eastwest_remote_gateway.template.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_gloo_platform_crds {
@@ -375,26 +415,25 @@ function exec_gloo_platform_crds {
 }
 
 function exec_gloo_mgmt_server {
-  local _gloo_agent _aws_enabled _azure_enabled
-
-  $AWS_ENABLED && _aws_enabled=enabled
-  $AZURE_ENABLED && _azure_enabled=enabled
+  local _manifest="$MANIFESTS/helm.gloo-mgmt-server.yaml"
 
   if is_create_mode; then
+    jinja2 -D cluster_name="$GSI_CLUSTER"                                     \
+           -D verbose="$GME_VERBOSE"                                          \
+           -D azure_enabled="$AZURE_FLAG"                                     \
+           -D aws_enabled="$AWS_FLAG"                                         \
+           -D analyzer_enabled="true"                                         \
+           -D insights_enabled="true"                                         \
+           -D gloo_agent="$GLOO_MGMT_AGENT_FLAG"                              \
+           -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"          \
+           "$TEMPLATES"/helm.gloo-mgmt-server.yaml.j2                         \
+      > "$_manifest"
+
     $DRY_RUN helm upgrade -i gloo-platform-mgmt gloo-platform/gloo-platform   \
     --version="$GME_VER"                                                      \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"                                        \
-    --values <(jinja2                                                         \
-          -D cluster_name="$GSI_CLUSTER"                                      \
-          -D verbose="$GME_VERBOSE"                                           \
-          -D azure_enabled="$_azure_enabled"                                  \
-          -D aws_enabled="$_aws_enabled"                                      \
-          -D analyzer_enabled="true"                                          \
-          -D insights_enabled="true"                                          \
-          -D gloo_agent="$_gloo_agent"                                        \
-          -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"           \
-          "$TEMPLATES"/helm.gloo-mgmt-server.yaml.j2 )                        \
+    --values "$_manifest"                                                     \
     --wait
 
     export GME_MGMT_CONTEXT=$GSI_CONTEXT
@@ -404,78 +443,90 @@ function exec_gloo_mgmt_server {
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"
   fi
+
+  if is_create_mode; then
+    $DRY_RUN kubectl wait                                                     \
+    --namespace "$GLOO_MESH_NAMESPACE"                                        \
+    --for=condition=Ready pods --all
+  fi
 }
 
 function exec_gloo_k8s_cluster {
+  local _manifest="$MANIFESTS/gloo.k8s_cluster.template.yaml"
+
+  jinja2 -D cluster="$GSI_CLUSTER"                                            \
+         "$TEMPLATES"/gloo.k8s_cluster.template.yaml.j2                       \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GME_MGMT_CONTEXT"                                               \
-  -f <(jinja2  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	  \
-       -D cluster="$GSI_CLUSTER"                                              \
-       "$TEMPLATES"/gloo.k8s_cluster.template.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_gloo_agent {
-  GLOO_MESH_SERVER=$($DRY_RUN kubectl get svc gloo-mesh-mgmt-server           \
+  local _manifest="$MANIFESTS/helm.gloo-agent.yaml"
+
+  GLOO_MESH_SERVER=$(kubectl get svc gloo-mesh-mgmt-server                    \
     --context "$GME_MGMT_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"                                        \
     -o=jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
-  GLOO_MESH_TELEMETRY_GATEWAY=$($DRY_RUN kubectl get svc gloo-telemetry-gateway \
+  GLOO_MESH_TELEMETRY_GATEWAY=$(kubectl get svc gloo-telemetry-gateway        \
     --context "$GME_MGMT_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"                                        \
     -o=jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
   if is_create_mode; then
-    $DRY_RUN helm install gloo-platform-crds gloo-platform/gloo-platform-crds \
-    --version="$GME_VER"                                                      \
-    --kube-context="$GSI_CONTEXT"                                             \
-    --namespace="$GLOO_MESH_NAMESPACE"                                        \
-    --create-namespace                                                        \
-    --wait
+    jinja2 -D cluster_name="$GSI_CLUSTER"                                     \
+           -D verbose="$GME_VERBOSE"                                          \
+           -D insights_enabled="true"                                         \
+           -D analyzer_enabled="true"                                         \
+           -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"          \
+           -D gloo_mesh_server="${GLOO_MESH_SERVER:-GLOO_MESH_SERVER}"        \
+           -D gloo_mesh_telemetry_gateway="${GLOO_MESH_TELEMETRY_GATEWAY:-GLOO_MESH_TELEMETRY_GATEWAY}" \
+           "$TEMPLATES"/helm.gloo-agent.yaml.j2                               \
+      > "$_manifest"
 
     $DRY_RUN helm upgrade -i gloo-platform-agent gloo-platform/gloo-platform  \
     --version="$GME_VER"                                                      \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace="$GLOO_MESH_NAMESPACE"                                        \
-    --values <(jinja2                                                         \
-          -D cluster_name="$GSI_CLUSTER"                                      \
-          -D verbose="$GME_VERBOSE"                                           \
-          -D insights_enabled="true"                                          \
-          -D analyzer_enabled="true"                                          \
-          -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"           \
-          -D gloo_mesh_server="$GLOO_MESH_SERVER"                             \
-          -D gloo_mesh_telemetry_gateway="$GLOO_MESH_TELEMETRY_GATEWAY"       \
-          "$TEMPLATES"/helm.gloo-agent.yaml.j2 )                              \
-      --wait
+    --values "$_manifest"                                                     \
+    --wait
   else
     $DRY_RUN helm uninstall gloo-platform-agent gloo-platform-crds            \
     --kube-context="$_context"                                                \
     --namespace="$GLOO_MESH_NAMESPACE"
   fi
+
+  if is_create_mode; then
+    $DRY_RUN kubectl wait                                                     \
+    --namespace "$GLOO_MESH_NAMESPACE"                                        \
+    --for=condition=Ready pods --all
+  fi
 }
 
 function exec_istio_ingressgateway {
-  local _azure_enabled _aws_enabled
-
-  $AWS_ENABLED && _aws_enabled=enabled
-  $AZURE_ENABLED && _azure_enabled=enabled
+  local _manifest="$MANIFESTS/helm.istio-ingressgateway.yaml"
 
   if is_create_mode; then
+    jinja2 -D size="$GSI_INGRESS_SIZE"                                        \
+           -D network="$GSI_NETWORK"                                          \
+           -D revision="$REVISION"                                            \
+           -D istio_repo="$ISTIO_REPO"                                        \
+           -D istio_ver="$ISTIO_VER"                                          \
+           -D flavor="$ISTIO_FLAVOR"                                          \
+           -D azure="$AZURE_FLAG"                                             \
+           -D aws="$AWS_FLAG"                                                 \
+           "$TEMPLATES"/helm.istio-ingressgateway.yaml.j2                     \
+      > "$_manifest"
+
     $DRY_RUN helm upgrade -i istio-ingressgateway "$HELM_REPO"/gateway        \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$INGRESS_NAMESPACE"                                          \
     --create-namespace                                                        \
-    --values <(jinja2                                                         \
-               -D size="$GSI_INGRESS_SIZE"                                    \
-               -D network="$GSI_NETWORK"                                      \
-               -D revision="$REVISION"                                        \
-               -D istio_repo="$ISTIO_REPO"                                    \
-               -D istio_ver="$ISTIO_VER"                                      \
-               -D flavor="$ISTIO_FLAVOR"                                      \
-               -D azure="$_azure_enabled"                                     \
-               -D aws="$_aws_enabled"                                         \
-               "$TEMPLATES"/helm.istio-ingressgateway.yaml.j2 )               \
+    --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall istio-ingressgateway                              \
@@ -485,26 +536,26 @@ function exec_istio_ingressgateway {
 }
 
 function exec_istio_eastwest {
-  local _aws_enabled _azure_enabled
-  $AWS_ENABLED && _aws_enabled=enabled
-  $AZURE_ENABLED && _azure_enabled=enabled
+  local _manifest="$MANIFESTS/helm.istio-eastwestgateway.yaml"
 
   if is_create_mode; then
+    jinja2 -D size="${GSI_EW_SIZE:-1}"                                        \
+           -D network="$GSI_NETWORK"                                          \
+           -D revision="$REVISION"                                            \
+           -D istio_repo="$ISTIO_REPO"                                        \
+           -D istio_ver="$ISTIO_VER"                                          \
+           -D flavor="$ISTIO_FLAVOR"                                          \
+           -D azure="$AZURE_FLAG"                                             \
+           -D aws="$AWS_FLAG"                                                 \
+           "$TEMPLATES"/helm.istio-eastwestgateway.yaml.j2                    \
+      > "$_manifest"
+
     $DRY_RUN helm upgrade -i istio-eastwestgateway "$HELM_REPO"/gateway       \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$EASTWEST_NAMESPACE"                                         \
     --create-namespace                                                        \
-    --values <(jinja2                                                         \
-               -D size="${GSI_EW_SIZE:-1}"                                    \
-               -D network="$GSI_NETWORK"                                      \
-               -D revision="$REVISION"                                        \
-               -D istio_repo="$ISTIO_REPO"                                    \
-               -D istio_ver="$ISTIO_VER"                                      \
-               -D flavor="$ISTIO_FLAVOR"                                      \
-               -D azure="$_azure_enabled"                                     \
-               -D aws="$_aws_enabled"                                         \
-               "$TEMPLATES"/helm.istio-eastwestgateway.yaml.j2 )              \
+    --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall istio-eastwestgateway                             \
@@ -514,9 +565,12 @@ function exec_istio_eastwest {
 
   # OSS Expose Services
   if ! "$GME_ENABLED"; then
+    cp "$TEMPLATES"/istio.eastwestgateway.cross-network-gateway.manifest.yaml \
+       "$MANIFESTS"/istio.eastwestgateway.cross-network-gateway.manifest.yaml
+
     $DRY_RUN kubectl "$GSI_MODE"                                              \
     --context "$GSI_CONTEXT"                                                  \
-    -f "$TEMPLATES"/istio.eastwestgateway.cross-network-gateway.manifest.yaml
+    -f "$MANIFESTS"/istio.eastwestgateway.cross-network-gateway.manifest.yaml
   fi
 }
 
@@ -550,7 +604,7 @@ function get_istio_region {
   local _context
   _context=$1
 
-  _region=$($DRY_RUN kubectl get nodes                                        \
+  _region=$(kubectl get nodes                                                 \
     --context "$_context"                                                     \
     -o jsonpath='{.items[0].metadata.labels.topology\.kubernetes\.io/region}')
 
@@ -561,7 +615,7 @@ function get_istio_zones {
   local _context
   _context=$1
 
-  _zones=$($DRY_RUN kubectl get nodes                                         \
+  _zones=$(kubectl get nodes                                                  \
            --context "$_context"                                              \
            -o yaml                                                            |
            yq '.items[].metadata.labels."topology.kubernetes.io/zone"'        |
@@ -571,15 +625,12 @@ function get_istio_zones {
 }
 
 function exec_helloworld_app {
-  local _region _zones _ztemp _sidecar_enabled _ambient_enabled
-  "$SIDECAR_ENABLED" && _sidecar_enabled=enabled
-  "$AMBIENT_ENABLED" && _ambient_enabled=enabled
+  local _manifest="$MANIFESTS/helloworld.manifest.yaml.j2"
+  local _region _zones _ztemp
   
   # Traffic Distribution: PreferNetwork, PreferClose, PreferRegion, Any
 	_ztemp=$(mktemp)
-
   _region=$(get_istio_region "$GSI_CONTEXT")
-
   _zones=$(get_istio_zones "$GSI_CONTEXT")
 
   echo "zones:" > "$_ztemp"
@@ -590,21 +641,23 @@ function exec_helloworld_app {
 
   cp "$_ztemp" "$_ztemp".yaml
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f <(jinja2                                                                 \
-       -D region="$_region"                                                   \
+  jinja2 -D region="$_region"                                                 \
        -D service_version="${GSI_SERVICE_VERSION:-none}"                      \
-       -D ambient_enabled="$_ambient_enabled"                                 \
+       -D ambient_enabled="$AMBIENT_FLAG"                                     \
        -D traffic_distribution="${GSI_TRAFFIC_DISTRIBUTION:-Any}"             \
-       -D sidecar_enabled="$_sidecar_enabled"                                 \
+       -D sidecar_enabled="$SIDECAR_FLAG"                                     \
        -D size="${GSI_APP_SIZE:-1}"                                           \
        -D revision="$REVISION"                                                \
        -D namespace="$HELLOWORLD_NAMESPACE"                                   \
        -D service_port="$HELLOWORLD_SERVICE_PORT"                             \
        -D service_name="$HELLOWORLD_SERVICE_NAME"                             \
-       "$TEMPLATES"/helloworld.template.yaml.j2                               \
-       "$_ztemp".yaml )
+       "$TEMPLATES"/helloworld.manifest.yaml.j2                               \
+       "$_ztemp".yaml                                                         \
+    > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest" 
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
@@ -614,18 +667,18 @@ function exec_helloworld_app {
 }
 
 function exec_curl_app {
-  local __sidecar_enabled _ambient_enabled
-  "$SIDECAR_ENABLED" && _sidecar_enabled=enabled
-  "$AMBIENT_ENABLED" && _ambient_enabled=enabled
+  local _manifest="$MANIFESTS/curl.manifest.yaml"
+
+  jinja2 -D ambient_enabled="$AMBIENT_FLAG"                                   \
+         -D sidecar_enabled="$SIDECAR_FLAG"                                   \
+         -D namespace="$CURL_NAMESPACE"                                       \
+         -D revision="$REVISION"                                              \
+         "$TEMPLATES"/curl.manifest.yaml.j2                                   \
+    > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f <(jinja2                                                                 \
-       -D ambient_enabled="$_ambient_enabled"                                 \
-       -D sidecar_enabled="$_sidecar_enabled"                                 \
-       -D namespace="$CURL_NAMESPACE"                                         \
-       -D revision="$REVISION"                                                \
-       "$TEMPLATES"/curl.manifest.yaml.j2 )
+  -f "$_manifest" 
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
@@ -635,59 +688,52 @@ function exec_curl_app {
 }
 
 function exec_tools_app {
-  local _ambient_enabled _sidecar_enabled
-  "$SIDECAR_ENABLED" && _sidecar_enabled=enabled
-  "$AMBIENT_ENABLED" && _ambient_enabled=enabled
+  local _manifest="$MANIFESTS/tools.manifest.yaml"
 
-  while getopts "aix:" opt; do
-    # shellcheck disable=SC2220
-    case $opt in
-      a)
-        _ambient="enabled" ;;
-      i) 
-        _sidecar="enabled" ;;
-      x) 
-        _context=$OPTARG ;;
-    esac
-  done
+  jinja2 -D ambient_enabled="$AMBIENT_FLAG"                                   \
+         -D sidecar_enabled="$SIDECAR_FLAG"                                   \
+         -D revision="$REVISION"                                              \
+  -f "$_manifest" 
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f <(jinja2                                                                 \
-       -D ambient_enabled="$_ambient"                                         \
-       -D sidecar_enabled="$_sidecar"                                         \
-       -D revision="$REVISION"                                                \
-       "$TEMPLATES"/tools.template.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_istio_vs_and_gateway {
-  local _gme_enabled
-  $GME_ENABLED && _gme_enabled=enabled
+  local _manifest="$MANIFESTS/istio.vs_and_gateway.manifest.yaml"
+
+  jinja2 -D name="$GSI_APP_SERVICE_NAME"                                      \
+         -D namespace="$GSI_APP_SERVICE_NAMESPACE"                            \
+         -D service_name="$GSI_APP_SERVICE_NAME"                              \
+         -D service_port="$GSI_APP_SERVICE_PORT"                              \
+         -D tldn="$TLDN"                                                      \
+         -D gme_enabled="$GME_FLAG"                                           \
+       "$TEMPLATES"/istio.vs_and_gateway.manifest.yaml.j2                     \
+  -f "$_manifest" 
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
-  -f <(jinja2                                                                 \
-       -D name="$GSI_APP_SERVICE_NAME"                                        \
-       -D namespace="$GSI_APP_SERVICE_NAMESPACE"                              \
-       -D service_name="$GSI_APP_SERVICE_NAME"                                \
-       -D service_port="$GSI_APP_SERVICE_PORT"                                \
-       -D tldn="$TLDN"                                                        \
-       -D gme_enabled="$_gme_enabled"                                         \
-       "$TEMPLATES"/istio.vs_and_gateway.template.yaml.j2 )
+  -f "$_manifest"
 }
+
 function exec_ingress_gateway_api {
+  local _manifest="$MANIFESTS/gateway_api.ingress_gateway.manifest.yaml"
+
+  jinja2 -D revision="$REVISION"                                              \
+         -D port="$HTTP_INGRESS_PORT"                                         \
+         -D namespace="$INGRESS_NAMESPACE"                                    \
+         -D name="$INGRESS_GATEWAY_NAME"                                      \
+         -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
+         -D size="${GSI_INGRESS_SIZE:-1}"                                     \
+         -D istio_126="$ISTIO_126_FLAG"                                       \
+         -D tldn="$TLDN"                                                      \
+        "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2             \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
-  -f <(jinja2                                                                 \
-       -D revision="$REVISION"                                                \
-       -D port="$HTTP_INGRESS_PORT"                                           \
-       -D namespace="$INGRESS_NAMESPACE"                                      \
-       -D name="$INGRESS_GATEWAY_NAME"                                        \
-       -D gateway_class_name="$GATEWAY_CLASS_NAME"                            \
-       -D size="${GSI_INGRESS_SIZE:-1}"                                       \
-       -D istio_126="$ISTIO_126_FLAG"                                         \
-       -D tldn="$TLDN"                                                        \
-     "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_ingress_istiogateway {
@@ -705,63 +751,54 @@ function exec_ingress_istiogateway {
 }
 
 function exec_ingress_kgateway {
+  local _manifest="$MANIFESTS/gateway_api.ingress_gateway.manifest.yaml"
+
+  jinja2 -D port="$HTTP_INGRESS_PORT"                                         \
+         -D namespace="$INGRESS_NAMESPACE"                                    \
+         -D name="$INGRESS_GATEWAY_NAME"                                      \
+         -D gateway_class_name="kgateway"                                     \
+         -D size="${GSI_INGRESS_SIZE:-1}"                                     \
+         -D istio_126="$ISTIO_126_FLAG"                                       \
+         -D tldn="$TLDN"                                                      \
+     "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2              \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
-  -f <(jinja2                                                                 \
-       -D port="$HTTP_INGRESS_PORT"                                           \
-       -D namespace="$INGRESS_NAMESPACE"                                      \
-       -D name="$INGRESS_GATEWAY_NAME"                                        \
-       -D gateway_class_name="kgateway"                                       \
-       -D size="${GSI_INGRESS_SIZE:-1}"                                       \
-       -D istio_126="$ISTIO_126_FLAG"                                         \
-       -D tldn="$TLDN"                                                        \
-     "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_httproute {
-  local _mc_enabled
-  "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
+  local _manifest="$MANIFESTS/httproute.manifest.yaml"
+
+  jinja2 -D tldn="$TLDN"                                                      \
+         -D namespace="$INGRESS_NAMESPACE"                                    \
+         -D gateway_name="$INGRESS_GATEWAY_NAME"                              \
+         -D gateway_namespace="$INGRESS_NAMESPACE"                            \
+         -D service="$GSI_APP_SERVICE_NAME"                                   \
+         -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                    \
+         -D service_port="$GSI_APP_SERVICE_PORT"                              \
+         -D multicluster="$MC_FLAG"                                           \
+         "$TEMPLATES"/httproute.manifest.yaml.j2                              \
+    > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f <(jinja2                                                                 \
-       -D tldn="$TLDN"                                                        \
-       -D namespace="$INGRESS_NAMESPACE"                                      \
-       -D gateway_name="$INGRESS_GATEWAY_NAME"                                \
-       -D gateway_namespace="$INGRESS_NAMESPACE"                              \
-       -D service="$GSI_APP_SERVICE_NAME"                                     \
-       -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                      \
-       -D service_port="$GSI_APP_SERVICE_PORT"                                \
-       -D multicluster="$_mc_enabled"                                         \
-       "$TEMPLATES"/httproute.template.yaml.j2 )
-}
-
-function exec_kgateway_httproute {
-  local _mc_enabled
-  "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
-
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f <(jinja2                                                                 \
-       -D tldn="$TLDN"                                                        \
-       -D namespace="$GSI_APP_SERVICE_NAMESPACE"                              \
-       -D gateway_name="$INGRESS_GATEWAY_NAME"                                \
-       -D gateway_namespace="$KGATEWAY_SYSTEM_NAME"                           \
-       -D service="$GSI_APP_SERVICE_NAME"                                     \
-       -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                      \
-       -D service_port="$GSI_APP_SERVICE_PORT"                                \
-       -D multicluster="$_mc_enabled"                                         \
-       "$TEMPLATES"/httproute.template.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_reference_grant {
+  local _manifest="$MANIFESTS/gme.secret.relay-token.manifest.yaml"
+
+  jinja2 -D gateway_namespace="$INGRESS_NAMESPACE"                            \
+         -D service="$GSI_APP_SERVICE_NAME"                                   \
+         -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                    \
+         "$TEMPLATES"/reference_grant.manifest.yaml.j2                        \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f <(jinja2                                                                 \
-       -D gateway_namespace="$INGRESS_NAMESPACE"                              \
-       -D service="$GSI_APP_SERVICE_NAME"                                     \
-       -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                      \
-       "$TEMPLATES"/kgateway.reference_grant.template.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_tls_cert_secret {
