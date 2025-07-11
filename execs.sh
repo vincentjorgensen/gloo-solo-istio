@@ -896,6 +896,7 @@ function exec_external_dns_for_pihole {
 }
 
 function exec_gloo_workspace {
+  local _manifest="$MANIFESTS/gloo.workspace.manifest.yaml"
   local _ztemp
   _ztemp=$(mktemp)
 
@@ -911,17 +912,20 @@ function exec_gloo_workspace {
 
   cp "$_ztemp" "$_ztemp".yaml
 
+  jinja2 -D name="$GSI_WORKSPACE_NAME"                                        \
+         -D namespace="$GLOO_MESH_NAMESPACE"                                  \
+         -D mgmt_cluster="$GME_MGMT_CLUSTER"                                  \
+         "$TEMPLATES"/gloo.workspace.manifest.yaml.j2                         \
+         "$_ztemp".yaml                                                       \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GME_MGMT_CONTEXT"                                               \
-  -f <(jinja2                                                                 \
-       -D name="$GSI_WORKSPACE_NAME"                                          \
-       -D namespace="$GLOO_MESH_NAMESPACE"                                    \
-       -D mgmt_cluster="$GME_MGMT_CLUSTER"                                    \
-       "$TEMPLATES"/gloo.workspace.manifest.yaml.j2                           \
-       "$_ztemp".yaml )
+  -f "$_manifest" 
 }
 
 function exec_gloo_workspacesettings {
+  local _manifest="$MANIFESTS/gloo.workspacesettings.manifest.yaml"
   local _ztemp
   _ztemp=$(mktemp)
 
@@ -937,51 +941,68 @@ function exec_gloo_workspacesettings {
 
   cp "$_ztemp" "$_ztemp".yaml
 
+  jinja2 -D name="$GSI_WORKSPACE_NAME"                                        \
+         "$TEMPLATES"/gloo.workspacesettings.manifest.yaml.j2                 \
+         "$_ztemp".yaml                                                       \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GME_MGMT_CONTEXT"                                               \
-  -f <(jinja2                                                                 \
-       -D name="$GSI_WORKSPACE_NAME"                                          \
-       "$TEMPLATES"/gloo.workspacesettings.manifest.yaml.j2                   \
-       "$_ztemp".yaml )
+  -f "$_manifest" 
 }
 
 function exec_root_trust_policy {
+  cp "$TEMPLATES"/gloo.root-trust-policy.manifest.yaml                        \
+     "$MANIFESTS"/gloo.root-trust-policy.manifest.yaml
+  
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$TEMPLATES"/gloo.root-trust-policy.manifest.yaml
+  -f "$MANIFESTS"/gloo.root-trust-policy.manifest.yaml
 }
 
 function exec_gloo_virtual_destination {
+  local _manifest="$MANIFESTS/gloo.virtualdestination.manifest.yaml"
+
+  jinja2 -D workspace="$GSI_WORKSPACE_NAME"                                   \
+         -D app_service_name="$GSI_APP_SERVICE_NAME"                          \
+         -D app_service_port="$GSI_APP_SERVICE_PORT"                          \
+         -D tldn="$TLDN"                                                      \
+         "$TEMPLATES"/gloo.virtualdestination.manifest.yaml.j2                \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GME_MGMT_CONTEXT"                                               \
-  -f <(jinja2                                                                 \
-       -D workspace="$GSI_WORKSPACE_NAME"                                     \
-       -D app_service_name="$GSI_APP_SERVICE_NAME"                            \
-       -D app_service_port="$GSI_APP_SERVICE_PORT"                            \
-       -D tldn="$TLDN"                                                        \
-       "$TEMPLATES"/gloo.virtualdestination.manifest.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_gloo_route_table {
+  local _manifest="$MANIFESTS/gloo.routetable.manifest.yaml"
+
+  jinja2 -D workspace="$GSI_WORKSPACE_NAME"                                   \
+         -D app_service_name="$GSI_APP_SERVICE_NAME"                          \
+         -D mgmt_cluster="$GME_MGMT_CLUSTER"                                  \
+         -D tldn="$TLDN"                                                      \
+         "$TEMPLATES"/gloo.routetable.manifest.yaml.j2                        \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GME_MGMT_CONTEXT"                                               \
-  -f <(jinja2                                                                 \
-       -D workspace="$GSI_WORKSPACE_NAME"                                     \
-       -D app_service_name="$GSI_APP_SERVICE_NAME"                            \
-       -D mgmt_cluster="$GME_MGMT_CLUSTER"                                    \
-       -D tldn="$TLDN"                                                        \
-       "$TEMPLATES"/gloo.routetable.manifest.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_gloo_virtual_gateway {
+  local _manifest="$MANIFESTS/gloo.virtualgateway.manifest.yaml"
+
+  jinja2 -D gateways_workspace="$GME_GATEWAYS_WORKSPACE"                      \
+         -D ingress_gateway_cluster_name="$GSI_GATEWAY_CLUSTER"               \
+         -D gateways_namespace="$INGRESS_NAMESPACE"                           \
+         -D tldn="$TLDN"                                                      \
+         "$TEMPLATES"/gloo.virtualgateway.manifest.yaml.j2                    \
+    > "$_manifest"
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GME_MGMT_CONTEXT"                                               \
-  -f <(jinja2                                                                 \
-       -D gateways_workspace="$GME_GATEWAYS_WORKSPACE"                        \
-       -D ingress_gateway_cluster_name="$GSI_GATEWAY_CLUSTER"                 \
-       -D gateways_namespace="$INGRESS_NAMESPACE"                             \
-       -D tldn="$TLDN"                                                        \
-       "$TEMPLATES"/gloo.virtualgateway.manifest.yaml.j2 )
+  -f "$_manifest" 
 }
 
 function exec_gsi_cluster_roll_forward {
