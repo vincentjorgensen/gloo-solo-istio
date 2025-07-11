@@ -736,38 +736,6 @@ function exec_ingress_gateway_api {
   -f "$_manifest" 
 }
 
-function exec_ingress_istiogateway {
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
-  -f <(jinja2                                                                 \
-       -D revision="$REVISION"                                                \
-       -D port="$HTTP_INGRESS_PORT"                                           \
-       -D namespace="$INGRESS_NAMESPACE"                                      \
-       -D name="$INGRESS_GATEWAY_NAME"                                        \
-       -D size="${GSI_INGRESS_SIZE:-1}"                                       \
-       -D istio_126="$ISTIO_126_FLAG"                                         \
-       -D tldn="$TLDN"                                                        \
-     "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2 )
-}
-
-function exec_ingress_kgateway {
-  local _manifest="$MANIFESTS/gateway_api.ingress_gateway.manifest.yaml"
-
-  jinja2 -D port="$HTTP_INGRESS_PORT"                                         \
-         -D namespace="$INGRESS_NAMESPACE"                                    \
-         -D name="$INGRESS_GATEWAY_NAME"                                      \
-         -D gateway_class_name="kgateway"                                     \
-         -D size="${GSI_INGRESS_SIZE:-1}"                                     \
-         -D istio_126="$ISTIO_126_FLAG"                                       \
-         -D tldn="$TLDN"                                                      \
-     "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2              \
-    > "$_manifest"
-
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT" 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	        \
-  -f "$_manifest" 
-}
-
 function exec_httproute {
   local _manifest="$MANIFESTS/httproute.manifest.yaml"
 
