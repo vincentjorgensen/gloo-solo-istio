@@ -201,7 +201,10 @@ function exec_spire_server {
   --context "$GSI_CONTEXT"                                                    \
   -f "$MANIFESTS"/spire.cluster-id.manifest.yaml
 }
+
 function exec_istio_base {
+  local _manifest="$MANIFESTS/helm.istio-base.yaml"
+
   if is_create_mode; then
     jinja2 -D revision="$REVISION"                                            \
            "$TEMPLATES"/helm.istio-base.yaml.j2                               \
