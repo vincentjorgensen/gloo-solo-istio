@@ -7,6 +7,9 @@ metadata:
   namespace: {{ namespace }}
 spec:
   kube: 
+    envoyContainer:
+      bootstrap:
+        logLevel: debug
     service:
       type: LoadBalancer
     deployment:
