@@ -3,17 +3,22 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   annotations:
-    gateway.istio.io/service-account: istio-eastwest
+    gateway.istio.io/service-account: {{ name }}
     gateway.istio.io/trust-domain: {{ trust_domain }}
   labels:
     topology.istio.io/network: {{ network }}
+{% if gateway_class_name == "istio-remote" %}
+{% if revision %}
+    istio.io/rev: {{ revision }}
+{% endif %}
+{% endif %}
   name: istio-remote-peer-{{ cluster }}
-  namespace: istio-eastwest
+  namespace: {{ namespace }}
 spec:
   addresses:
   - type: {{ address_type }}
     value: {{ remote_address }}
-  gatewayClassName: istio-remote
+  gatewayClassName: {{ gateway_class_name }}
   listeners:
   - name: cross-network
     port: 15008

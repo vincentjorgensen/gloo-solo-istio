@@ -8,10 +8,10 @@ metadata:
 {% if revision %}
     istio.io/rev: {{ revision }}
 {% endif %}
-  name: istio-eastwest
-  namespace: istio-eastwest
+  name: {{ name }}
+  namespace: {{ namespace }}
 spec:
-  gatewayClassName: istio-eastwest
+  gatewayClassName: {{ gateway_class_name }}
   listeners:
   - name: cross-network
     port: 15008
@@ -32,15 +32,15 @@ spec:
     parametersRef:
       group: ""
       kind: ConfigMap
-      name: istio-eastwest-options
+      name: {{ name }}-options
 {% endif %}
 {% if istio_126 %}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: istio-eastwest-options
-  namespace: istio-eastwest
+  name: {{ name }}-options
+  namespace: {{ namespace }}
 data:
   horizontalPodAutoscaler: |
     spec:
@@ -76,14 +76,14 @@ data:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: istio-eastwest
-  namespace: istio-eastwest
+  name: {{ name }}
+  namespace: {{ namespace }}
 spec:
   maxReplicas: {{ size }}
   minReplicas: {{ size }}
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: istio-eastwest
+    name: {{ name }}
 {% endif %}
 ...
