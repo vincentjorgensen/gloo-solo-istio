@@ -24,7 +24,6 @@ export AZURE_ENABLED=false
 # Namespaces
 export ARGOCD_NAMESPACE=argocd
 export GLOO_MESH_NAMESPACE=gloo-mesh
-export EASTWEST_NAMESPACE=eastwest-gateways
 export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system
 export KGATEWAY_NAMESPACE=$KGATEWAY_SYSTEM_NAMESPACE
 export ISTIO_SYSTEM_NAMESPACE=istio-system
@@ -38,11 +37,17 @@ export HTTP_INGRESS_PORT=80
 export HTTPS_INGRESS_PORT=443
 export INGRESS_GATEWAY_NAME=ingress-gateway
 
+# Eastwest
+export EASTWEST_NAMESPACE=eastwest-gateways
+export EASTWEST_GATEWAY_NAME=eastwest-gateway
+export MULTICLUSTER_NAMESPACE=$EASTWEST_NAMESPACE
+
 # Testing Apps
 export HELLOWORLD_NAMESPACE=helloworld
 export HELLOWORLD_SERVICE_NAME=helloworld
 export HELLOWORLD_SERVICE_PORT=8001
 export CURL_NAMESPACE=curl
+export TOOLS_NAMESPACE=tools
 
 # Spire
 export SPIRE_NAMESPACE=spire-server
