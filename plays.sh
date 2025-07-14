@@ -195,6 +195,17 @@ function play_ambient_kgateway {
   play_gsi
 }
 
+function play_mc_ambient_kgateway {
+  local _cluster
+  _cluster1=${1:-cluster1}
+  _cluster2=${2:-cluster2}
+
+  set_defaults
+
+  deck_mc_ambient_kgateway "$_cluster1" "$_cluster2"
+#  play_gsi
+}
+
 function play_spire_ambient_istiogateway {
   local _cluster
   _cluster=${1:-cluster1}
