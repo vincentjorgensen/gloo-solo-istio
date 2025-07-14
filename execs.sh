@@ -24,14 +24,17 @@ function gsi_init {
   mkdir -p "$MANIFESTS"
   echo '#' "MANIFESTS=$MANIFESTS"
 
-  $GME_ENABLED && GME_FLAG=enabled
+  $GME_ENABLED && GME_FLAG=enabled && echo '#' GME is enabled
   $GME_MGMT_AGENT_ENABLED && GME_MGMT_AGENT_FLAG=enabled
-  $AWS_ENABLED && AWS_FLAG=enabled
-  $AZURE_ENABLED && AZURE_FLAG=enabled
-  $SIDECAR_ENABLED && SIDECAR_FLAG=enabled
-  $AMBIENT_ENABLED && AMBIENT_FLAG=enabled
-  $SPIRE_ENABLED && SPIRE_FLAG=enabled
-  $MULTICLUSTER_ENABLED && MC_FLAG=enabled
+
+  $AWS_ENABLED   && AWS_FLAG=enabled   && echo '#' AWS is enabled
+  $AZURE_ENABLED && AZURE_FLAG=enabled && echo '#' AZURE is enabled
+
+  $SIDECAR_ENABLED && SIDECAR_FLAG=enabled && echo '#' Istio Sidecar is enabled
+  $AMBIENT_ENABLED && AMBIENT_FLAG=enabled && echo '#' Istio Ambient is enabled
+  $MULTICLUSTER_ENABLED && MC_FLAG=enabled && echo '#' Multicluster is enabled 
+
+  $SPIRE_ENABLED && SPIRE_FLAG=enabled && echo '#' SPIRE is enabled
 }
 
 function exec_create_namespaces {
@@ -93,7 +96,7 @@ function exec_spire_secrets {
 }
 
 function exec_gme_secrets {
-  local _manifest="$MANIFESTS/gme.secret.relay-token.manifest.yaml"
+  local _manifest="$MANIFESTS/gme.secret.relay-token.${GSI_CLUSTER}.yaml"
 
   jinja2 -D gme_secret_token="${GME_SECRET_TOKEN:-token}"                     \
          "$TEMPLATES"/gme.secret.relay-token.manifest.yaml.j2                 \
@@ -169,7 +172,7 @@ function exec_spire_crds {
 }
 
 function exec_spire_server {
-  local _manifest="$MANIFESTS/helm.spire.yaml"
+  local _manifest="$MANIFESTS/helm.spire.${GSI_CLUSTER}.yaml"
 
   if is_create_mode; then
     jinja2 -D trust_domain="$TRUST_DOMAIN"                                    \
@@ -195,15 +198,15 @@ function exec_spire_server {
   fi
 
   cp "$TEMPLATES"/spire.cluster-id.manifest.yaml                              \
-     "$MANIFESTS"/spire.cluster-id.manifest.yaml
+     "$MANIFESTS"/spire.cluster-id."$GSI_CLUSTER".yaml
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$MANIFESTS"/spire.cluster-id.manifest.yaml
+  -f "$MANIFESTS"/spire.cluster-id."$GSI_CLUSTER".yaml
 }
 
 function exec_istio_base {
-  local _manifest="$MANIFESTS/helm.istio-base.yaml"
+  local _manifest="$MANIFESTS/helm.istio-base.${GSI_CLUSTER}.yaml"
 
   if is_create_mode; then
     jinja2 -D revision="$REVISION"                                            \
@@ -226,13 +229,13 @@ function exec_istio_base {
 }
 
 function exec_istio_istiod {
-  local _manifest="$MANIFESTS/helm.istiod.yaml"
+  local _manifest="$MANIFESTS/helm.istiod.${GSI_CLUSTER}.yaml"
 
   if is_create_mode; then
     jinja2 -D ambient="$AMBIENT_FLAG"                                         \
            -D sidecar="$SIDECAR_FLAG"                                         \
            -D spire="$SPIRE_FLAG"                                             \
-           -D cluster_name="$$GSI_CLUSTER"                                    \
+           -D cluster_name="$GSI_CLUSTER"                                     \
            -D revision="$REVISION"                                            \
            -D network="$GSI_NETWORK"                                          \
            -D istio_repo="$ISTIO_REPO"                                        \
@@ -260,7 +263,7 @@ function exec_istio_istiod {
 }
 
 function exec_istio_cni {
-  local _manifest="$MANIFESTS/helm.istio-cni.yaml"
+  local _manifest="$MANIFESTS/helm.istio-cni.${GSI_CLUSTER}.yaml"
 
   if is_create_mode; then
       jinja2 -D revision="$REVISION"                                          \
@@ -285,11 +288,7 @@ function exec_istio_cni {
 }
 
 function exec_istio_ztunnel {
-  local _manifest="$MANIFESTS/helm.ztunnel.yaml"
-  local _spire_enabled _mc_enabled
-
-  "$SPIRE_ENABLED" && _spire_enabled=enabled
-  "$MULTICLUSTER_ENABLED" && _mc_enabled=enabled
+  local _manifest="$MANIFESTS/helm.ztunnel.${GSI_CLUSTER}.yaml"
 
   if is_create_mode; then
     jinja2 -D cluster="$GSI_CLUSTER"                                          \
@@ -298,8 +297,8 @@ function exec_istio_ztunnel {
            -D istio_repo="$ISTIO_REPO"                                        \
            -D istio_ver="$ISTIO_VER"                                          \
            -D flavor="$ISTIO_FLAVOR"                                          \
-           -D spire="$_spire_enabled"                                         \
-           -D multicluster="$_mc_enabled"                                     \
+           -D spire="$SPIRE_FLAG"                                             \
+           -D multicluster="$MC_FLAG"                                         \
            -D variant="$ISTIO_DISTRO"                                         \
            "$TEMPLATES"/helm.ztunnel.yaml.j2                                  \
       > "$_manifest"
@@ -319,11 +318,11 @@ function exec_istio_ztunnel {
 
 function exec_telemetry_defaults {
   cp "$TEMPLATES"/telemetry.istio-system.manifest.yaml                        \
-     "$MANIFESTS"/telemetry.istio-system.manifest.yaml
+     "$MANIFESTS"/telemetry.istio-system."$GSI_CLUSTER".yaml
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$MANIFESTS"/telemetry.istio-system.manifest.yaml
+  -f "$MANIFESTS"/telemetry.istio-system."$GSI_CLUSTER".yaml
 }
 
 function exec_istio {
@@ -345,18 +344,22 @@ function exec_istio {
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
+    --context "$GSI_CONTEXT"                                                  \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
     --for=condition=Ready pods --all
   fi
 }
 
-function exec_kgateway_eastwest {
-  local _manifest="$MANIFESTS/gateway_api.eastwest_gateway.manifest.yaml"
+function exec_eastwest_gateway_api {
+  local _manifest="$MANIFESTS/gateway_api.eastwest_gateway.${GSI_CLUSTER}.yaml"
 
   jinja2 -D network="$GSI_NETWORK"                                            \
          -D revision="$REVISION"                                              \
          -D size="$GSI_EW_SIZE"                                               \
          -D istio_126="$ISTIO_126_FLAG"                                       \
+         -D name="$EASTWEST_GATEWAY_NAME"                                     \
+         -D gateway_class_name="$EASTWEST_GATEWAY_CLASS_NAME"                 \
+         -D namespace="$EASTWEST_NAMESPACE"                                   \
          "$TEMPLATES"/gateway_api.eastwest_gateway.manifest.yaml.j2           \
     > "$_manifest"
 
@@ -365,19 +368,21 @@ function exec_kgateway_eastwest {
   -f "$_manifest"
 }
 
-function exec_kgateway_ew_link {
-  local _manifest="$MANIFESTS/gateway_api.eastwest_remote_gateway.${GSI_CONTEXT_LOCAL}.manifest.yaml"
+function exec_eastwest_link_gateway_api {
+  local _manifest="$MANIFESTS/gateway_api.eastwest_remote_gateway.${GSI_REMOTE_CLUSTER}.yaml"
   local _remote_address _address_type
 
   _remote_address=$(
-    kubectl get svc -n "$EASTWEST_NAMESPACE" istio-eastwest                   \
-    --context "$GSI_CONTEXT_REMOTE"                                           \
+    kubectl get svc "$EASTWEST_GATEWAY_NAME"                                  \
+    --namespace "$EASTWEST_NAMESPACE"                                         \
+    --context "$GSI_CONTEXT"                                                  \
     -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
   while [[ -z $_remote_address ]]; do
     _remote_address=$(
-      $DRY_RUN kubectl get svc -n "$EASTWEST_NAMESPACE" istio-eastwest        \
-      --context "$GSI_CONTEXT_REMOTE"                                         \
+      $DRY_RUN kubectl get svc "$EASTWEST_GATEWAY_NAME"                       \
+      --namespace "$EASTWEST_NAMESPACE"                                       \
+      --context "$GSI_CONTEXT"                                                \
       -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
     echo -n '.' && sleep 5
   done && echo
@@ -389,15 +394,18 @@ function exec_kgateway_ew_link {
   fi
 
   jinja2 -D trust_domain="$TRUST_DOMAIN"                                      \
-         -D network="$GSI_NETWORK_REMOTE"                                     \
-         -D cluster="$GSI_CLUSTER_REMOTE"                                     \
+         -D network="$GSI_NETWORK"                                            \
+         -D cluster="$GSI_CLUSTER"                                            \
+         -D name="$EASTWEST_GATEWAY_NAME"                                     \
+         -D namespace="$EASTWEST_NAMESPACE"                                   \
+         -D gateway_class_name="$EASTWEST_REMOTE_GATEWAY_CLASS_NAME"          \
          -D address_type="$_address_type"                                     \
          -D remote_address="$_remote_address"                                 \
          "$TEMPLATES"/gateway_api.eastwest_remote_gateway.manifest.yaml.j2    \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT_LOCAL"                                              \
+  --context "$GSI_REMOTE_CONTEXT"                                             \
   -f "$_manifest"
 }
 
@@ -417,7 +425,7 @@ function exec_gloo_platform_crds {
 }
 
 function exec_gloo_mgmt_server {
-  local _manifest="$MANIFESTS/helm.gloo-mgmt-server.yaml"
+  local _manifest="$MANIFESTS/helm.gloo-mgmt-server.${GSI_CLUSTER}.yaml"
 
   if is_create_mode; then
     jinja2 -D cluster_name="$GSI_CLUSTER"                                     \
@@ -448,16 +456,17 @@ function exec_gloo_mgmt_server {
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
+    --context "$GSI_CONTEXT"                                                  \
     --namespace "$GLOO_MESH_NAMESPACE"                                        \
     --for=condition=Ready pods --all
   fi
 }
 
 function exec_gloo_k8s_cluster {
-  local _manifest="$MANIFESTS/gloo.k8s_cluster.template.yaml"
+  local _manifest="$MANIFESTS/gloo.k8s_cluster.${GSI_CLUSTER}.yaml"
 
   jinja2 -D cluster="$GSI_CLUSTER"                                            \
-         "$TEMPLATES"/gloo.k8s_cluster.template.yaml.j2                       \
+         "$TEMPLATES"/gloo.k8s_cluster.manifest.yaml.j2                       \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
@@ -466,7 +475,7 @@ function exec_gloo_k8s_cluster {
 }
 
 function exec_gloo_agent {
-  local _manifest="$MANIFESTS/helm.gloo-agent.yaml"
+  local _manifest="$MANIFESTS/helm.gloo-agent.${GSI_CLUSTER}.yaml"
 
   GLOO_MESH_SERVER=$(kubectl get svc gloo-mesh-mgmt-server                    \
     --context "$GME_MGMT_CONTEXT"                                             \
@@ -503,13 +512,14 @@ function exec_gloo_agent {
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
+    --context "$GSI_CONTEXT"                                                  \
     --namespace "$GLOO_MESH_NAMESPACE"                                        \
     --for=condition=Ready pods --all
   fi
 }
 
 function exec_istio_ingressgateway {
-  local _manifest="$MANIFESTS/helm.istio-ingressgateway.yaml"
+  local _manifest="$MANIFESTS/helm.istio-ingressgateway.${GSI_CLUSTER}.yaml"
 
   if is_create_mode; then
     jinja2 -D size="$GSI_INGRESS_SIZE"                                        \
@@ -538,7 +548,7 @@ function exec_istio_ingressgateway {
 }
 
 function exec_istio_eastwest {
-  local _manifest="$MANIFESTS/helm.istio-eastwestgateway.yaml"
+  local _manifest="$MANIFESTS/helm.istio-eastwestgateway.${GSI_CLUSTER}.yaml"
 
   if is_create_mode; then
     jinja2 -D size="${GSI_EW_SIZE:-1}"                                        \
@@ -568,11 +578,11 @@ function exec_istio_eastwest {
   # OSS Expose Services
   if ! "$GME_ENABLED"; then
     cp "$TEMPLATES"/istio.eastwestgateway.cross-network-gateway.manifest.yaml \
-       "$MANIFESTS"/istio.eastwestgateway.cross-network-gateway.manifest.yaml
+       "$MANIFESTS"/istio.eastwestgateway.cross-network-gateway."$GSI_CLUSTER".yaml
 
     $DRY_RUN kubectl "$GSI_MODE"                                              \
     --context "$GSI_CONTEXT"                                                  \
-    -f "$MANIFESTS"/istio.eastwestgateway.cross-network-gateway.manifest.yaml
+    -f "$MANIFESTS"/istio.eastwestgateway.cross-network-gateway."$GSI_CLUSTER".yaml
   fi
 }
 
@@ -627,8 +637,8 @@ function get_istio_zones {
 }
 
 function exec_helloworld_app {
-  local _manifest="$MANIFESTS/helloworld.manifest.yaml.j2"
-  local _region _zones _ztemp
+  local _manifest="$MANIFESTS/helloworld.${GSI_CLUSTER}.yaml"
+  local _region _zones _ztemp _service_version
 
   # Traffic Distribution: PreferNetwork, PreferClose, PreferRegion, Any
   _ztemp=$(mktemp)
@@ -643,8 +653,12 @@ function exec_helloworld_app {
 
   cp "$_ztemp" "$_ztemp".yaml
 
+  [[ $_region =~ west ]] && _service_version=v1
+  [[ $_region =~ east ]] && _service_version=v2
+  [[ -n $GSI_SERVICE_VERSION ]] _service_version="$GSI_SERVICE_VERSION"
+
   jinja2 -D region="$_region"                                                 \
-       -D service_version="${GSI_SERVICE_VERSION:-none}"                      \
+       -D service_version="${_service_version:-none}"                         \
        -D ambient_enabled="$AMBIENT_FLAG"                                     \
        -D traffic_distribution="${GSI_TRAFFIC_DISTRIBUTION:-Any}"             \
        -D sidecar_enabled="$SIDECAR_FLAG"                                     \
@@ -663,13 +677,14 @@ function exec_helloworld_app {
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
+    --context "$GSI_CONTEXT"                                                  \
     --namespace "$HELLOWORLD_NAMESPACE"                                       \
     --for=condition=Ready pods --all
   fi
 }
 
 function exec_curl_app {
-  local _manifest="$MANIFESTS/curl.manifest.yaml"
+  local _manifest="$MANIFESTS/curl.${GSI_CLUSTER}.yaml"
 
   jinja2 -D ambient_enabled="$AMBIENT_FLAG"                                   \
          -D sidecar_enabled="$SIDECAR_FLAG"                                   \
@@ -684,26 +699,36 @@ function exec_curl_app {
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
+    --context "$GSI_CONTEXT"                                                  \
     --namespace "$CURL_NAMESPACE"                                             \
-    --for=condition=Ready pods --all
+    --for=condition=Ready pods -l apps=curl
   fi
 }
 
 function exec_tools_app {
-  local _manifest="$MANIFESTS/tools.manifest.yaml"
+  local _manifest="$MANIFESTS/tools.${GSI_CLUSTER}.yaml"
 
   jinja2 -D ambient_enabled="$AMBIENT_FLAG"                                   \
          -D sidecar_enabled="$SIDECAR_FLAG"                                   \
+         -D namespace="$TOOLS_NAMESPACE"                                      \
          -D revision="$REVISION"                                              \
+         "$TEMPLATES"/tools.manifest.yaml.j2                                  \
   -f "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
+
+  if is_create_mode; then
+    $DRY_RUN kubectl wait                                                     \
+    --context "$GSI_CONTEXT"                                                  \
+    --namespace "$TOOLS_NAMESPACE"                                            \
+    --for=condition=Ready pods -l apps=tools
+  fi
 }
 
 function exec_istio_vs_and_gateway {
-  local _manifest="$MANIFESTS/istio.vs_and_gateway.manifest.yaml"
+  local _manifest="$MANIFESTS/istio.vs_and_gateway.${GSI_CLUSTER}.yaml"
 
   jinja2 -D name="$GSI_APP_SERVICE_NAME"                                      \
          -D namespace="$GSI_APP_SERVICE_NAMESPACE"                            \
@@ -720,7 +745,7 @@ function exec_istio_vs_and_gateway {
 }
 
 function exec_ingress_gateway_api {
-  local _manifest="$MANIFESTS/gateway_api.ingress_gateway.manifest.yaml"
+  local _manifest="$MANIFESTS/gateway_api.ingress_gateway.${GSI_CLUSTER}.yaml"
 
   jinja2 -D revision="$REVISION"                                              \
          -D port="$HTTP_INGRESS_PORT"                                         \
@@ -739,7 +764,7 @@ function exec_ingress_gateway_api {
 }
 
 function exec_httproute {
-  local _manifest="$MANIFESTS/httproute.manifest.yaml"
+  local _manifest="$MANIFESTS/httproute.${GSI_CLUSTER}.yaml"
 
   jinja2 -D tldn="$TLDN"                                                      \
          -D namespace="$INGRESS_NAMESPACE"                                    \
@@ -758,11 +783,12 @@ function exec_httproute {
 }
 
 function exec_reference_grant {
-  local _manifest="$MANIFESTS/gme.secret.relay-token.manifest.yaml"
+  local _manifest="$MANIFESTS/reference_grant.${GSI_CLUSTER}.yaml"
 
   jinja2 -D gateway_namespace="$INGRESS_NAMESPACE"                            \
          -D service="$GSI_APP_SERVICE_NAME"                                   \
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                    \
+         -D multicluster="$MC_FLAG"                                           \
          "$TEMPLATES"/reference_grant.manifest.yaml.j2                        \
     > "$_manifest"
 
@@ -838,7 +864,7 @@ function exec_argocd_server {
 }
 
 function exec_argocd_cluster {
-  local _manifest="$MANIFESTS/argocd.secret.cluster.manifest.yaml"
+  local _manifest="$MANIFESTS/argocd.secret.cluster.${GSI_CLUSTER}.yaml"
 
   local _cluster_server _cert_data _key_data _ca_data _k8s_user _k8s_cluster
 
@@ -882,7 +908,7 @@ function exec_argocd_cluster {
 }
 
 function exec_external_dns_for_pihole {
-  local _manifest="$MANIFESTS/externaldns.pihole.manifest.yaml"
+  local _manifest="$MANIFESTS/externaldns.pihole.${GSI_CLUSTER}.yaml"
   local _pihole_server_address
 
   _pihole_server_address=$(docker inspect pihole | jq -r '.[].NetworkSettings.Networks."'"$DOCKER_NETWORK"'".IPAddress')
@@ -899,10 +925,17 @@ function exec_external_dns_for_pihole {
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest" 
+
+  if is_create_mode; then
+    $DRY_RUN kubectl wait                                                     \
+    --context="$GSI_CONTEXT"                                                  \
+    --namespace "$KUBE_SYSTEM_NAMESPACE"                                      \
+    --for=condition=Ready pods -l app=external-dns
+  fi
 }
 
 function exec_gloo_workspace {
-  local _manifest="$MANIFESTS/gloo.workspace.manifest.yaml"
+  local _manifest="$MANIFESTS/gloo.workspace.${GSI_CLUSTER}.yaml"
   local _ztemp
   _ztemp=$(mktemp)
 
@@ -931,7 +964,7 @@ function exec_gloo_workspace {
 }
 
 function exec_gloo_workspacesettings {
-  local _manifest="$MANIFESTS/gloo.workspacesettings.manifest.yaml"
+  local _manifest="$MANIFESTS/gloo.workspacesettings.${GSI_CLUSTER}.yaml"
   local _ztemp
   _ztemp=$(mktemp)
 
@@ -959,15 +992,15 @@ function exec_gloo_workspacesettings {
 
 function exec_root_trust_policy {
   cp "$TEMPLATES"/gloo.root-trust-policy.manifest.yaml                        \
-     "$MANIFESTS"/gloo.root-trust-policy.manifest.yaml
+     "$MANIFESTS"/gloo.root-trust-policy."$GSI_CLUSTER".yaml
   
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$MANIFESTS"/gloo.root-trust-policy.manifest.yaml
+  -f "$MANIFESTS"/gloo.root-trust-policy."$GSI_CLUSTER".yaml
 }
 
 function exec_gloo_virtual_destination {
-  local _manifest="$MANIFESTS/gloo.virtualdestination.manifest.yaml"
+  local _manifest="$MANIFESTS/gloo.virtualdestination.${GSI_CLUSTER}.yaml"
 
   jinja2 -D workspace="$GSI_WORKSPACE_NAME"                                   \
          -D app_service_name="$GSI_APP_SERVICE_NAME"                          \
@@ -982,7 +1015,7 @@ function exec_gloo_virtual_destination {
 }
 
 function exec_gloo_route_table {
-  local _manifest="$MANIFESTS/gloo.routetable.manifest.yaml"
+  local _manifest="$MANIFESTS/gloo.routetable.${GSI_CLUSTER}.yaml"
 
   jinja2 -D workspace="$GSI_WORKSPACE_NAME"                                   \
          -D app_service_name="$GSI_APP_SERVICE_NAME"                          \
@@ -997,7 +1030,7 @@ function exec_gloo_route_table {
 }
 
 function exec_gloo_virtual_gateway {
-  local _manifest="$MANIFESTS/gloo.virtualgateway.manifest.yaml"
+  local _manifest="$MANIFESTS/gloo.virtualgateway.${GSI_CLUSTER}.yaml"
 
   jinja2 -D gateways_workspace="$GME_GATEWAYS_WORKSPACE"                      \
          -D ingress_gateway_cluster_name="$GSI_GATEWAY_CLUSTER"               \
@@ -1011,51 +1044,21 @@ function exec_gloo_virtual_gateway {
   -f "$_manifest" 
 }
 
-function exec_gsi_cluster_roll_forward {
-  if is_create_mode; then
-    export PREV_GSI_CLUSTER=$GSI_CLUSTER
-    export PREV_GSI_CONTEXT=$GSI_CONTEXT
-    export PREV_GSI_NETWORK=$GSI_NETWORK
+function exec_gsi_cluster_swap {
+  export NEW_GSI_REMOTE_CLUSTER=$GSI_CLUSTER
+  export NEW_GSI_REMOTE_CONTEXT=$GSI_CONTEXT
+  export NEW_GSI_REMOTE_NETWORK=$GSI_NETWORK
+  
+  export NEW_GSI_LOCAL_CLUSTER=$GSI_REMOTE_CLUSTER
+  export NEW_GSI_LOCAL_CONTEXT=$GSI_REMOTE_CONTEXT
+  export NEW_GSI_LOCAL_NETWORK=$GSI_REMOTE_NETWORK
 
-    export GSI_CLUSTER=$NEXT_GSI_CLUSTER
-    export GSI_CONTEXT=$NEXT_GSI_CONTEXT
-    export GSI_NETWORK=$NEXT_GSI_NETWORK
-  else
-    export NEXT_GSI_CLUSTER=$GSI_CLUSTER
-    export NEXT_GSI_CONTEXT=$GSI_CONTEXT
-    export NEXT_GSI_NETWORK=$GSI_NETWORK
+  export GSI_CLUSTER=$NEW_GSI_LOCAL_CLUSTER
+  export GSI_CONTEXT=$NEW_GSI_LOCAL_CONTEXT
+  export GSI_NETWORK=$NEW_GSI_LOCAL_NETWORK
 
-    export GSI_CLUSTER=$PREV_GSI_CLUSTER
-    export GSI_CONTEXT=$PREV_GSI_CONTEXT
-    export GSI_NETWORK=$PREV_GSI_NETWORK
-  fi
-
-  echo GSI_CLUSTER="$GSI_CLUSTER" GSI_CONTEXT="$GSI_CONTEXT" GSI_NETWORK="$GSI_NETWORK"
-  echo PREV_GSI_CLUSTER="$PREV_GSI_CLUSTER" PREV_GSI_CONTEXT="$PREV_GSI_CONTEXT" PREV_GSI_NETWORK="$PREV_GSI_NETWORK"
-  echo NEXT_GSI_CLUSTER="$NEXT_GSI_CLUSTER" NEXT_GSI_CONTEXT="$NEXT_GSI_CONTEXT" NEXT_GSI_NETWORK="$NEXT_GSI_NETWORK"
-}
-
-function exec_gsi_cluster_roll_back {
-  if is_create_mode; then
-    export PREV_GSI_CLUSTER=$GSI_CLUSTER
-    export PREV_GSI_CONTEXT=$GSI_CONTEXT
-    export PREV_GSI_NETWORK=$GSI_NETWORK
-
-    export GSI_CLUSTER=$NEXT_GSI_CLUSTER
-    export GSI_CONTEXT=$NEXT_GSI_CONTEXT
-    export GSI_NETWORK=$NEXT_GSI_NETWORK
-  else
-    export NEXT_GSI_CLUSTER=$GSI_CLUSTER
-    export NEXT_GSI_CONTEXT=$GSI_CONTEXT
-    export NEXT_GSI_NETWORK=$GSI_NETWORK
-
-    export GSI_CLUSTER=$PREV_GSI_CLUSTER
-    export GSI_CONTEXT=$PREV_GSI_CONTEXT
-    export GSI_NETWORK=$PREV_GSI_NETWORK
-  fi
-
-  echo GSI_CLUSTER="$GSI_CLUSTER" GSI_CONTEXT="$GSI_CONTEXT" GSI_NETWORK="$GSI_NETWORK"
-  echo PREV_GSI_CLUSTER="$PREV_GSI_CLUSTER" PREV_GSI_CONTEXT="$PREV_GSI_CONTEXT" PREV_GSI_NETWORK="$PREV_GSI_NETWORK"
-  echo NEXT_GSI_CLUSTER="$NEXT_GSI_CLUSTER" NEXT_GSI_CONTEXT="$NEXT_GSI_CONTEXT" NEXT_GSI_NETWORK="$NEXT_GSI_NETWORK"
+  export GSI_REMOTE_CLUSTER=$NEW_GSI_REMOTE_CLUSTER
+  export GSI_REMOTE_CONTEXT=$NEW_GSI_REMOTE_CONTEXT
+  export GSI_REMOTE_NETWORK=$NEW_GSI_REMOTE_NETWORK
 }
 # END
