@@ -135,6 +135,17 @@ function exec_kgateway_crds {
 }
 
 function exec_kgateway {
+  local _k_label="=ambient"
+
+  if ! is_create_mode; then
+    _k_label="-"
+  fi
+
+  if $AMBIENT_ENABLED; then
+    $DRY_RUN kubectl label namespace "$INGRESS_NAMESPACE" "istio.io/dataplane-mode${_k_label}"  \
+    --context "$GSI_CONTEXT" --overwrite
+  fi
+
   if is_create_mode; then
     # shellcheck disable=SC2086
     $DRY_RUN helm upgrade --install kgateway "$KGATEWAY_HELM_REPO"            \
@@ -655,7 +666,7 @@ function exec_helloworld_app {
 
   [[ $_region =~ west ]] && _service_version=v1
   [[ $_region =~ east ]] && _service_version=v2
-  [[ -n $GSI_SERVICE_VERSION ]] _service_version="$GSI_SERVICE_VERSION"
+  [[ -n $GSI_SERVICE_VERSION ]] && _service_version="$GSI_SERVICE_VERSION"
 
   jinja2 -D region="$_region"                                                 \
        -D service_version="${_service_version:-none}"                         \
@@ -702,6 +713,8 @@ function exec_curl_app {
     --context "$GSI_CONTEXT"                                                  \
     --namespace "$CURL_NAMESPACE"                                             \
     --for=condition=Ready pods -l apps=curl
+
+  alias kcurl="kubectl --context $GSI_CONTEXT --namespace $CURL_NAMESPACE exec -it deployment/curl -- sh"
   fi
 }
 
@@ -775,6 +788,21 @@ function exec_httproute {
          -D service_port="$GSI_APP_SERVICE_PORT"                              \
          -D multicluster="$MC_FLAG"                                           \
          "$TEMPLATES"/httproute.manifest.yaml.j2                              \
+    > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest"
+}
+
+function exec_backend {
+  local _manifest="$MANIFESTS/backend.${GSI_CLUSTER}.yaml"
+
+  jinja2 -D tldn="$TLDN"                                                      \
+         -D service_name="$GSI_APP_SERVICE_NAME"                              \
+         -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                    \
+         -D service_port="$GSI_APP_SERVICE_PORT"                              \
+         "$TEMPLATES"/backend.manifest.yaml.j2                                \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
