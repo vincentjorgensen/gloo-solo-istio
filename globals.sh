@@ -12,20 +12,19 @@ export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
 export GSI_MODE
 
 export GME_FLAG AZURE_FLAG AWS_FLAG GME_MGMT_AGENT_FLAG
-export SIDECAR_FLAG AMBIENT_FLAG
+export SIDECAR_FLAG AMBIENT_FLAG CERT_MANAGER_FLAG
 
 export DRY_RUN=""
 
 # Cloud Providers
-export DOCKER_DESKTOP_ENABLED=true
-export AWS_ENABLED=false
-export AZURE_ENABLED=false
+export DOCKER_DESKTOP_ENABLED="${DOCKER_DESKTOP_ENABLED:-true}"
+export AWS_ENABLED="${AWS_ENABLED:-false}"
+export AZURE_ENABLED="${AZURE_ENABLED:-false}"
 
 # Namespaces
 export ARGOCD_NAMESPACE=argocd
 export GLOO_MESH_NAMESPACE=gloo-mesh
 export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system
-export KGATEWAY_NAMESPACE=$KGATEWAY_SYSTEM_NAMESPACE
 export ISTIO_SYSTEM_NAMESPACE=istio-system
 export KUBE_SYSTEM_NAMESPACE=kube-system
 export AMBIENT_NAMESPACE=$ISTIO_SYSTEM_NAMESPACE
@@ -49,16 +48,34 @@ export HELLOWORLD_SERVICE_PORT=8001
 export CURL_NAMESPACE=curl
 export TOOLS_NAMESPACE=tools
 
+# Cert manager
+export CERT_MANAGER_ENABLED="${CERT_MANAGER_ENABLED:-false}"
+export CERT_MANAGER_VER="v1.18.2"
+export CERT_MANAGER_NAMESPACE="cert-manager"
+export CERT_MANAGER_INGRESS_SECRET="ingress-ca-key-pair"
+
 # Spire
+export SPIRE_ENABLED="${SPIER_ENABLED:-false}"
 export SPIRE_NAMESPACE=spire-server
 export SPIRE_CRDS_VER=0.5.0
 export SPIRE_SERVER_VER=0.24.2
 export SPIRE_SECRET=spiffe-upstream-ca
 
 # KGateway
+export KGATEWAY_ENABLED="${KGATEWAY_ENABLED:-false}"
+export KGATEWAY_NAMESPACE=$KGATEWAY_SYSTEM_NAMESPACE
+export KGATEWAY_VER=v1.2.1
+export KGATEWAY_EXPERIMENTAL_VER=v1.3.0
 export KGATEWAY_CRDS_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgateway-crds
 export KGATEWAY_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
 export KGATEWAY_HELM_VER=v2.0.3
+
+# Gloo Gateway V2
+export GLOO_GATEWAY_V2_ENABLED="${GLOO_GATEWAY_V2_ENABLED:-false}"
+export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway-crds
+export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway
+export GLOO_GATEWAY_V2_HELM_VER=2.0.0-alpha.2
+export GLOO_GATEWAY_V2_NAMESPACE=gloo-gateway-system
 
 # Istio repo versions
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
@@ -76,10 +93,11 @@ export ISTIO_VER_126=1.26.2
 export ISTIO_SECRET=cacerts
 
 # Dataplane Modes
-export AMBIENT_ENABLED=false
-export SIDECAR_ENABLED=false
+export AMBIENT_ENABLED="${AMBIENT_ENABLED:-false}"
+export SIDECAR_ENABLED="${SIDECAR_ENABLED:-false}"
 
-# GME Versions
+# GME
+export GME_ENABLED="${GME_ENABLED:-false}"
 export GME_VER_26="2.6.12"
 export GME_VER_27="2.7.3"
 export GME_VER_28="2.8.1"
@@ -96,7 +114,6 @@ export DEFAULT_TRUST_DOMAIN="cluster.local"
 
 export DEFAULT_GSI_MODE=create # create | delete
 
-[[ -z "$GME_ENABLED" ]] && export GME_ENABLED=false
 [[ -z "$GSI_MODE" ]] && export GSI_MODE=$DEFAULT_GSI_MODE
 [[ -z "$GME_VERBOSE" ]] && export GME_VERBOSE=false
 

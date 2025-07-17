@@ -5,11 +5,11 @@
 # like installs.sh, but every function takes care of its own destructor if
 # GSI_MODE is set to "delete"
 ###############################################################################
-export KGATEWAY_VER=v1.2.1
 export TEMPLATES CERTS MANIFESTS
 TEMPLATES="$(dirname "$0")"/templates
 CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
+CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
 
 function is_create_mode {
   if [[ $GSI_MODE =~ (create|apply) ]]; then
@@ -33,8 +33,13 @@ function gsi_init {
   $SIDECAR_ENABLED && SIDECAR_FLAG=enabled && echo '#' Istio Sidecar is enabled
   $AMBIENT_ENABLED && AMBIENT_FLAG=enabled && echo '#' Istio Ambient is enabled
   $MULTICLUSTER_ENABLED && MC_FLAG=enabled && echo '#' Multicluster is enabled 
+  
+  $KGATEWAY_ENABLED && MC_FLAG=enabled && echo '#' Kgateway is enabled 
+  $GLOO_GATEWAY_V2_ENABLED && MC_FLAG=enabled && echo '#' Gloo Gateway V2 is enabled 
 
   $SPIRE_ENABLED && SPIRE_FLAG=enabled && echo '#' SPIRE is enabled
+
+  $CERT_MANAGER_ENABLED && CERT_MANAGER_FLAG=enabled && echo '#' Cert-manager is enabled
 }
 
 function exec_create_namespaces {
@@ -95,6 +100,20 @@ function exec_spire_secrets {
   fi
 }
 
+function exec_cert_manager_secrets {
+  if is_create_mode; then
+    $DRY_RUN kubectl "$GSI_MODE" secret generic "$CERT_MANAGER_SECRET"        \
+    --context "$GSI_CONTEXT"                                                  \
+    --namespace "$CERT_MANAGER_NAMESPACE"                                     \
+    --from-file=tls.crt="$CERT_MANAGER_CERTS"/root-cert.pem                   \
+    --from-file=tls.key="$CERT_MANAGER_CERTS"/root-key.pem
+  else
+    $DRY_RUN kubectl "$GSI_MODE" secret "$CERT_MANAGER_SECRET"                \
+    --context "$GSI_CONTEXT"                                                  \
+    --namespace "$CERT_MANAGER_NAMESPACE"
+  fi
+}
+
 function exec_gme_secrets {
   local _manifest="$MANIFESTS/gme.secret.relay-token.${GSI_CLUSTER}.yaml"
 
@@ -116,7 +135,7 @@ function exec_k8s_gateway_crds {
 function exec_k8s_gateway_experimental_crds {
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_VER"/experimental-install.yaml
+  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$KGATEWAY_EXPERIMENTAL_VER"/experimental-install.yaml
 }
 
 function exec_kgateway_crds {
@@ -377,6 +396,13 @@ function exec_eastwest_gateway_api {
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
+
+  if is_create_mode; then
+    $DRY_RUN kubectl wait                                                     \
+    --context "$GSI_CONTEXT"                                                  \
+    --namespace "$EASTWEST_NAMESPACE"                                         \
+    --for=condition=Ready pods --all
+  fi
 }
 
 function exec_eastwest_link_gateway_api {
@@ -762,12 +788,15 @@ function exec_ingress_gateway_api {
 
   jinja2 -D revision="$REVISION"                                              \
          -D port="$HTTP_INGRESS_PORT"                                         \
+         -D ssl_port="$HTTPS_INGRESS_PORT"                                    \
          -D namespace="$INGRESS_NAMESPACE"                                    \
          -D name="$INGRESS_GATEWAY_NAME"                                      \
          -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
          -D size="${GSI_INGRESS_SIZE:-1}"                                     \
          -D istio_126="$ISTIO_126_FLAG"                                       \
          -D tldn="$TLDN"                                                      \
+         -D cert_manager_enabled="$CERT_MANAGER_FLAG"                         \
+         -D secret_name="$CERT_MANAGER_INGRESS_SECRET"                        \
         "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2             \
     > "$_manifest"
 
@@ -1088,5 +1117,120 @@ function exec_gsi_cluster_swap {
   export GSI_REMOTE_CLUSTER=$NEW_GSI_REMOTE_CLUSTER
   export GSI_REMOTE_CONTEXT=$NEW_GSI_REMOTE_CONTEXT
   export GSI_REMOTE_NETWORK=$NEW_GSI_REMOTE_NETWORK
+}
+
+function exec_gloo_gateway_v2_crds {
+  if is_create_mode; then
+    $DRY_RUN helm upgrade --install gloo-gateway-crds "$GLOO_GATEWAY_V2_CRDS_HELM_REPO" \
+    --version "$GLOO_GATEWAY_V2_HELM_VER"                                     \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$GLOO_GATEWAY_V2_NAMESPACE"                                  \
+    --create-namespace
+  else 
+    $DRY_RUN helm uninstall gloo-gateway-crds                                 \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$GLOO_GATEWAY_V2_NAMESPACE"
+  fi
+}
+
+function exec_gloo_gateway_v2 {
+  local _k_label="=ambient"
+
+  if ! is_create_mode; then
+    _k_label="-"
+  fi
+
+  if $AMBIENT_ENABLED; then
+    $DRY_RUN kubectl label namespace "$INGRESS_NAMESPACE" "istio.io/dataplane-mode${_k_label}"  \
+    --context "$GSI_CONTEXT" --overwrite
+  fi
+
+  if is_create_mode; then
+    $DRY_RUN helm upgrade --install gloo-gateway "$GLOO_GATEWAY_V2_HELM_REPO" \
+    --version "$GLOO_GATEWAY_V2_HELM_VER"                                     \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$GLOO_GATEWAY_V2_NAMESPACE"
+  else 
+    $DRY_RUN helm uninstall gloo-gateway                                      \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$GLOO_GATEWAY_V2_NAMESPACE"
+  fi
+
+  if is_create_mode; then
+    $DRY_RUN kubectl wait                                                     \
+    --context="$GSI_CONTEXT"                                                  \
+    --namespace "$GLOO_GATEWAY_V2_NAMESPACE"                                  \
+    --for=condition=Ready pods --all
+  fi
+}
+
+function exec_cert_manager {
+  if is_create_mode; then
+    $DRY_RUN helm upgrade --install cert-manager jetstack/cert-manager        \
+    --version "$CERT_MANAGER_VER"                                             \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$CERT_MANAGER_NAMESPACE"                                     \
+    --create-namespace                                                        \
+    --set "extraArgs={--feature-gates=ExperimentalGatewayAPISupport=true}"    \
+    --set installCRDs=true
+  else 
+    $DRY_RUN helm uninstall cert-manager                                      \
+    --kube-context="$GSI_CONTEXT"                                             \
+    --namespace "$CERT_MANAGER_NAMESPACE"
+  fi
+
+  cp "$TEMPLATES"/cluster_issuer.cert-manager.manifest.yaml                   \
+     "$MANIFESTS"/cluster_issuer.cert-manager."$GSI_CLUSTER".yaml
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$MANIFESTS"/cluster_issuer.cert-manager."$GSI_CLUSTER".yaml
+
+  if is_create_mode; then
+    $DRY_RUN kubectl wait                                                     \
+    --context="$GSI_CONTEXT"                                                  \
+    --namespace "$CERT_MANAGER_NAMESPACE"                                     \
+    --for=condition=Ready pods --all
+  fi
+}
+
+function create_issuer {
+    local _name _namespace _common_name
+
+    while getopts "c:n:m:s:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      m)
+        _name=$OPTARG ;;
+      n)
+        _namespace=$OPTARG ;;
+      c)
+        _common_name=$OPTARG ;;
+      s)
+        _secret_name=$OPTARG ;;
+    esac
+  done
+
+  local _manifest="$MANIFESTS/issuer.cert-manager.${_name}.${GSI_CLUSTER}.yaml"
+
+  jinja2 -D name="$_name"                                                     \
+         -D namespace="$_namespace"                                           \
+         -D serial_no="$(date +%Y%m%d)"                                       \
+         -D common_name="$_common_name"                                       \
+         -D secret_name="$_secret_name"                                       \
+         -D tldn="$TLDN"                                                      \
+         "$TEMPLATES"/issuer.cert-manager.manifest.yaml.j2                    \
+    > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GME_MGMT_CONTEXT"                                               \
+  -f "$_manifest" 
+}
+
+function exec_issuer_ingress_gateways {
+  create_issuer -m "$INGRESS_GATEWAY_NAME"                                    \
+                -n "$INGRESS_NAMESPACE"                                       \
+                -s "$CERT_MANAGER_INGRESS_SECRET"                             \
+                -c "Solo IO"
 }
 # END

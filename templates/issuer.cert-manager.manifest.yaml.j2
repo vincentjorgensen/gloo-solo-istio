@@ -1,0 +1,40 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ name }}-selfsigned-ca
+  namespace: {{ namespace }}
+spec:
+  isCA: true
+  commonName: {{ common_name }}
+  dnsNames:
+  - '*.{{ tldn }}'
+  secretName: {{ secret_name }}
+  subject: 
+    organizations:
+    - Solo IO
+    countries:
+    - US
+    organizationalUnits:
+    - Customer Success
+    provinces:
+    - CA
+    localities:
+    - Sunnyvale
+    serialNumber: {{ serial_no }}
+  privateKey:
+    algorithm: Ed25519
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ name }}-ca-issuer
+  namespace: {{ namespace }}
+spec:
+  ca:
+    secretName: {{ secret_name }}
+...
