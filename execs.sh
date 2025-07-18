@@ -32,10 +32,20 @@ function gsi_init {
 
   $SIDECAR_ENABLED && SIDECAR_FLAG=enabled && echo '#' Istio Sidecar is enabled
   $AMBIENT_ENABLED && AMBIENT_FLAG=enabled && echo '#' Istio Ambient is enabled
-  $MULTICLUSTER_ENABLED && MC_FLAG=enabled && echo '#' Multicluster is enabled 
+  if $MULTICLUSTER_ENABLED && MC_FLAG=enabled && echo '#' Multicluster is enabled 
   
-  $KGATEWAY_ENABLED && MC_FLAG=enabled && echo '#' Kgateway is enabled 
-  $GLOO_GATEWAY_V2_ENABLED && MC_FLAG=enabled && echo '#' Gloo Gateway V2 is enabled 
+  if $KGATEWAY_ENABLED; then
+    KGATEWAY_FLAG=enabled
+    GATEWAY_CLASS_NAME=kgateway
+    INGRESS_ENABLED=true
+    echo '#' Kgateway is enabled 
+  fi
+  if $GLOO_GATEWAY_V2_ENABLED; then
+    GLOO_GATEWAY_V2_FLAG=enabled 
+    GATEWAY_CLASS_NAME=gloo-gateway-v2
+    INGRESS_ENABLED=true
+    echo '#' Gloo Gateway V2 is enabled 
+  fi
 
   $SPIRE_ENABLED && SPIRE_FLAG=enabled && echo '#' SPIRE is enabled
 
@@ -738,7 +748,7 @@ function exec_curl_app {
     $DRY_RUN kubectl wait                                                     \
     --context "$GSI_CONTEXT"                                                  \
     --namespace "$CURL_NAMESPACE"                                             \
-    --for=condition=Ready pods -l apps=curl
+    --for=condition=Ready pods -l app=curl
 
   alias kcurl="kubectl --context $GSI_CONTEXT --namespace $CURL_NAMESPACE exec -it deployment/curl -- sh"
   fi
@@ -775,8 +785,10 @@ function exec_istio_vs_and_gateway {
          -D service_port="$GSI_APP_SERVICE_PORT"                              \
          -D tldn="$TLDN"                                                      \
          -D gme_enabled="$GME_FLAG"                                           \
+         -D cert_manager_enabled="$CERT_MANAGER_FLAG"                         \
+         -D secret_name="$GSI_APP_GATEWAY_SECRET"                             \
        "$TEMPLATES"/istio.vs_and_gateway.manifest.yaml.j2                     \
-  -f "$_manifest"
+    > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
@@ -1171,20 +1183,16 @@ function exec_cert_manager {
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$CERT_MANAGER_NAMESPACE"                                     \
     --create-namespace                                                        \
+    --set config.apiVersion="controller.config.cert-manager.io/v1alpha1"      \
+    --set config.kind="ControllerConfiguration"                               \
+    --set config.enableGatewayAPI=true                                        \
     --set "extraArgs={--feature-gates=ExperimentalGatewayAPISupport=true}"    \
-    --set installCRDs=true
+    --set crds.enabled=true
   else 
     $DRY_RUN helm uninstall cert-manager                                      \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$CERT_MANAGER_NAMESPACE"
   fi
-
-  cp "$TEMPLATES"/cluster_issuer.cert-manager.manifest.yaml                   \
-     "$MANIFESTS"/cluster_issuer.cert-manager."$GSI_CLUSTER".yaml
-
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f "$MANIFESTS"/cluster_issuer.cert-manager."$GSI_CLUSTER".yaml
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
@@ -1193,19 +1201,30 @@ function exec_cert_manager {
     --for=condition=Ready pods --all
   fi
 }
+function exec_cluster_issuer {
+  local _manifest="$MANIFESTS/cluster_issuer.cert-manager.${GSI_CLUSTER}.yaml"
+  
+  jinja2 -D namespace="$CERT_MANAGER_NAMESPACE"                               \
+         "$TEMPLATES"/cluster_issuer.cert-manager.manifest.yaml.j2            \
+    > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest" 
+}
 
 function create_issuer {
-    local _name _namespace _common_name
+    local _name _namespace _org _secret_name
 
-    while getopts "c:n:m:s:" opt; do
+    while getopts "n:m:o:s:" opt; do
     # shellcheck disable=SC2220
     case $opt in
       m)
         _name=$OPTARG ;;
       n)
         _namespace=$OPTARG ;;
-      c)
-        _common_name=$OPTARG ;;
+      o)
+        _org=$OPTARG ;;
       s)
         _secret_name=$OPTARG ;;
     esac
@@ -1216,14 +1235,14 @@ function create_issuer {
   jinja2 -D name="$_name"                                                     \
          -D namespace="$_namespace"                                           \
          -D serial_no="$(date +%Y%m%d)"                                       \
-         -D common_name="$_common_name"                                       \
+         -D org="$_org"                                                       \
          -D secret_name="$_secret_name"                                       \
          -D tldn="$TLDN"                                                      \
          "$TEMPLATES"/issuer.cert-manager.manifest.yaml.j2                    \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GME_MGMT_CONTEXT"                                               \
+  --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest" 
 }
 
@@ -1231,6 +1250,13 @@ function exec_issuer_ingress_gateways {
   create_issuer -m "$INGRESS_GATEWAY_NAME"                                    \
                 -n "$INGRESS_NAMESPACE"                                       \
                 -s "$CERT_MANAGER_INGRESS_SECRET"                             \
-                -c "Solo IO"
+                -o "Solo IO"
+}
+
+function exec_issuer_istio_ingress_gateway {
+  create_issuer -m "$GSI_APP_SERVICE_NAME"                                    \
+                -n "$GSI_APP_SERVICE_NAMESPACE"                               \
+                -s "$GSI_APP_GATEWAY_SECRET"                                  \
+                -o "Solo IO"
 }
 # END

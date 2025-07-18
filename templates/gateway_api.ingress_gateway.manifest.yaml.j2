@@ -1,4 +1,4 @@
-{% if gateway_class_name == "kgateway" %}
+{% if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
 ---
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: GatewayParameters
@@ -88,7 +88,8 @@ kind: Gateway
 metadata:
 {% if cert_manager_enabled %}
   annotations:
-    cert-manager.io/issuer: {{ name }}-ca-issuer
+###    cert-manager.io/issuer: {{ name }}-ca-issuer
+    cert-manager.io/issuer: ingress-gateway-ca-issuer
 {% endif %}
   name: {{ name }}
   namespace: {{ namespace }}
@@ -122,8 +123,9 @@ spec:
       certificateRefs:
         - name: {{ secret_name }}
           kind: Secret
+###      options:
 {% endif %}
-{% if gateway_class_name == "kgateway" %}
+{% if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
   infrastructure:
     parametersRef:
       name: {{ name }}-gw-params

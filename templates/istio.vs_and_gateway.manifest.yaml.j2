@@ -40,4 +40,16 @@ spec:
     hosts:
 #    - "{{ service_name }}.{{ tldn }}"
     - "*.{{ tldn }}"
+{% if cert_manager_enabled %}
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "*.{{ tldn }}"
+    tls:
+      mode: SIMPLE
+      credentialName: {{ secret_name }}
+##      maxProtocolVersion: TLSV1_2
+{% endif %}
 ...

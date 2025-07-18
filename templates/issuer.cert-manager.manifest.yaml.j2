@@ -1,31 +1,30 @@
+### https://cloudolife.com/2021/08/11/Kubernetes-K8S/cert-manager/Use-cert-manager-to-create-SelfSigned-Certificate-with-kubernetes-K8S/
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-cluster-issuer
+spec:
+  selfSigned: {}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ name }}-selfsigned-ca
+  name: selfsigned-ca
   namespace: {{ namespace }}
 spec:
   isCA: true
-  commonName: {{ common_name }}
-  dnsNames:
-  - '*.{{ tldn }}'
-  secretName: {{ secret_name }}
-  subject: 
-    organizations:
-    - Solo IO
-    countries:
-    - US
-    organizationalUnits:
-    - Customer Success
-    provinces:
-    - CA
-    localities:
-    - Sunnyvale
-    serialNumber: {{ serial_no }}
+  commonName: selfsigned-ca
+  secretName: {{ name }}-ca-issuer-secret
   privateKey:
-    algorithm: Ed25519
+    rotationPolicy: Always
+    algorithm: RSA
+    encoding: PKCS1 #default
+    size: 2048 #default
+  duration: 8760h
+  renewBefore: 720h
   issuerRef:
-    name: selfsigned-issuer
+    name: selfsigned-cluster-issuer 
     kind: ClusterIssuer
     group: cert-manager.io
 ---
@@ -36,5 +35,29 @@ metadata:
   namespace: {{ namespace }}
 spec:
   ca:
-    secretName: {{ secret_name }}
+    secretName: {{ name }}-ca-issuer-secret
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ name }}-selfsigned-ca
+  namespace: {{ namespace }}
+spec:
+  isCA: false
+  commonName: {{ name }}-selfsigned-ca
+  subject:
+    organizations:
+      - "{{ org }}"
+  dnsNames:
+  - '*.{{ tldn }}'
+  secretName: {{ secret_name }}
+  privateKey:
+    rotationPolicy: Always
+    algorithm: RSA
+    encoding: PKCS1 #default
+    size: 2048 #default
+  issuerRef:
+    name: {{ name }}-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
 ...

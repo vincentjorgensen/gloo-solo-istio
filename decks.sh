@@ -121,8 +121,6 @@ function deck_spire_ambient_kgateway {
   export GSI_INGRESS_SIZE=1
 
   export AMBIENT_ENABLED=true
-  export GATEWAY_CLASS_NAME=kgateway
-  export INGRESS_ENABLED=true
   export KGATEWAY_ENABLED=true
   export MULTICLUSTER_ENABLED=false
   export SIDECAR_ENABLED=false
@@ -149,7 +147,6 @@ function deck_spire_ambient_istiogateway {
 
   export AMBIENT_ENABLED=true
   export GATEWAY_CLASS_NAME=istio
-  export INGRESS_ENABLED=true
   export ISTIOGATEWAY_ENABLED=true
   export KGATEWAY_ENABLED=false
   export MULTICLUSTER_ENABLED=false
@@ -175,7 +172,6 @@ function deck_ambient_kgateway {
   export GSI_INGRESS_SIZE=1
 
   export AMBIENT_ENABLED=true
-  export INGRESS_ENABLED=true
   export GATEWAY_CLASS_NAME=kgateway
   export KGATEWAY_ENABLED=true
   export MULTICLUSTER_ENABLED=false
@@ -208,7 +204,6 @@ function deck_mc_ambient_kgateway {
   export GSI_INGRESS_SIZE=1
 
   export AMBIENT_ENABLED=true
-  export INGRESS_ENABLED=true
   export GATEWAY_CLASS_NAME=kgateway
   export EASTWEST_GATEWAY_CLASS_NAME=istio-eastwest
   export EASTWEST_REMOTE_GATEWAY_CLASS_NAME=istio-remote
@@ -268,7 +263,6 @@ function deck_mc_ambient_gloo_gateway_v2 {
   export GSI_INGRESS_SIZE=1
 
   export AMBIENT_ENABLED=true
-  export INGRESS_ENABLED=true
   export GATEWAY_CLASS_NAME=gloo-gateway-v2
   export EASTWEST_GATEWAY_CLASS_NAME=istio-eastwest
   export EASTWEST_REMOTE_GATEWAY_CLASS_NAME=istio-remote
@@ -284,6 +278,9 @@ function deck_mc_ambient_gloo_gateway_v2 {
 
   export GSI_DECK=(
     exec_create_namespaces
+
+    exec_cert_manager
+
     exec_istio_secrets
     exec_istio
     exec_telemetry_defaults
@@ -322,5 +319,127 @@ function deck_kgateway {
   export GSI_APP_SERVICE_PORT=$4
   export GSI_INGRESS_SIZE=1
   export GSI_DECK=(exec_k8s_gateway_crds exec_kgateway_crds exec_kgateway exec_kgateway_ingressgateway exec_httproute exec_reference_grant)
+}
+
+function deck_ambient_kgateway_cert_manager {
+  export GSI_CLUSTER=$1
+  export GSI_CONTEXT=$1
+  export GSI_NETWORK=$1
+
+  export GSI_APP_SERVICE_NAMESPACE=$HELLOWORLD_NAMESPACE
+  export GSI_APP_SERVICE_NAME=$HELLOWORLD_SERVICE_NAME
+  export GSI_APP_SERVICE_PORT=$HELLOWORLD_SERVICE_PORT
+  export GSI_INGRESS_SIZE=1
+
+  export AMBIENT_ENABLED=true
+  export GATEWAY_CLASS_NAME=kgateway
+  export EASTWEST_GATEWAY_CLASS_NAME=istio-eastwest
+  export EASTWEST_REMOTE_GATEWAY_CLASS_NAME=istio-remote
+
+  export CERT_MANAGER_ENABLED=true
+  export GLOO_GATEWAY_V2_ENABLED=false
+  export KGATEWAY_ENABLED=true
+  export MULTICLUSTER_ENABLED=false
+  export SIDECAR_ENABLED=false
+  export SPIRE_ENABLED=false
+
+  gsi_init
+
+  export GSI_DECK=(
+    exec_create_namespaces
+
+    exec_cert_manager
+    exec_cluster_issuer
+    exec_issuer_ingress_gateways
+
+    exec_istio_secrets
+    exec_istio
+    exec_telemetry_defaults
+    exec_helloworld_app
+    exec_curl_app
+
+    exec_k8s_gateway_crds
+    exec_kgateway_crds
+    exec_kgateway
+    exec_ingress_gateway_api
+    exec_httproute
+    exec_reference_grant
+  )
+}
+
+function deck_ambient_istiogateway {
+  export GSI_CLUSTER=$1
+  export GSI_CONTEXT=$1
+  export GSI_NETWORK=$1
+  export GSI_APP_SERVICE_NAMESPACE=$HELLOWORLD_NAMESPACE
+  export GSI_APP_SERVICE_NAME=$HELLOWORLD_SERVICE_NAME
+  export GSI_APP_SERVICE_PORT=$HELLOWORLD_SERVICE_PORT
+  export GSI_APP_GATEWAY_SECRET="${HELLOWORLD_SERVICE_NAME}-ca-key-pair"
+  export GSI_INGRESS_SIZE=1
+
+  export AMBIENT_ENABLED=true
+  export CERT_MANAGER_ENABLED=true
+  export GATEWAY_CLASS_NAME=istio
+  export GLOO_GATEWAY_V2_ENABLED=false
+  export ISTIOGATEWAY_ENABLED=true
+  export KGATEWAY_ENABLED=false
+  export MULTICLUSTER_ENABLED=false
+  export SIDECAR_ENABLED=false
+  export SPIRE_ENABLED=false
+
+  gsi_init
+
+  export GSI_DECK=(
+    exec_create_namespaces
+                   
+    exec_cert_manager
+    exec_cluster_issuer
+
+    exec_istio
+    exec_telemetry_defaults
+    exec_helloworld_app
+    exec_curl_app
+
+    exec_issuer_istio_ingress_gateway
+    exec_istio_ingressgateway
+    exec_istio_vs_and_gateway
+  )
+}
+
+function deck_ambient_gloo_gateway_v2_cert_manager {
+  export GSI_CLUSTER=$1
+  export GSI_CONTEXT=$1
+  export GSI_NETWORK=$1
+
+  export GSI_APP_SERVICE_NAMESPACE=$HELLOWORLD_NAMESPACE
+  export GSI_APP_SERVICE_NAME=$HELLOWORLD_SERVICE_NAME
+  export GSI_APP_SERVICE_PORT=$HELLOWORLD_SERVICE_PORT
+  export GSI_INGRESS_SIZE=1
+
+  export AMBIENT_ENABLED=true
+  export CERT_MANAGER_ENABLED=true
+  export GLOO_GATEWAY_V2_ENABLED=true
+
+  gsi_init
+
+  export GSI_DECK=(
+    exec_create_namespaces
+
+    exec_k8s_gateway_experimental_crds
+    exec_cert_manager
+
+    exec_issuer_ingress_gateways
+
+    exec_istio
+    exec_telemetry_defaults
+    exec_helloworld_app
+    exec_curl_app
+
+    exec_gloo_gateway_v2_crds
+    exec_gloo_gateway_v2
+    exec_ingress_gateway_api
+    exec_httproute
+    exec_reference_grant
+  )
 }
 # END

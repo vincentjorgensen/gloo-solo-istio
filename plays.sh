@@ -203,7 +203,7 @@ function play_mc_ambient_kgateway {
   set_defaults
 
   deck_mc_ambient_kgateway "$_cluster1" "$_cluster2"
-  play_gsi
+#  play_gsi
 }
 
 function play_spire_ambient_istiogateway {
@@ -217,12 +217,42 @@ function play_spire_ambient_istiogateway {
 }
 
 function play_mc_ambient_gloo_gateway_v2 {
-  local _cluster
+  local _cluster1 _cluster2
   _cluster1=${1:-cluster1}
   _cluster2=${2:-cluster2}
 
   set_defaults
 
   deck_mc_ambient_gloo_gateway_v2 "$_cluster1" "$_cluster2"
+#  play_gsi
+}
+
+function play_ambient_kgateway_cert_manager {
+  local _cluster
+  _cluster=${1:-cluster1}
+
+  set_defaults
+
+  deck_ambient_kgateway_cert_manager "$_cluster"
+#  play_gsi
+}
+
+function play_ambient_istiogateway {
+  local _cluster
+  _cluster=${1:-cluster1}
+
+  set_defaults
+
+  deck_ambient_istiogateway "$_cluster"
+#  play_gsi
+}
+
+function play_ambient_gloo_gateway_v2_cert_manager {
+  local _cluster
+  _cluster=${1:-cluster1}
+
+  set_defaults
+
+  deck_ambient_gloo_gateway_v2_cert_manager "$_cluster"
   play_gsi
 }
