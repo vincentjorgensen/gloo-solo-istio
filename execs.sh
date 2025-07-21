@@ -1160,17 +1160,25 @@ function exec_cluster_issuer {
 function create_issuer {
     local _name _namespace _org _secret_name
 
-    while getopts "n:m:o:s:" opt; do
+    while getopts "c:l:m:n:o:p:s:u:" opt; do
     # shellcheck disable=SC2220
     case $opt in
+      c)
+        _country=$OPTARG ;;
+      l)
+        _locale=$OPTARG ;;
       m)
         _name=$OPTARG ;;
       n)
         _namespace=$OPTARG ;;
       o)
         _org=$OPTARG ;;
+      p)
+        _state=$OPTARG ;;
       s)
         _secret_name=$OPTARG ;;
+      u)
+        _ou=$OPTARG ;;
     esac
   done
 
@@ -1180,6 +1188,10 @@ function create_issuer {
          -D namespace="$_namespace"                                           \
          -D serial_no="$(date +%Y%m%d)"                                       \
          -D org="$_org"                                                       \
+         -D ou="$_ou"                                                         \
+         -D country="$_country"                                               \
+         -D state="$_state"                                                   \
+         -D locale="$_locale"                                                 \
          -D secret_name="$_secret_name"                                       \
          -D tldn="$TLDN"                                                      \
          "$TEMPLATES"/issuer.cert-manager.manifest.yaml.j2                    \
@@ -1194,13 +1206,21 @@ function exec_issuer_ingress_gateways {
   create_issuer -m "$INGRESS_GATEWAY_NAME"                                    \
                 -n "$INGRESS_NAMESPACE"                                       \
                 -s "$CERT_MANAGER_INGRESS_SECRET"                             \
-                -o "Solo IO"
+                -c "US"                                                       \
+                -l "Sunnyvale"                                                \
+                -o "Solo IO"                                                  \
+                -p "CA"                                                       \
+                -u "Customer Success"
 }
 
 function exec_issuer_istio_ingress_gateway {
   create_issuer -m "$GSI_APP_SERVICE_NAME"                                    \
                 -n "$GSI_APP_SERVICE_NAMESPACE"                               \
                 -s "$GSI_APP_GATEWAY_SECRET"                                  \
-                -o "Solo IO"
+                -c "US"                                                       \
+                -l "Sunnyvale"                                                \
+                -o "Solo IO"                                                  \
+                -p "CA"                                                       \
+                -u "Customer Success"
 }
 # END

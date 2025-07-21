@@ -1,13 +1,6 @@
 ### https://cloudolife.com/2021/08/11/Kubernetes-K8S/cert-manager/Use-cert-manager-to-create-SelfSigned-Certificate-with-kubernetes-K8S/
 ---
 apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: selfsigned-cluster-issuer
-spec:
-  selfSigned: {}
----
-apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: selfsigned-ca
@@ -24,7 +17,7 @@ spec:
   duration: 8760h
   renewBefore: 720h
   issuerRef:
-    name: selfsigned-cluster-issuer 
+    name: selfsigned-cluster-issuer # cluster-issuer must already exist
     kind: ClusterIssuer
     group: cert-manager.io
 ---
@@ -48,6 +41,15 @@ spec:
   subject:
     organizations:
       - "{{ org }}"
+    countries:
+    - {{ country }}
+    organizationalUnits:
+    - {{ ou }}
+    provinces:
+    - {{ state }}
+    localities:
+    - {{ locale }}
+    serialNumber: '{{ serial_no }}'
   dnsNames:
   - '*.{{ tldn }}'
   secretName: {{ secret_name }}
