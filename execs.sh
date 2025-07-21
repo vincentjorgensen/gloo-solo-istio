@@ -5,53 +5,6 @@
 # like installs.sh, but every function takes care of its own destructor if
 # GSI_MODE is set to "delete"
 ###############################################################################
-export TEMPLATES CERTS MANIFESTS
-TEMPLATES="$(dirname "$0")"/templates
-CERTS="$(dirname "$0")"/certs
-SPIRE_CERTS="$(dirname "$0")"/spire-certs
-CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
-
-function is_create_mode {
-  if [[ $GSI_MODE =~ (create|apply) ]]; then
-    return 0
-  else
-    return 1
-  fi
-}
-
-function gsi_init {
-  MANIFESTS="$(dirname "$0")"/manifests/$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
-  mkdir -p "$MANIFESTS"
-  echo '#' "MANIFESTS=$MANIFESTS"
-
-  $GME_ENABLED && GME_FLAG=enabled && echo '#' GME is enabled
-  $GME_MGMT_AGENT_ENABLED && GME_MGMT_AGENT_FLAG=enabled
-
-  $AWS_ENABLED   && AWS_FLAG=enabled   && echo '#' AWS is enabled
-  $AZURE_ENABLED && AZURE_FLAG=enabled && echo '#' AZURE is enabled
-
-  $SIDECAR_ENABLED && SIDECAR_FLAG=enabled && echo '#' Istio Sidecar is enabled
-  $AMBIENT_ENABLED && AMBIENT_FLAG=enabled && echo '#' Istio Ambient is enabled
-  if $MULTICLUSTER_ENABLED && MC_FLAG=enabled && echo '#' Multicluster is enabled 
-  
-  if $KGATEWAY_ENABLED; then
-    KGATEWAY_FLAG=enabled
-    GATEWAY_CLASS_NAME=kgateway
-    INGRESS_ENABLED=true
-    echo '#' Kgateway is enabled 
-  fi
-  if $GLOO_GATEWAY_V2_ENABLED; then
-    GLOO_GATEWAY_V2_FLAG=enabled 
-    GATEWAY_CLASS_NAME=gloo-gateway-v2
-    INGRESS_ENABLED=true
-    echo '#' Gloo Gateway V2 is enabled 
-  fi
-
-  $SPIRE_ENABLED && SPIRE_FLAG=enabled && echo '#' SPIRE is enabled
-
-  $CERT_MANAGER_ENABLED && CERT_MANAGER_FLAG=enabled && echo '#' Cert-manager is enabled
-}
-
 function exec_create_namespaces {
   for enabled_var in $(env|grep _ENABLED); do
     enabled=$(echo "$enabled_var" | awk -F= '{print $1}')
@@ -63,15 +16,6 @@ function exec_create_namespaces {
       fi
     fi
   done
-}
-
-function create_namespace {
-  local _context _namespace
-  _context=$1
-  _namespace=$2
-
-  $DRY_RUN kubectl "$GSI_MODE" namespace "$_namespace"                        \
-  --context "$_context"
 }
 
 function exec_istio_secrets {
@@ -569,7 +513,7 @@ function exec_istio_ingressgateway {
   local _manifest="$MANIFESTS/helm.istio-ingressgateway.${GSI_CLUSTER}.yaml"
 
   if is_create_mode; then
-    jinja2 -D size="$GSI_INGRESS_SIZE"                                        \
+    jinja2 -D size="${INGRESS_SIZE:-1}"                                       \
            -D network="$GSI_NETWORK"                                          \
            -D revision="$REVISION"                                            \
            -D istio_repo="$ISTIO_REPO"                                        \
@@ -750,7 +694,7 @@ function exec_curl_app {
     --namespace "$CURL_NAMESPACE"                                             \
     --for=condition=Ready pods -l app=curl
 
-  alias kcurl="kubectl --context $GSI_CONTEXT --namespace $CURL_NAMESPACE exec -it deployment/curl -- sh"
+  alias kcurl="kubectl --context \$GSI_CONTEXT --namespace \$CURL_NAMESPACE exec -it deployment/curl -- sh"
   fi
 }
 
@@ -804,7 +748,7 @@ function exec_ingress_gateway_api {
          -D namespace="$INGRESS_NAMESPACE"                                    \
          -D name="$INGRESS_GATEWAY_NAME"                                      \
          -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
-         -D size="${GSI_INGRESS_SIZE:-1}"                                     \
+         -D size="${INGRESS_SIZE:-1}"                                         \
          -D istio_126="$ISTIO_126_FLAG"                                       \
          -D tldn="$TLDN"                                                      \
          -D cert_manager_enabled="$CERT_MANAGER_FLAG"                         \

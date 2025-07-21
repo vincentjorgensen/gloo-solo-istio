@@ -249,7 +249,7 @@ function deck_mc_ambient_kgateway {
   )
 }
 
-function deck_mc_ambient_gloo_gateway_v2 {
+function deck_mc_ambient_gloo_gateway_v2_cert_manager {
   export GSI_CLUSTER=$1
   export GSI_CONTEXT=$1
   export GSI_NETWORK=$1
@@ -260,31 +260,21 @@ function deck_mc_ambient_gloo_gateway_v2 {
   export GSI_APP_SERVICE_NAMESPACE=$HELLOWORLD_NAMESPACE
   export GSI_APP_SERVICE_NAME=$HELLOWORLD_SERVICE_NAME
   export GSI_APP_SERVICE_PORT=$HELLOWORLD_SERVICE_PORT
-  export GSI_INGRESS_SIZE=1
 
   export AMBIENT_ENABLED=true
-  export GATEWAY_CLASS_NAME=gloo-gateway-v2
-  export EASTWEST_GATEWAY_CLASS_NAME=istio-eastwest
-  export EASTWEST_REMOTE_GATEWAY_CLASS_NAME=istio-remote
-
-  export KGATEWAY_ENABLED=false
+  export CERT_MANAGER_ENABLED=true
   export GLOO_GATEWAY_V2_ENABLED=true
   export MULTICLUSTER_ENABLED=true
-  export SIDECAR_ENABLED=false
-  export SPIRE_ENABLED=false
-  export CERT_MANAGER_ENABLED=true
 
   gsi_init
 
   export GSI_DECK=(
     exec_create_namespaces
-
-    exec_cert_manager
+    exec_k8s_gateway_experimental_crds
 
     exec_istio_secrets
     exec_istio
     exec_telemetry_defaults
-    exec_k8s_gateway_experimental_crds
     exec_eastwest_gateway_api
     exec_helloworld_app
     exec_curl_app
@@ -292,10 +282,11 @@ function deck_mc_ambient_gloo_gateway_v2 {
     exec_gsi_cluster_swap
 
     exec_create_namespaces
+    exec_k8s_gateway_experimental_crds
+
     exec_istio_secrets
     exec_istio
     exec_telemetry_defaults
-    exec_k8s_gateway_experimental_crds
     exec_eastwest_gateway_api
     exec_helloworld_app
 
@@ -303,9 +294,13 @@ function deck_mc_ambient_gloo_gateway_v2 {
     exec_gsi_cluster_swap
     exec_eastwest_link_gateway_api
 
+    exec_cert_manager
+    exec_issuer_ingress_gateways
+
+    exec_external_dns_for_pihole
+
     exec_gloo_gateway_v2_crds
     exec_gloo_gateway_v2
-    exec_external_dns_for_pihole
     exec_ingress_gateway_api
     exec_httproute
     exec_reference_grant
@@ -357,6 +352,8 @@ function deck_ambient_kgateway_cert_manager {
     exec_telemetry_defaults
     exec_helloworld_app
     exec_curl_app
+
+    exec_external_dns_for_pihole
 
     exec_k8s_gateway_crds
     exec_kgateway_crds
@@ -432,8 +429,47 @@ function deck_ambient_gloo_gateway_v2_cert_manager {
 
     exec_istio
     exec_telemetry_defaults
+
     exec_helloworld_app
     exec_curl_app
+
+    exec_external_dns_for_pihole
+
+    exec_gloo_gateway_v2_crds
+    exec_gloo_gateway_v2
+    exec_ingress_gateway_api
+    exec_httproute
+    exec_reference_grant
+  )
+}
+
+function deck_gloo_gateway_v2_cert_manager {
+  export GSI_CLUSTER=$1
+  export GSI_CONTEXT=$1
+  export GSI_NETWORK=$1
+
+  export GSI_APP_SERVICE_NAMESPACE=$HELLOWORLD_NAMESPACE
+  export GSI_APP_SERVICE_NAME=$HELLOWORLD_SERVICE_NAME
+  export GSI_APP_SERVICE_PORT=$HELLOWORLD_SERVICE_PORT
+  export GSI_INGRESS_SIZE=1
+
+  export CERT_MANAGER_ENABLED=true
+  export GLOO_GATEWAY_V2_ENABLED=true
+
+  gsi_init
+
+  export GSI_DECK=(
+    exec_create_namespaces
+
+    exec_k8s_gateway_experimental_crds
+    exec_cert_manager
+
+    exec_issuer_ingress_gateways
+
+    exec_helloworld_app
+    exec_curl_app
+
+    exec_external_dns_for_pihole
 
     exec_gloo_gateway_v2_crds
     exec_gloo_gateway_v2

@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-###############################################################################
+#!/usr/bin/env bash ###############################################################################
 # globals.sh
 # 
 # functions for setting global state
@@ -7,12 +6,20 @@
 #-------------------------------------------------------------------------------
 # Global versions of Helm Repos, Istio Repos, and Istio settings
 #-------------------------------------------------------------------------------
+export TEMPLATES CERTS MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS
+TEMPLATES="$(dirname "$0")"/templates
+CERTS="$(dirname "$0")"/certs
+SPIRE_CERTS="$(dirname "$0")"/spire-certs
+CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
+
 export REVISION GME_SECRET_TOKEN TLDN MESH_ID
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
 export GSI_MODE
+export EASTWEST_GATEWAY_CLASS_NAME EASTWEST_REMOTE_GATEWAY_CLASS_NAME
 
-export GME_FLAG AZURE_FLAG AWS_FLAG GME_MGMT_AGENT_FLAG
+export GME_FLAG AZURE_FLAG AWS_FLAG GME_MGMT_AGENT_FLAG KGATEWAY_FLAG
 export SIDECAR_FLAG AMBIENT_FLAG CERT_MANAGER_FLAG INGRESS_ENABLED
+export GLOO_GATEWAY_V2_FLAG GATEWAY_CLASS_NAME SPIRE_FLAG MC_FLAG
 
 export DRY_RUN=""
 
@@ -211,5 +218,65 @@ function set_gme_defaults {
 
 function set_defaults {
   set_oss_defaults
+}
+
+function is_create_mode {
+  if [[ $GSI_MODE =~ (create|apply) ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+function gsi_init {
+  MANIFESTS="$(dirname "$0")"/manifests/$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
+  mkdir -p "$MANIFESTS"
+  echo '#' "MANIFESTS=$MANIFESTS"
+
+  $GME_ENABLED && GME_FLAG=enabled && echo '#' GME is enabled
+  $GME_MGMT_AGENT_ENABLED && GME_MGMT_AGENT_FLAG=enabled
+
+  $AWS_ENABLED   && AWS_FLAG=enabled   && echo '#' AWS is enabled
+  $AZURE_ENABLED && AZURE_FLAG=enabled && echo '#' AZURE is enabled
+
+  $SIDECAR_ENABLED && SIDECAR_FLAG=enabled && echo '#' Istio Sidecar is enabled
+  $AMBIENT_ENABLED && AMBIENT_FLAG=enabled && echo '#' Istio Ambient is enabled
+  if $MULTICLUSTER_ENABLED; then
+    MC_FLAG=enabled
+    echo '#' Multicluster is enabled 
+    if $AMBIENT_ENABLED; then
+      EASTWEST_GATEWAY_CLASS_NAME=istio-eastwest
+      EASTWEST_REMOTE_GATEWAY_CLASS_NAME=istio-remote
+      echo '#' Ambient Multicluster is enabled 
+    fi
+  fi
+  
+  if $KGATEWAY_ENABLED; then
+    KGATEWAY_FLAG=enabled
+    GATEWAY_CLASS_NAME=kgateway
+    INGRESS_ENABLED=true
+    echo '#' Kgateway is enabled 
+  fi
+  if $GLOO_GATEWAY_V2_ENABLED; then
+    GLOO_GATEWAY_V2_FLAG=enabled 
+    GATEWAY_CLASS_NAME=gloo-gateway-v2
+    INGRESS_ENABLED=true
+    echo '#' Gloo Gateway V2 is enabled 
+  fi
+
+  $SPIRE_ENABLED && SPIRE_FLAG=enabled && echo '#' SPIRE is enabled
+
+  $CERT_MANAGER_ENABLED && CERT_MANAGER_FLAG=enabled && echo '#' Cert-manager is enabled
+
+  set_defaults
+}
+
+function create_namespace {
+  local _context _namespace
+  _context=$1
+  _namespace=$2
+
+  $DRY_RUN kubectl "$GSI_MODE" namespace "$_namespace"                        \
+  --context "$_context"
 }
 # END
