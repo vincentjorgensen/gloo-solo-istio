@@ -1,4 +1,5 @@
-#!/usr/bin/env bash ###############################################################################
+#!/usr/bin/env bash
+ ###############################################################################
 # globals.sh
 # 
 # functions for setting global state
@@ -17,16 +18,20 @@ export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
 export GSI_MODE
 export EASTWEST_GATEWAY_CLASS_NAME EASTWEST_REMOTE_GATEWAY_CLASS_NAME
 
+# Jinja2 flags
 export GME_FLAG AZURE_FLAG AWS_FLAG GME_MGMT_AGENT_FLAG KGATEWAY_FLAG
-export SIDECAR_FLAG AMBIENT_FLAG CERT_MANAGER_FLAG INGRESS_ENABLED
+export SIDECAR_FLAG AMBIENT_FLAG CERT_MANAGER_FLAG INGRESS_ENABLED EXTAUTH_FLAG
 export GLOO_GATEWAY_V2_FLAG GATEWAY_CLASS_NAME SPIRE_FLAG MC_FLAG
+export RATELIMITER_FLAG
 
+# Testing and generating reproducible plans
 export DRY_RUN=""
 
 # Cloud Providers
 export DOCKER_DESKTOP_ENABLED="${DOCKER_DESKTOP_ENABLED:-true}"
 export AWS_ENABLED="${AWS_ENABLED:-false}"
 export AZURE_ENABLED="${AZURE_ENABLED:-false}"
+export GCP_ENABLED="${GCP_ENABLED:-false}"
 
 # Namespaces
 export ARGOCD_NAMESPACE=argocd
@@ -84,6 +89,12 @@ export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/
 export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway
 export GLOO_GATEWAY_V2_HELM_VER=2.0.0-alpha.2
 export GLOO_GATEWAY_V2_NAMESPACE=gloo-gateway-system
+
+export TRAFFIC_POLICY_NAME=oauth-authorization-code
+
+export KEYCLOAK_ENABLED="${KEYCLOAK_ENABLED:-false}"
+export KEYCLOAK_NAMESPACE=keycloak
+export KEYCLOAK_VER=26.3
 
 # Istio repo versions
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
@@ -229,18 +240,26 @@ function is_create_mode {
 }
 
 function gsi_init {
+  # For reproducibilty and sharing, we save the manifests
   MANIFESTS="$(dirname "$0")"/manifests/$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
   mkdir -p "$MANIFESTS"
-  echo '#' "MANIFESTS=$MANIFESTS"
+  echo "export MANIFESTS=$MANIFESTS"
 
+  # Gloo Mesh Enterprise (GME)
   $GME_ENABLED && GME_FLAG=enabled && echo '#' GME is enabled
   $GME_MGMT_AGENT_ENABLED && GME_MGMT_AGENT_FLAG=enabled
 
+  # cloud / k8s providers
+  $DOCKER_DESKTOP_ENABLED   && DOCKER_FLAG=enabled   && echo '#' Docker Desktop is enabled
   $AWS_ENABLED   && AWS_FLAG=enabled   && echo '#' AWS is enabled
   $AZURE_ENABLED && AZURE_FLAG=enabled && echo '#' AZURE is enabled
+  $GCP_ENABLED && GCP_FLAG=enabled && echo '#' AZURE is enabled
 
+  # Istio mesh mode
   $SIDECAR_ENABLED && SIDECAR_FLAG=enabled && echo '#' Istio Sidecar is enabled
   $AMBIENT_ENABLED && AMBIENT_FLAG=enabled && echo '#' Istio Ambient is enabled
+  
+  # Istio multicluster
   if $MULTICLUSTER_ENABLED; then
     MC_FLAG=enabled
     echo '#' Multicluster is enabled 
@@ -251,12 +270,14 @@ function gsi_init {
     fi
   fi
   
+  # Kgateway (OSS)
   if $KGATEWAY_ENABLED; then
     KGATEWAY_FLAG=enabled
     GATEWAY_CLASS_NAME=kgateway
     INGRESS_ENABLED=true
     echo '#' Kgateway is enabled 
   fi
+  # Gloo Gateway V2 (aka kgateway Enterprise)
   if $GLOO_GATEWAY_V2_ENABLED; then
     GLOO_GATEWAY_V2_FLAG=enabled 
     GATEWAY_CLASS_NAME=gloo-gateway-v2
@@ -264,9 +285,18 @@ function gsi_init {
     echo '#' Gloo Gateway V2 is enabled 
   fi
 
+  # Spire
   $SPIRE_ENABLED && SPIRE_FLAG=enabled && echo '#' SPIRE is enabled
 
+  # Cert-manager
   $CERT_MANAGER_ENABLED && CERT_MANAGER_FLAG=enabled && echo '#' Cert-manager is enabled
+
+  # Keycloak and ExtAuth
+  if $KEYCLOAK_ENABLED; then
+    echo '#' Keycloak is enabled
+    EXTAUTH_FLAG=enabled && echo '#' ExtAuth is enabled
+    RATELIMITER_FLAG=enabled && echo '#' Rate-limiter is enabled
+  fi
 
   set_defaults
 }

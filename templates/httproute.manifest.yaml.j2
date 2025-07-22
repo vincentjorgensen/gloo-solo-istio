@@ -29,4 +29,17 @@ spec:
       namespace: {{ service_namespace }} # Will require ReferenceGrant in service_namespace if crosses NS boundary
       port: {{ service_port }}
 {% endif %}
+{%- if extauth_enabled %}
+    filters:
+    - type: ExtensionRef
+      extensionRef:
+{%- if gateway_class_name == "gloo-gateway-v2" %}
+        group: gloo.solo.io
+        kind: GlooTrafficPolicy
+{%- else %}
+        group: gateway.kgateway.dev
+        kind: TrafficPolicy
+{%- endif %}
+        name: {{ traffic_policy_name }}
+{%- endif %}
 ...

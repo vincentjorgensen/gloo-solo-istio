@@ -1,4 +1,4 @@
-{% if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
+{% if gateway_class_name == "kgateway" %}
 ---
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: GatewayParameters
@@ -14,6 +14,36 @@ spec:
       type: LoadBalancer
     deployment:
       replicas: {{ size }}
+{% endif %}
+{% if gateway_class_name == "gloo-gateway-v2" %}
+---
+apiVersion: gloo.solo.io/v1alpha1
+kind: GlooGatewayParameters
+metadata:
+  name: {{ name }}-ggw-params
+  namespace: {{ namespace }}
+spec:
+  kube: 
+    envoyContainer:
+      bootstrap:
+        logLevel: debug
+    service:
+      type: LoadBalancer
+    deployment:
+      replicas: {{ size }}
+{%   if extauth_enabled or ratelimiter_enabled %}
+  sharedExtensions:
+{%     if extauth_enabled %}
+    extauth:
+      enabled: true
+{%     endif %}
+{%     if ratelimiter_enabled %}
+    ratelimiter:
+      enabled: true
+{%     endif %}
+{%   endif %}
+{% endif %}
+{% if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -125,15 +155,21 @@ spec:
           kind: Secret
 ###      options:
 {% endif %}
-{% if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
+{% if gateway_class_name == "kgateway" %}
   infrastructure:
     parametersRef:
       name: {{ name }}-gw-params
       group: gateway.kgateway.dev
       kind: GatewayParameters  
 {% endif %}
+{% if gateway_class_name == "gloo-gateway-v2" %}
+###  infrastructure:
+###    parametersRef:
+###      name: {{ name }}-ggw-params
+###      group: gloo.solo.io
+###      kind: GlooGatewayParameters  
+{% endif %}
 {% if gateway_class_name == "istio" %}
-{% if istio_126 %}
   infrastructure:
     parametersRef:
       group: ""
@@ -143,7 +179,6 @@ spec:
 ##      some-key: some-value
 ##    labels:
 ##      key: value
-{% endif %}
 {% endif %}
 {% if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
 ---
