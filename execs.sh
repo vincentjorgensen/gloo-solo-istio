@@ -1341,14 +1341,14 @@ function exec_extauth_keycloak_ggv2_auth_config {
   local _gateway_address
   local _manifest="$MANIFESTS/auth_config.oauth.${GSI_CLUSTER}.yaml"
 
-  _gateway_address=$(
-    kubectl get svc "$INGRESS_GATEWAY_NAME"                                   \
-    --context "$GSI_CONTEXT"                                                  \
-    --namespace "$INGRESS_NAMESPACE"                                          \
-    -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
+##  _gateway_address=$(
+##    kubectl get svc "$INGRESS_GATEWAY_NAME"                                   \
+##    --context "$GSI_CONTEXT"                                                  \
+##    --namespace "$INGRESS_NAMESPACE"                                          \
+##    -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
   jinja2 -D namespace="$GSI_APP_SERVICE_NAMESPACE"                            \
-         -D gateway_address="$_gateway_address"                               \
+         -D gateway_address="${GSI_APP_SERVICE_NAME}.${TLDN}"                 \
          -D http_port="$HTTP_INGRESS_PORT"                                    \
          -D client_id="$KEYCLOAK_CLIENT"                                      \
          -D gloo_gateway_v2_namespace="$GLOO_GATEWAY_V2_NAMESPACE"            \
@@ -1356,7 +1356,7 @@ function exec_extauth_keycloak_ggv2_auth_config {
          -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
          -D gateway_namespace="$INGRESS_NAMESPACE"                            \
          -D traffic_policy_name="$TRAFFIC_POLICY_NAME"                        \
-         -D httproute_name="${GSI_APP_SERVICE_NAME}-route"                     \
+         -D httproute_name="${GSI_APP_SERVICE_NAME}-route"                    \
          "$TEMPLATES"/auth_config.oauth.manifest.yaml.j2                      \
     > "$_manifest"
 

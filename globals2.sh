@@ -8,7 +8,7 @@
 # Global versions of Helm Repos, Istio Repos, and Istio settings
 #-------------------------------------------------------------------------------
 export TEMPLATES CERTS MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS
-TEMPLATES="$(dirname "$0")"/templates
+TEMPLATES="$(dirname "$0")"/templates2
 CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
 CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
@@ -55,10 +55,15 @@ export EASTWEST_GATEWAY_NAME=eastwest-gateway
 export MULTICLUSTER_NAMESPACE=$EASTWEST_NAMESPACE
 
 # Testing Apps
+export HELLOWORLD_ENABLED=${HELLOWORLD_ENABLED:-false}
 export HELLOWORLD_NAMESPACE=helloworld
 export HELLOWORLD_SERVICE_NAME=helloworld
 export HELLOWORLD_SERVICE_PORT=8001
+
+export CURL_ENABLED=${CURL_ENABLED:-false}
 export CURL_NAMESPACE=curl
+
+export TOOLS_ENABLED=${TOOLS_ENABLED:-false}
 export TOOLS_NAMESPACE=tools
 
 # Cert manager
@@ -301,12 +306,45 @@ function gsi_init {
   set_defaults
 }
 
-function create_namespace {
-  local _context _namespace
+function get_k8s_region {
+  local _context
   _context=$1
-  _namespace=$2
 
-  $DRY_RUN kubectl "$GSI_MODE" namespace "$_namespace"                        \
-  --context "$_context"
+  _region=$(kubectl get nodes                                                 \
+    --context "$_context"                                                     \
+    -o jsonpath='{.items[0].metadata.labels.topology\.kubernetes\.io/region}')
+
+  echo "$_region"
+}
+
+function get_k8s_zones {
+  local _context
+  _context=$1
+
+  _zones=$(kubectl get nodes                                                  \
+           --context "$_context"                                              \
+           -o yaml                                                            |
+           yq '.items[].metadata.labels."topology.kubernetes.io/zone"'        |
+           sort|uniq)
+
+  echo "$_zones"
+}
+
+function gsi_cluster_swap {
+  export NEW_GSI_REMOTE_CLUSTER=$GSI_CLUSTER
+  export NEW_GSI_REMOTE_CONTEXT=$GSI_CONTEXT
+  export NEW_GSI_REMOTE_NETWORK=$GSI_NETWORK
+  
+  export NEW_GSI_LOCAL_CLUSTER=$GSI_REMOTE_CLUSTER
+  export NEW_GSI_LOCAL_CONTEXT=$GSI_REMOTE_CONTEXT
+  export NEW_GSI_LOCAL_NETWORK=$GSI_REMOTE_NETWORK
+
+  export GSI_CLUSTER=$NEW_GSI_LOCAL_CLUSTER
+  export GSI_CONTEXT=$NEW_GSI_LOCAL_CONTEXT
+  export GSI_NETWORK=$NEW_GSI_LOCAL_NETWORK
+
+  export GSI_REMOTE_CLUSTER=$NEW_GSI_REMOTE_CLUSTER
+  export GSI_REMOTE_CONTEXT=$NEW_GSI_REMOTE_CONTEXT
+  export GSI_REMOTE_NETWORK=$NEW_GSI_REMOTE_NETWORK
 }
 # END
