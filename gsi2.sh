@@ -6,15 +6,22 @@ for app in "$(dirname "$0")"/apps/*; do
 done
 
 GSI_DECK=(
-  set_defaults
+  gsi_set_defaults
   gsi_init
 
   app_init_namespaces
   app_init_spire
   app_init_cert_manager
+  app_init_keycloak
   app_init_istio
 
   app_init_helloworld
+  app_init_curl
+  app_init_tools
+
+  app_init_external_dns
+
+  app_init_gateway_api
 )
 
 function play_gsi {

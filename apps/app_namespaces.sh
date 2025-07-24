@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 function app_init_namespaces {
+  exec_namespaces
+
+  if $MULTICLUSTER_ENABLED; then
+    gsi_cluster_swap
+    exec_namespaces
+    gsi_cluster_swap
+  fi
+}
+
+function exec_namespaces {
   for enabled_var in $(env|grep _ENABLED); do
     enabled=$(echo "$enabled_var" | awk -F= '{print $1}')
     if eval '$'"${enabled}"; then

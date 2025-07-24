@@ -4,6 +4,14 @@ function app_init_istio {
     $MULTICLUSTER_ENABLED && exec_istio_secrets
     exec_istio
     exec_telemetry_defaults
+
+    if $MULTICLUSTER_ENABLED; then
+      gsi_cluster_swap
+      exec_istio_secrets
+      exec_istio
+      exec_telemetry_defaults
+      gsi_cluster_swap
+    fi
   fi
 }
 

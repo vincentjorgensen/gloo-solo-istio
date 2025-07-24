@@ -66,6 +66,9 @@ export CURL_NAMESPACE=curl
 export TOOLS_ENABLED=${TOOLS_ENABLED:-false}
 export TOOLS_NAMESPACE=tools
 
+# External DNS
+export EXTERNAL_DNS_ENABLED=${EXTERNAL_DNS_ENABLED:-false}
+
 # Cert manager
 export CERT_MANAGER_ENABLED="${CERT_MANAGER_ENABLED:-false}"
 export CERT_MANAGER_VER="v1.18.2"
@@ -78,6 +81,10 @@ export SPIRE_NAMESPACE=spire-server
 export SPIRE_CRDS_VER=0.5.0
 export SPIRE_SERVER_VER=0.24.2
 export SPIRE_SECRET=spiffe-upstream-ca
+
+# Gateway API
+export EXPERIMENTAL_GATEWAY_API_CRDS=${EXPERIMENTAL_GATEWAY_API_CRDS:-false}
+export GATEWAY_API_ENABLED=${GATEWAY_API_ENABLED:-false}
 
 # KGateway
 export KGATEWAY_ENABLED="${KGATEWAY_ENABLED:-false}"
@@ -232,7 +239,7 @@ function set_gme_defaults {
   set_gme $DEFAULT_GME
 }
 
-function set_defaults {
+function gsi_set_defaults {
   set_oss_defaults
 }
 
@@ -280,6 +287,7 @@ function gsi_init {
     KGATEWAY_FLAG=enabled
     GATEWAY_CLASS_NAME=kgateway
     INGRESS_ENABLED=true
+    GATEWAY_API_ENABLED=true
     echo '#' Kgateway is enabled 
   fi
   # Gloo Gateway V2 (aka kgateway Enterprise)
@@ -287,6 +295,8 @@ function gsi_init {
     GLOO_GATEWAY_V2_FLAG=enabled 
     GATEWAY_CLASS_NAME=gloo-gateway-v2
     INGRESS_ENABLED=true
+    GATEWAY_API_ENABLED=true
+    EXPERIMENTAL_GATEWAY_API_CRDS=true
     echo '#' Gloo Gateway V2 is enabled 
   fi
 
@@ -303,7 +313,7 @@ function gsi_init {
     RATELIMITER_FLAG=enabled && echo '#' Rate-limiter is enabled
   fi
 
-  set_defaults
+  gsi_set_defaults
 }
 
 function get_k8s_region {
