@@ -38,6 +38,7 @@ export AWS_ENABLED="${AWS_ENABLED:-false}"
 export ROOT_CAARN ROOT_CERTARN SUBORDINATE_CAARN SUBORDINATE_CERTARN
 export AWS_PCA_POLICY_ARN AWS_PCA_ROLE_ARN
 export AWSPCA_ISSUER_VER=v1.6.0
+export AWS_PROFILE=aws
 
 # Namespaces
 export ARGOCD_NAMESPACE=argocd
@@ -160,6 +161,7 @@ export GME_VER_29="2.9.2"
 
 export GME_GATEWAYS_WORKSPACE=gateways
 export GME_APPLICATIONS_WORKSPACE=applications
+export GME_VERBOSE=${GME_VERBOSE:-false}
 
 export DEFAULT_GME="2.9"
 export DEFAULT_GME_SECRET="relay-token"
@@ -170,135 +172,85 @@ export DEFAULT_TRUST_DOMAIN="cluster.local"
 
 export DEFAULT_GSI_MODE=create # create | delete
 
-[[ -z "$GSI_MODE" ]] && export GSI_MODE=$DEFAULT_GSI_MODE
-[[ -z "$GME_VERBOSE" ]] && export GME_VERBOSE=false
+export GME_SECRET_TOKEN=${GME_SECRET_TOKEN:-$DEFAULT_GME_SECRET_TOKEN}
+export GME_SECRET=${GME_SECRET:-$DEFAULT_GME_SECRET}
+export TLDN=${TLDN:-$DEFAULT_TLDN}
+export TRUST_DOMAIN=${TRUST_DOMAIN:-$DEFAULT_TRUST_DOMAIN}
+export MESH_ID=${MESH_ID:-$DEFAULT_MESH_ID}
+
+export GSI_MODE=${GSI_MODE:-$DEFAULT_GSI_MODE}
 
 function set_gsi_mode {
-  local _gsi_mode
-  _gsi_mode=${1:-$DEFAULT_GSI_MODE}
-
-  export GSI_MODE=$_gsi_mode
+  export GSI_MODE=${1:-$DEFAULT_GSI_MODE}
 }
 
 function enable_gme {
- export GME_ENABLED=true 
+  export GME_ENABLED=true 
 }
 
 function disable_gme {
-	 export GME_ENABLED=false 
-	}
+  export GME_ENABLED=false 
+}
 
-	function set_revision {
-		local _revision
-		_revision=$1
+function set_revision {
+  export REVISION="$1"
+}
 
-		export REVISION="$_revision"
-	}
+function set_istio {
+  local _istio=$1
+  local _flavor=$2
+  local _variant=$3
 
-	function set_istio {
-		local _istio _flavor _distro
-		_istio=$1
-		_flavor=$2
-		_variant=$3
+  export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO
+  ISTIO_VER=$(eval echo \$ISTIO_VER_"${_istio//.}")
+  ISTIO_REPO=$(eval echo \$ISTIO_REPO_"${_istio//.}")
+  HELM_REPO=$(eval echo \$HELM_REPO_"${_istio//.}")
+  [[ -n $_flavor ]] && ISTIO_FLAVOR="-${_flavor}"
+  [[ -n $_variant ]] && ISTIO_DISTRO="${_variant}"
 
-		export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO
-		ISTIO_VER=$(eval echo \$ISTIO_VER_"${_istio//.}")
-		ISTIO_REPO=$(eval echo \$ISTIO_REPO_"${_istio//.}")
-		HELM_REPO=$(eval echo \$HELM_REPO_"${_istio//.}")
-		[[ -n $_flavor ]] && ISTIO_FLAVOR="-${_flavor}"
-		[[ -n $_variant ]] && ISTIO_DISTRO="${_variant}"
+  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
+    ISTIO_126_FLAG="enabled"
+  fi
+}
 
-		if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
-			ISTIO_126_FLAG="enabled"
-		fi
-	}
+function set_gme {
+  export GME_VER
+  GME_VER=$(eval echo \$GME_VER_"${1//.}")
+}
 
-	function set_gme {
-		local _gme
-		_gme=$1
+function gsi_set_defaults {
+  set_revision main
+  set_istio 1.26 solo distroless
+  set_gme $DEFAULT_GME
+}
 
-		export GME_VER
-		GME_VER=$(eval echo \$GME_VER_"${_gme//.}")
-	}
+function is_create_mode {
+  if [[ $GSI_MODE =~ (create|apply) ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
 
-	function set_trust_domain {
-		local _trust_domain
-		_trust_domain=${1:-$DEFAULT_TRUST_DOMAIN}
+function gsi_reset {
+  UTAG=""
+}
 
-		export TRUST_DOMAIN="$_trust_domain"
-	}
+function gsi_init {
+  # For reproducibilty and sharing, we save the manifests
+  UTAG=${UTAG:-$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)}
+  MANIFESTS="$(dirname "$0")"/manifests/$UTAG
+  mkdir -p "$MANIFESTS"
+  echo "export MANIFESTS=$MANIFESTS"
 
-	function set_mesh_id {
-		local _mesh_id
-		_mesh_id=${1:-$DEFAULT_MESH_ID}
-
-		export MESH_ID="$_mesh_id"
-	}
-
-	function set_gme_secret {
-		local _gme_secret
-		_gme_secret=${1:-$DEFAULT_GME_SECRET}
-
-		export GME_SECRET="$_gme_secret"
-	}
-
-	function set_gme_secret_token {
-		local _gme_secret_token
-		_gme_secret_token=${1:-$DEFAULT_GME_SECRET_TOKEN}
-
-		export GME_SECRET_TOKEN="$_gme_secret_token"
-	}
-
-	function set_tldn {
-		local _tldn
-		_tldn=${1:-$DEFAULT_TLDN}
-
-		export TLDN="$_tldn"
-	}
-
-	function set_oss_defaults {
-		set_revision main
-		set_istio 1.26 solo distroless
-		set_trust_domain $DEFAULT_TRUST_DOMAIN
-		set_mesh_id $DEFAULT_MESH_ID
-		set_gme $DEFAULT_GME
-		set_gme_secret $DEFAULT_GME_SECRET
-		set_gme_secret_token $DEFAULT_GME_SECRET_TOKEN
-		set_tldn $DEFAULT_TLDN
-	}
-
-	function set_gme_defaults {
-		set_oss_defaults
-		enable_gme
-		set_gme $DEFAULT_GME
-	}
-
-	function gsi_set_defaults {
-		set_oss_defaults
-	}
-
-	function is_create_mode {
-		if [[ $GSI_MODE =~ (create|apply) ]]; then
-			return 0
-		else
-			return 1
-		fi
-	}
-
-	function gsi_init {
-		# For reproducibilty and sharing, we save the manifests
-		MANIFESTS="$(dirname "$0")"/manifests/$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
-		mkdir -p "$MANIFESTS"
-		echo "export MANIFESTS=$MANIFESTS"
-
-		# Gloo Mesh Enterprise (GME)
-		if $GME_ENABLED; then
-     GME_FLAG=enabled  
-     echo '#' GME is enabled
-     if $GME_MGMT_AGENT_ENABLED; then
-       GME_MGMT_AGENT_FLAG=enabled 
-       echo '#' GME MGMT Agent is enabled
-     fi
+  # Gloo Mesh Enterprise (GME)
+  if $GME_ENABLED; then
+    GME_FLAG=enabled  
+    echo '#' GME is enabled
+    if $GME_MGMT_AGENT_ENABLED; then
+      GME_MGMT_AGENT_FLAG=enabled 
+      echo '#' GME MGMT Agent is enabled
+    fi
   fi
 
   # cloud / k8s providers
@@ -397,4 +349,15 @@ function gsi_cluster_swap {
   export GSI_REMOTE_CONTEXT=$NEW_GSI_REMOTE_CONTEXT
   export GSI_REMOTE_NETWORK=$NEW_GSI_REMOTE_NETWORK
 }
+
+function _f_debug {
+  local _cmd=$1
+  if [[ $DRY_RUN == echo ]]; then
+    cat "$_cmd"
+  else
+    # shellcheck disable=SC1090
+    source "$_cmd"
+  fi
+}
+
 # END

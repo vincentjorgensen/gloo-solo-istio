@@ -6,7 +6,6 @@ for app in "$(dirname "$0")"/apps/*; do
 done
 
 GSI_DECK=(
-  gsi_set_defaults
   gsi_init
 
   app_init_namespaces

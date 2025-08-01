@@ -9,6 +9,7 @@ function app_init_aws {
 }
 
 function exec_initialize_root_pca {
+  local _cmd; _cmd=$(mktemp)
   local _ca_manifest="$MANIFESTS/pca_ca_config_root_ca.json"
   local _ca_csr="$MANIFESTS/root-ca.csr"
   local _ca_pem="$MANIFESTS/root-ca.pem"
@@ -25,209 +26,195 @@ function exec_initialize_root_pca {
   cp "$TEMPLATES"/pca_ca_config_root_ca.json                                  \
      "$_ca_manifest"
 
-  echo '#'"Create root private certificate authority (CA)"
   # https://docs.aws.amazon.com/cli/latest/reference/acm-pca/create-certificate-authority.html
-  if [[ $DRY_RUN == echo ]]; then
-    cat <<'EOF'
-    ROOT_CAARN=$(aws acm-pca create-certificate-authority                     \
-    --profile aws                                                             \
-    --region us-west-2                                                        \
-    --certificate-authority-configuration file://$_ca_manifest                \
-    --certificate-authority-type "ROOT"                                       \
-    --idempotency-token 01234567                                              \
-    --output json                                                             \
-    --tags Key=Name,Value=RootCA                                             |\
-    jq -r '.CertificateAuthorityArn')
-EOF
-  else
-    ROOT_CAARN=$(aws acm-pca create-certificate-authority                     \
-    --profile aws                                                             \
-    --region us-west-2                                                        \
-    --certificate-authority-configuration file://"$_ca_manifest"              \
-    --certificate-authority-type "ROOT"                                       \
-    --idempotency-token 01234567                                              \
-    --output json                                                             \
-    --tags Key=Name,Value=RootCA                                             |\
-    jq -r '.CertificateAuthorityArn')
-  fi
-  echo '#'"Sleep for 15 seconds while CA creation completes"
-  $DRY_RUN sleep 15
-  echo '#'"ROOT_CAARN=${ROOT_CAARN}"
+  # shellcheck disable=SC2129
+  cat <<'EOF' >> "$_cmd"
 
-  echo '#'"Download Root CA CSR from AWS"
+echo '# Create root private certificate authority (CA)'
+ROOT_CAARN=$(aws acm-pca create-certificate-authority                         \
+--profile aws                                                                 \
+--region us-west-2                                                            \
+--certificate-authority-configuration file://$_ca_manifest                    \
+--certificate-authority-type "ROOT"                                           \
+--idempotency-token 01234567                                                  \
+--output json                                                                 \
+--tags Key=Name,Value=RootCA                                                 |\
+jq -r '.CertificateAuthorityArn')
+echo '# Sleep for 15 seconds while CA creation completes'
+sleep 15
+echo '# '"ROOT_CAARN=${ROOT_CAARN}"
+EOF
+
   # https://docs.aws.amazon.com/cli/latest/reference/acm-pca/get-certificate-authority-csr.html
-  if [[ $DRY_RUN == echo ]]; then
-    cat <<'EOF'
-    aws acm-pca get-certificate-authority-csr                                 \
-    --profile aws                                                             \
-    --region us-west-2                                                        \
-    --certificate-authority-arn "$ROOT_CAARN"                                 \
-    --output text > "$_ca_csr"
-EOF
-  else
-    aws acm-pca get-certificate-authority-csr                                 \
-    --profile aws                                                             \
-    --region us-west-2                                                        \
-    --certificate-authority-arn "$ROOT_CAARN"                                 \
-    --output text > "$_ca_csr"
-  fi
+  cat <<'EOF' >> "$_cmd"
 
-  echo '#'"Issue Root Certificate. Valid for $ROOT_CERT_VALIDITY_IN_DAYS days"
+echo '# Download Root CA CSR from AWS'
+aws acm-pca get-certificate-authority-csr                                     \
+--profile aws                                                                 \
+--region us-west-2                                                            \
+--certificate-authority-arn "$ROOT_CAARN"                                     \
+--output text > "$_ca_csr"
+EOF
+
   # https://docs.aws.amazon.com/cli/latest/reference/acm-pca/issue-certificate.html
-  if [[ $DRY_RUN == echo ]]; then
-    cat <<'EOF'
-    ROOT_CERTARN=$(aws acm-pca issue-certificate                              \
-    --profile aws                                                             \
-    --region us-west-2                                                        \
-    --certificate-authority-arn "$ROOT_CAARN"                                 \
-    --csr fileb://"$_ca_csr"                                                  \
-    --signing-algorithm "SHA256WITHRSA"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
-    --template-arn arn:aws:acm-pca:::template/RootCACertificate/V1            \
-    --validity Value=${ROOT_CERT_VALIDITY_IN_DAYS},Type="DAYS"                \
-    --idempotency-token 1234567                                               \
-    --output json                                                            |\
-    jq -r '.CertificateArn')
-EOF
-  else
-    ROOT_CERTARN=$(aws acm-pca issue-certificate                              \
-    --profile aws                                                             \
-    --region us-west-2                                                        \
-    --certificate-authority-arn "$ROOT_CAARN"                                 \
-    --csr fileb://"$_ca_csr"                                                  \
-    --signing-algorithm "SHA256WITHRSA"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	\
-    --template-arn arn:aws:acm-pca:::template/RootCACertificate/V1            \
-    --validity Value=${ROOT_CERT_VALIDITY_IN_DAYS},Type="DAYS"                \
-    --idempotency-token 1234567                                               \
-    --output json                                                            |\
-    jq -r '.CertificateArn')
-  fi
-  echo '#'"Sleep for 15 seconds while cert issuance completes"
-  $DRY_RUN sleep 15
-  echo '#'"ROOT_CERTARN=${ROOT_CERTARN}"
+  cat <<'EOF' >> "$_cmd"
 
-  echo '#'"Retrieve root certificate from private CA and save locally"
+echo '# Issue Root Certificate. Valid for $ROOT_CERT_VALIDITY_IN_DAYS days'
+ROOT_CERTARN=$(aws acm-pca issue-certificate                                  \
+--profile aws                                                                 \
+--region us-west-2                                                            \
+--certificate-authority-arn "$ROOT_CAARN"                                     \
+--csr fileb://"$_ca_csr"                                                      \
+--signing-algorithm "SHA256WITHRSA"  	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 	    \
+--template-arn arn:aws:acm-pca:::template/RootCACertificate/V1                \
+--validity Value=${ROOT_CERT_VALIDITY_IN_DAYS},Type="DAYS"                    \
+--idempotency-token 1234567                                                   \
+--output json                                                                |\
+jq -r '.CertificateArn')
+echo '#'"Sleep for 15 seconds while cert issuance completes"
+sleep 15
+echo '# '"ROOT_CERTARN=${ROOT_CERTARN}"
+EOF
+
   # https://docs.aws.amazon.com/cli/latest/reference/acm-pca/get-certificate.html
-  if [[ $DRY_RUN == echo ]]; then
-    cat <<'EOF'
-    aws acm-pca get-certificate                                               \
-    --profile aws                                                             \
-    --region us-west-2                                                        \
-    --certificate-authority-arn "$ROOT_CAARN"                                 \
-    --certificate-arn "$ROOT_CERTARN"                                         \
-    --output text > "$_ca_pem"
-EOF
-  else
-    aws acm-pca get-certificate                                               \
-    --profile aws                                                             \
-    --region us-west-2                                                        \
-    --certificate-authority-arn "$ROOT_CAARN"                                 \
-    --certificate-arn "$ROOT_CERTARN"                                         \
-    --output text > "$_ca_pem"
-  fi
+  cat <<'EOF' >> "$_cmd"
 
-  echo '#'"Import the signed Private CA certificate for the CA specified by the ARN into ACM PCA"
-  # https://docs.aws.amazon.com/cli/latest/reference/acm-pca/import-certificate-authority-certificate.html
-  if [[ $DRY_RUN == echo ]]; then
-    cat <<'EOF'
-    aws acm-pca import-certificate-authority-certificate                      \
-    --profile aws                                                             \
-    --region  us-west-2                                                       \
-    --certificate-authority-arn "$ROOT_CAARN"                                 \
-    --certificate fileb://"$_ca_pem"
+echo '# Retrieve root certificate from private CA and save locally'
+aws acm-pca get-certificate                                                   \
+--profile aws                                                                 \
+--region us-west-2                                                            \
+--certificate-authority-arn "$ROOT_CAARN"                                     \
+--certificate-arn "$ROOT_CERTARN"                                             \
+--output text > "$_ca_pem"
 EOF
-  else
-    aws acm-pca import-certificate-authority-certificate                      \
-    --profile aws                                                             \
-    --region  us-west-2                                                       \
-    --certificate-authority-arn "$ROOT_CAARN"                                 \
-    --certificate fileb://"$_ca_pem"
-  fi
+
+  # https://docs.aws.amazon.com/cli/latest/reference/acm-pca/import-certificate-authority-certificate.html
+  cat <<'EOF' >> "$_cmd"
+echo '# Import the signed Private CA certificate for the CA specified by the ARN into ACM PCA'
+aws acm-pca import-certificate-authority-certificate                          \
+--profile aws                                                                 \
+--region  us-west-2                                                           \
+--certificate-authority-arn "$ROOT_CAARN"                                     \
+--certificate fileb://"$_ca_pem"
+EOF
+
+  _f_debug "$_cmd"
 }
 
 ###
-# INTERMEDIATE CERT
+# INTERMEDIATE CA and CERT (aka subordinate ca and cert)
 ###
 function create_aws_intermediate_pca {
+  local _cmd; _cmd=$(mktemp)
+
   local _component=$1
   local _ca_manifest="$MANIFESTS/pca_ca_config_intermediate_ca.${_component}.json"
   local _ca_csr="$MANIFESTS/intermediate_ca.${_component}.csr"
   local _ca_pem="$MANIFESTS/intermediate-cert.${_component}.pem"
   local _cert_chain_pem="$MANIFESTS/intermediate-cert-chain.${_component}.pem"
-
   SUBORDINATE_CERT_VALIDITY_IN_DAYS=1825
+
+  if [[ $DRY_RUN == echo ]]; then
+    echo _component="$_component"
+    echo _ca_manifest="$_ca_manifest"
+    echo _ca_csr="$_ca_csr"
+    echo _ca_pem="$_ca_pem"
+    echo _cert_chain_pem="$_cert_chain_pem"
+    echo SUBORDINATE_CERT_VALIDITY_IN_DAYS=$SUBORDINATE_CERT_VALIDITY_IN_DAYS
+  fi
 
   jinja2 -D component="$_component"                                           \
          "$TEMPLATES/pca_ca_config_intermediate_ca.json.j2"                   \
   > "$_ca_manifest"
 
-  echo '#'"Create Intermediate private certificate authority (CA) for $_component"
   # https://docs.aws.amazon.com/cli/latest/reference/acm-pca/create-certificate-authority.html
-  SUBORDINATE_CAARN="$(                                                       \
-  aws acm-pca create-certificate-authority                                    \
-  --profile aws                                                               \
-  --region us-west-2                                                          \
-  --certificate-authority-configuration file://"$_ca_manifest"                \
-  --certificate-authority-type "SUBORDINATE"                                  \
-  --idempotency-token 01234567                                                \
-  --tags Key=Name,Value="SubordinateCA-${_component}"                         |
-  jq -r '.CertificateAuthorityArn')"
-  echo '#'"Sleep for 15 seconds while Intermediate CA creation completes"
-  $DRY_RUN sleep 15
-  echo '#'"SUBORDINATE_CAARN=$SUBORDINATE_CAARN"
+  # shellcheck disable=SC2129
+  cat <<'EOF' >> "$_cmd"
 
-  echo '#'"Download Intermediate CA CSR from AWS"
+echo '# '"Create Intermediate private certificate authority (CA) for $_component"
+SUBORDINATE_CAARN="$(                                                         \
+aws acm-pca create-certificate-authority                                      \
+--profile aws                                                                 \
+--region us-west-2                                                            \
+--certificate-authority-configuration file://"$_ca_manifest"                  \
+--certificate-authority-type "SUBORDINATE"                                    \
+--idempotency-token 01234567                                                  \
+--tags Key=Name,Value="SubordinateCA-${_component}"                          |\
+jq -r '.CertificateAuthorityArn')"
+echo '# Sleep for 15 seconds while Intermediate CA creation completes'
+sleep 15
+echo '# '"SUBORDINATE_CAARN=$SUBORDINATE_CAARN"
+EOF
+
   # https://docs.aws.amazon.com/cli/latest/reference/acm-pca/get-certificate-authority-csr.html
-  $DRY_RUN aws acm-pca get-certificate-authority-csr                          \
-  --profile aws                                                               \
-  --region us-west-2                                                          \
-  --certificate-authority-arn "$SUBORDINATE_CAARN"                            \
-  --output text > "$_ca_csr"
+  cat <<'EOF' >> "$_cmd"
 
-  echo '#'"Issue Intermediate Certificate for $_component. Valid for $SUBORDINATE_CERT_VALIDITY_IN_DAYS days"
-  SUBORDINATE_CERTARN="$(                                                      \
-  aws acm-pca issue-certificate                                               \
-  --profile aws                                                               \
-  --region us-west-2                                                          \
-  --certificate-authority-arn "$ROOT_CAARN"                                   \
-  --csr fileb://"$_ca_csr"                                                    \
-  --signing-algorithm "SHA256WITHRSA"                                         \
-  --template-arn arn:aws:acm-pca:::template/SubordinateCACertificate_PathLen1/V1 \
-  --validity Value=${SUBORDINATE_CERT_VALIDITY_IN_DAYS},Type="DAYS"           \
-  --idempotency-token 1234567                                                 \
-  --output json                                                               |
-  jq -r '.CertificateArn')"
-  echo '#'"Sleep for 15 seconds while cert issuance completes"
-  $DRY_RUN sleep 15
-  echo '#'"SUBORDINATE_CERTARN=$SUBORDINATE_CERTARN"
+echo '# Download Intermediate CA CSR from AWS'
+aws acm-pca get-certificate-authority-csr                                     \
+--profile aws                                                                 \
+--region us-west-2                                                            \
+--certificate-authority-arn "$SUBORDINATE_CAARN"                              \
+--output text > "$_ca_csr"
+EOF
 
-  echo '#'"Retrieve Intermediate certificate from private CA and save locally"
-  $DRY_RUN aws acm-pca get-certificate                                        \
-  --profile aws                                                               \
-  --region us-west-2                                                          \
-  --certificate-authority-arn "$ROOT_CAARN"                                   \
-  --certificate-arn "$SUBORDINATE_CERTARN"                                    \
-  --output json                                                               |
-  jq -r '.Certificate' > "$_ca_pem"
+  cat <<'EOF' >> "$_cmd"
 
-  echo '#'"Retrieve Intermediate certificate chain from private CA and save locally"
-  $DRY_RUN aws acm-pca get-certificate                                        \
-  --profile aws                                                               \
-  --region us-west-2                                                          \
-  --certificate-authority-arn "$ROOT_CAARN"                                   \
-  --certificate-arn "$SUBORDINATE_CERTARN"                                    \
-  --output json                                                               |
-  jq -r '.CertificateChain' > "$_cert_chain_pem"
+echo '# '"Issue Intermediate Certificate for $_component. Valid for $SUBORDINATE_CERT_VALIDITY_IN_DAYS days"
+SUBORDINATE_CERTARN=$(                                                        \
+aws acm-pca issue-certificate                                                 \
+--profile aws                                                                 \
+--region us-west-2                                                            \
+--certificate-authority-arn "$ROOT_CAARN"                                     \
+--csr fileb://"$_ca_csr"                                                      \
+--signing-algorithm "SHA256WITHRSA"                                           \
+--template-arn arn:aws:acm-pca:::template/SubordinateCACertificate_PathLen1/V1 \
+--validity Value=${SUBORDINATE_CERT_VALIDITY_IN_DAYS},Type="DAYS"             \
+--idempotency-token 1234567                                                   \
+--output json                                                                |\
+jq -r '.CertificateArn')
+echo '# Sleep for 15 seconds while cert issuance completes'
+sleep 15
+echo '# '"SUBORDINATE_CERTARN=$SUBORDINATE_CERTARN"
+EOF
 
-  echo '$'"Import the certificate into ACM PCA"
-  $DRY_RUN aws acm-pca import-certificate-authority-certificate               \
-  --profile aws                                                               \
-  --region us-west-2                                                          \
-  --certificate-authority-arn "$SUBORDINATE_CAARN"                            \
-  --certificate fileb://"$_ca_pem"                                            \
-  --certificate-chain fileb://"$_cert_chain_pem"
+  cat <<'EOF' >> "$_cmd"
+
+'# Retrieve Intermediate certificate from private CA and save locally'
+aws acm-pca get-certificate                                                   \
+--profile aws                                                                 \
+--region us-west-2                                                            \
+--certificate-authority-arn "$ROOT_CAARN"                                     \
+--certificate-arn "$SUBORDINATE_CERTARN"                                      \
+--output json                                                                |\
+jq -r '.Certificate' > "$_ca_pem"
+EOF
+
+  cat <<'EOF' >> "$_cmd"
+echo '#'"Retrieve Intermediate certificate chain from private CA and save locally"
+aws acm-pca get-certificate                                                   \
+--profile aws                                                                 \
+--region us-west-2                                                            \
+--certificate-authority-arn "$ROOT_CAARN"                                     \
+--certificate-arn "$SUBORDINATE_CERTARN"                                      \
+--output json                                                                |\
+jq -r '.CertificateChain' > "$_cert_chain_pem"
+EOF
+
+  cat <<'EOF' >> "$_cmd"
+echo '#'"Import the certificate into ACM PCA"
+aws acm-pca import-certificate-authority-certificate                          \
+--profile aws                                                                 \
+--region us-west-2                                                            \
+--certificate-authority-arn "$SUBORDINATE_CAARN"                              \
+--certificate fileb://"$_ca_pem"                                              \
+--certificate-chain fileb://"$_cert_chain_pem"
+EOF
+
+  _f_debug "$_cmd"
 }
 
 function create_aws_pca_issuer_role {
+  local _cmd; _cmd=$(mktemp)
   local _component=$1
   local _policy_manifest="$MANIFESTS/AWSPCAIssuerPolicy.${_component}.${GSI_CLUSTER}.json"
   local _assume_manifest="$MANIFESTS/AWSPCAAssumeRole.${_component}.${GSI_CLUSTER}.json"
@@ -243,6 +230,15 @@ function create_aws_pca_issuer_role {
   jq -r '.cluster.identity.oidc.issuer'                                       |
   sed -e 's;https://\(.*\);\1;')
 
+  if [[ $DRY_RUN == echo ]]; then
+    echo _component="$_component"
+    echo _policy_manifest="$_policy_manifest"
+    echo _assume_manifest="$_assume_manifest"
+    echo _partition="$_partition"
+    echo _account_id="$_partition"
+    echo _oidc_issuer="$_oidc_issuer"
+  fi
+
   jinja2 -D ca_arn="$SUBORDINATE_CAARN"                                       \
          "$TEMPLATES/AWSPCAIssuerPolicy.json.j2"                              \
   > "$_policy_manifest"
@@ -253,27 +249,35 @@ function create_aws_pca_issuer_role {
          "$TEMPLATES/AWSPCAAssumeRole.json.j2"                                \
   > "$_assume_manifest"
 
-  AWS_PCA_POLICY_ARN=$(aws iam create-policy                                  \
+cat <<'EOF' >> "$_cmd"
+
+# Create AWS Role and service account w/o eksctl
+AWS_PCA_POLICY_ARN=$(aws iam create-policy                                    \
   --profile aws                                                               \
   --region us-west-2                                                          \
   --policy-name AWSPCAIssuerPolicy-"$_component-$GSI_CLUSTER-$UTAG"           \
   --policy-document file://"$_policy_manifest"                                \
-  --output json | jq -r '.Policy.Arn')
-  echo '#'"AWS_PCA_POLICY_ARN=$AWS_PCA_POLICY_ARN"
+  --output json                                                              |\
+  jq -r '.Policy.Arn')
+echo '# '"AWS_PCA_POLICY_ARN=$AWS_PCA_POLICY_ARN"
 
-  AWS_PCA_ROLE_ARN=$(aws iam create-role                                      \
+AWS_PCA_ROLE_ARN=$(aws iam create-role                                        \
   --profile aws                                                               \
   --region us-west-2                                                          \
   --role-name "$GSI_CLUSTER"-pca-issuer                                       \
   --assume-role-policy-document file://"$_assume_manifest"                    \
-  --output json | jq -r '.Role.Arn')
-  echo '#'"AWS_PCA_ROLE_ARN=$AWS_PCA_ROLE_ARN"
+  --output json                                                              |\
+  jq -r '.Role.Arn')
+echo '# '"AWS_PCA_ROLE_ARN=$AWS_PCA_ROLE_ARN"
 
-  aws iam attach-role-policy                                                  \
+aws iam attach-role-policy                                                    \
   --profile aws                                                               \
   --region us-west-2                                                          \
   --role-name "$GSI_CLUSTER"-pca-issuer                                       \
   --policy-arn "$AWS_PCA_POLICY_ARN"
+EOF
+
+  _f_debug "$_cmd"
 }
 
 function exec_aws_pca_serviceaccount {
@@ -329,3 +333,4 @@ function create_aws_pca_issuer {
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 }
+# END

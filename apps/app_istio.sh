@@ -17,7 +17,7 @@ function app_init_istio {
     if $MULTICLUSTER_ENABLED; then
       gsi_cluster_swap
       if $AWS_ENABLED && $CERT_MANAGER_ENABLED; then
-      create_aws_pca_issuer_role Istio
+        create_aws_pca_issuer_role Istio
         exec_aws_pca_serviceaccount
         exec_aws_pca_privateca_issuer
         create_aws_pca_issuer istio istio-system
