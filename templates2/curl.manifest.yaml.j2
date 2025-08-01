@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: curl
+  namespace: {{ namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: curl
+  namespace: {{ namespace }}
+  labels:
+    app: curl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: curl
+  template:
+    metadata:
+      labels:
+        app: curl
+    spec:
+      serviceAccountName: curl
+      containers:
+      - name: curl
+        command:
+        - "tail"
+        - "-f"
+        - "/dev/null"
+        image: curlimages/curl:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 3m
+            memory: 40Mi
+          requests:
+            cpu: 1m
+            memory: 20Mi
+...

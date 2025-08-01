@@ -1,0 +1,10 @@
+---
+apiVersion: awspca.cert-manager.io/v1beta1
+kind: AWSPCAIssuer
+metadata:
+ name: aws-pca-issuer-{{ component }}
+ namespace: {{ namespace }}
+spec:
+ arn: {{ ca_arn }}
+ region: {{ ca_region }}
+...

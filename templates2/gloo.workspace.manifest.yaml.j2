@@ -1,0 +1,19 @@
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: {{ name }}
+  namespace: {{ namespace }}
+spec:
+  workloadClusters:
+  - name: '{{ mgmt_cluster }}'
+    namespaces:
+    - name: {{ name }}-config
+{%- for cluster in workload_clusters %}
+  - name: '{{ cluster }}'
+    namespaces:
+{%- for ns in namespaces %}
+    - name: '{{ ns }}'
+{%- endfor %}
+{%- endfor %}
+...

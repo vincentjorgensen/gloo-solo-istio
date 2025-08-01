@@ -1,0 +1,73 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: extauth-enterprise-rg
+  namespace: {{ gloo_gateway_v2_namespace }}
+spec:
+  from:
+  - group: gateway.kgateway.dev
+    kind: GatewayExtension
+    namespace: {{ gateway_namespace }}
+  to:
+  - group: ""
+    kind: Service
+---
+apiVersion: gloo.solo.io/v1alpha1
+kind: GlooTrafficPolicy
+metadata:
+  name: {{ traffic_policy_name }}
+  namespace: {{ gateway_namespace }}
+spec:
+  targetRefs:
+    - name: {{ httproute_name }}
+      group: gateway.networking.k8s.io
+      kind: HTTPRoute
+  extAuthEnterprise:
+    extensionRef:
+      name: ext-authz
+    authConfigRef:
+      name: oauth-authorization-code
+      namespace: {{ namespace }}
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: GatewayExtension
+metadata:
+  name: ext-authz
+  namespace: {{ gateway_namespace }}
+spec:
+  type: ExtAuth
+  extAuth:
+    grpcService:
+      backendRef:
+        name: ext-auth-service-{{ gateway_class_name }}
+        namespace: {{ gloo_gateway_v2_namespace }}
+        port: 8083
+---
+apiVersion: extauth.solo.io/v1
+kind: AuthConfig
+metadata:
+  name: oauth-authorization-code
+  namespace: {{ namespace }}
+spec:
+  configs:
+  - oauth2:
+      oidcAuthorizationCode:
+        appUrl: "http://{{ gateway_address }}:{{ http_port }}"
+        callbackPath: /callback
+        clientId: {{ client_id }}
+        clientSecretRef:
+          name: oauth-keycloak
+          namespace: {{ gloo_gateway_v2_namespace }}
+        issuerUrl: "{{ keycloak_url }}/realms/master/"
+        scopes:
+        - email
+        session:
+          failOnFetchFailure: true
+          redis:
+            cookieName: keycloak-session
+            options:
+              host: redis-{{ gateway_class_name }}.{{ gloo_gateway_v2_namespace }}:6379
+        headers:
+          idTokenHeader: jwt
+...

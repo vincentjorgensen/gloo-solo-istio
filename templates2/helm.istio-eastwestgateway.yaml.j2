@@ -1,0 +1,48 @@
+name: istio-eastwestgateway
+{% if revision %}
+revision: {{ revision }}
+{% endif %}
+global:
+  hub: {{ istio_repo }}
+  tag: {{ istio_ver }}{{ flavor }}
+labels:
+  istio: eastwestgateway
+  app: istio-eastwestgateway
+  topology.istio.io/network: {{ network }}
+service:
+{% if azure %}
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+{% endif %}
+{% if aws %}
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: "eastwest.{{ network }}.soloio.vincentjorgensen.com"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/healthz/ready"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15021"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: http
+    service.beta.kubernetes.io/aws-load-balancer-name: "eastwest-{{ network }}"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+##    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-038141dc2328de084
+######    service.beta.kubernetes.io/aws-load-balancer-type: external
+{% endif %}
+  type: LoadBalancer
+networkGateway: {{ network }}
+replicaCount: {{ size }}
+autoscaling:
+    minReplicas: {{ size }}
+    maxReplicas: {{ size }}
+##affinity:
+##  podAntiAffinity:
+##    preferredDuringSchedulingIgnoredDuringExecution:
+##    - podAffinityTerm:
+##        labelSelector:
+##          matchExpressions:
+##          - key: istio
+##            operator: In
+##            values:
+##            - eastwestgateway
+##        topologyKey: topology.kubernetes.io/zone
+##      weight: 100
+...

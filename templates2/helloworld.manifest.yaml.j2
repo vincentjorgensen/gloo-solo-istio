@@ -1,0 +1,102 @@
+###---
+###apiVersion: v1
+###kind: Namespace
+###metadata:
+###  name: {{ namespace }}
+###  labels:
+###    name: {{ namespace }}
+###{% if ambient_enabled %}
+###    istio.io/dataplane-mode: ambient
+###{% endif %}
+###{% if sidecar_enabled %}
+###{% if revision %}
+###    istio.io/rev: {{ revision }}
+###{% else %}
+###    istio-injection: enabled
+###{% endif %}
+###{% endif %}
+---
+apiVersion: v1
+kind: Service
+metadata:
+{% if ambient_enabled %}
+  annotations:
+    networking.istio.io/traffic-distribution: {{ traffic_distribution }}
+{% endif %}
+  name: {{ service_name }}
+  namespace: {{ namespace }}
+  labels:
+    app: helloworld
+    service: {{ service_name }}
+{% if ambient_enabled %}
+    solo.io/service-scope: global
+{% endif %}
+spec:
+  ports:
+  - port: {{ service_port }}
+    name: http
+  selector:
+    app: helloworld
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: helloworld
+  namespace: {{ namespace }}
+{% for zone in zones -%}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helloworld-{{ zone }}
+  namespace: {{ namespace }}
+  labels:
+    app: helloworld
+    version: {{ service_version }}
+spec:
+  replicas: {{ size }}
+  selector:
+    matchLabels:
+      app: helloworld
+      version: {{ zone }}
+  template:
+    metadata:
+      labels:
+        app: helloworld
+        version: {{ zone }}
+    spec:
+      serviceAccountName: helloworld
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values:
+                - {{ zone }}
+      containers:
+      - name: helloworld
+        env:
+        - name: SERVICE_VERSION
+          value: {{ service_version }}
+        - name: ZONE
+          value: {{ zone }}
+        - name: REGION
+          value: {{ region }}
+        - name: SERVER_PORT
+          value: '8001'
+        image: vincentjorgensen/node-helloworld:0.0.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8001
+        resources:
+          limits:
+            cpu: 3m
+            memory: 40Mi
+          requests:
+            cpu: 1m
+            memory: 20Mi
+{% endfor %}
+...

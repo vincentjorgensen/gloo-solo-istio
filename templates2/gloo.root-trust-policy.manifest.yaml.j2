@@ -1,0 +1,13 @@
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: RootTrustPolicy
+metadata:
+  name: root-trust-policy
+  namespace: {{ gme_namespace }}
+spec:
+  config:
+    autoRestartPods: true
+    mgmtServerCa:
+      generated:
+        ttlDays: 3650
+...

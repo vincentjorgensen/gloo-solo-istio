@@ -9,9 +9,9 @@ function exec_create_namespaces {
   for enabled_var in $(env|grep _ENABLED); do
     enabled=$(echo "$enabled_var" | awk -F= '{print $1}')
     if eval '$'"${enabled}"; then
-      echo '#' "${enabled%%_ENABLED} is enabled"
       # shellcheck disable=SC2116
       if [[ -n "$(eval echo '$'"$(echo "${enabled%%_ENABLED}_NAMESPACE")")" ]]; then
+        echo '#' "${enabled%%_ENABLED} is enabled, creating namespace ${enabled%%_ENABLED}_NAMESPACE"
         create_namespace "$GSI_CONTEXT" "$(eval echo '$'"$(echo "${enabled%%_ENABLED}_NAMESPACE")")"
       fi
     fi
@@ -706,7 +706,7 @@ function exec_tools_app {
          -D namespace="$TOOLS_NAMESPACE"                                      \
          -D revision="$REVISION"                                              \
          "$TEMPLATES"/tools.manifest.yaml.j2                                  \
-  -f "$_manifest"
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
@@ -716,8 +716,10 @@ function exec_tools_app {
     $DRY_RUN kubectl wait                                                     \
     --context "$GSI_CONTEXT"                                                  \
     --namespace "$TOOLS_NAMESPACE"                                            \
-    --for=condition=Ready pods -l apps=tools
+    --for=condition=Ready pods -l app=tools
   fi
+
+  alias ktools="kubectl --context \$GSI_CONTEXT --namespace \$TOOLS_NAMESPACE exec -it deployment/tools -- bash"
 }
 
 function exec_istio_vs_and_gateway {
@@ -752,9 +754,15 @@ function exec_ingress_gateway_api {
          -D istio_126="$ISTIO_126_FLAG"                                       \
          -D tldn="$TLDN"                                                      \
          -D cert_manager_enabled="$CERT_MANAGER_FLAG"                         \
+         -D ratelimiter_enabled="$RATELIMITER_FLAG"                           \
+         -D extauth_enabled="$EXTAUTH_FLAG"                                   \
          -D secret_name="$CERT_MANAGER_INGRESS_SECRET"                        \
         "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2             \
     > "$_manifest"
+
+  if $EXTAUTH_ENABLED; then
+    patch_gloo_gateway_v2 "$INGRESS_NAMESPACE" "${INGRESS_GATEWAY_NAME}-ggw-params"
+  fi
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
@@ -768,6 +776,9 @@ function exec_httproute {
          -D namespace="$INGRESS_NAMESPACE"                                    \
          -D gateway_name="$INGRESS_GATEWAY_NAME"                              \
          -D gateway_namespace="$INGRESS_NAMESPACE"                            \
+         -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
+         -D extauth_enabled="$EXTAUTH_FLAG"                                   \
+         -D traffic_policy_name="$TRAFFIC_POLICY_NAME"                        \
          -D service="$GSI_APP_SERVICE_NAME"                                   \
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                    \
          -D service_port="$GSI_APP_SERVICE_PORT"                              \
@@ -1120,6 +1131,36 @@ function exec_gloo_gateway_v2 {
   fi
 }
 
+function patch_gloo_gateway_v2 {
+  local _namespace=$1
+  local _name=$2
+#  local _manifest="$MANIFESTS/gloo_gateway_parameters.${GSI_CLUSTER}.yaml"
+
+##  jinja2 -D namespace="$_namespace"                                           \
+##         -D name="$GLOO_GATEWAY_PARAMETERS_NAME"                              \
+##         "$TEMPLATES"/gloo_gateway_parameters.manifest.yaml.j2                \
+##    > "$_manifest"
+##
+##  $DRY_RUN kubectl "$GSI_MODE"                                                \
+##  --context "$GSI_CONTEXT"                                                    \
+##  -f "$_manifest" 
+
+  if is_create_mode; then
+   $DRY_RUN  kubectl patch gatewayclass gloo-gateway-v2                       \
+    --context "$GSI_CONTEXT"                                                  \
+    --namespace "$_namespace"                                                 \
+    --type=merge                                                              \
+    --patch='{
+    "spec": {
+      "parametersRef": {
+        "group": "gloo.solo.io",
+        "kind": "GlooGatewayParameters",
+        "name": "'"$_name"'",
+        "namespace": "'"$_namespace"'"
+      } } }'
+  fi
+}
+
 function exec_cert_manager {
   if is_create_mode; then
     $DRY_RUN helm upgrade --install cert-manager jetstack/cert-manager        \
@@ -1222,5 +1263,105 @@ function exec_issuer_istio_ingress_gateway {
                 -o "Solo IO"                                                  \
                 -p "CA"                                                       \
                 -u "Customer Success"
+}
+
+function exec_keycloak {
+  local _manifest="$MANIFESTS/keycloak.${GSI_CLUSTER}.yaml"
+
+  jinja2 -D namespace="$KEYCLOAK_NAMESPACE"                                   \
+         -D version="$KEYCLOAK_VER"                                           \
+         "$TEMPLATES"/keycloak.manifest.yaml.j2                               \
+    > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest" 
+
+  if is_create_mode; then
+    $DRY_RUN kubectl wait                                                     \
+    --context="$GSI_CONTEXT"                                                  \
+    --namespace "$KEYCLOAK_NAMESPACE"                                         \
+    --for=condition=Ready pods -l app=keycloak
+  fi
+}
+
+function exec_configure_keycloak {
+  export ENDPOINT_KEYCLOAK=$(                                                 \
+    kubectl get service keycloak                                              \
+    --context "$GSI_CONTEXT"                                                  \
+    --namespace "$KEYCLOAK_NAMESPACE"                                         \
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):8080
+  export HOST_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f1)
+  export PORT_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f2)
+  export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}
+
+  export KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+
+  # Create initial token to register the client
+  read -r client token <<<$(curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"expiration": 0, "count": 1}' $KEYCLOAK_URL/admin/realms/master/clients-initial-access | jq -r '[.id, .token] | @tsv')
+  export KEYCLOAK_CLIENT=${client}
+
+  # Register the client
+  read -r id secret <<<$(curl -k -X POST -d "{ \"clientId\": \"${KEYCLOAK_CLIENT}\" }" -H "Content-Type:application/json" -H "Authorization: bearer ${token}" ${KEYCLOAK_URL}/realms/master/clients-registrations/default| jq -r '[.id, .secret] | @tsv')
+  export KEYCLOAK_SECRET=${secret}
+
+  # Add allowed redirect URIs
+  curl -k -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["*"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+
+  # Add the group attribute in the JWT token returned by Keycloak
+  curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
+
+  # Create first user
+  curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@example.com", "firstName": "Alice", "lastName": "Doe", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+
+  # Create second user
+  curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@solo.io", "firstName": "Bob", "lastName": "Doe", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+}
+
+function create_keycloak_secret {
+  local _namespace
+  _namespace=$1
+  local _manifest="$MANIFESTS/secret.keycloak.${_namespace}.${GSI_CLUSTER}.yaml"
+
+  jinja2 -D namespace="$_namespace"                                           \
+         -D secret="$KEYCLOAK_SECRET"                                         \
+         "$TEMPLATES"/secret.keycloak.manifest.yaml.j2                        \
+    > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest" 
+}
+
+function exec_gloo_gateway_v2_keycloak_secret {
+  create_keycloak_secret "$GLOO_GATEWAY_V2_NAMESPACE"
+}
+
+function exec_extauth_keycloak_ggv2_auth_config {
+  local _gateway_address
+  local _manifest="$MANIFESTS/auth_config.oauth.${GSI_CLUSTER}.yaml"
+
+##  _gateway_address=$(
+##    kubectl get svc "$INGRESS_GATEWAY_NAME"                                   \
+##    --context "$GSI_CONTEXT"                                                  \
+##    --namespace "$INGRESS_NAMESPACE"                                          \
+##    -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
+
+  jinja2 -D namespace="$GSI_APP_SERVICE_NAMESPACE"                            \
+         -D gateway_address="${GSI_APP_SERVICE_NAME}.${TLDN}"                 \
+         -D http_port="$HTTP_INGRESS_PORT"                                    \
+         -D client_id="$KEYCLOAK_CLIENT"                                      \
+         -D gloo_gateway_v2_namespace="$GLOO_GATEWAY_V2_NAMESPACE"            \
+         -D keycloak_url="$KEYCLOAK_URL"                                      \
+         -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
+         -D gateway_namespace="$INGRESS_NAMESPACE"                            \
+         -D traffic_policy_name="$TRAFFIC_POLICY_NAME"                        \
+         -D httproute_name="${GSI_APP_SERVICE_NAME}-route"                    \
+         "$TEMPLATES"/auth_config.oauth.manifest.yaml.j2                      \
+    > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest" 
 }
 # END

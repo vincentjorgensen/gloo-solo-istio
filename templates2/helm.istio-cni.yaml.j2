@@ -1,0 +1,17 @@
+profile: ambient
+{% if revision %}
+revision: {{ revision }}
+{% endif %}
+global:
+  hub: {{ istio_repo }}
+  tag: {{ istio_ver }}{{ flavor }}
+  variant: {{ variant }}
+ambient:
+  dnsCapture: true
+resources:
+  limits:
+    cpu: 10m
+    memory: 64Mi
+  requests:
+    cpu: 1m
+    memory: 20Mi

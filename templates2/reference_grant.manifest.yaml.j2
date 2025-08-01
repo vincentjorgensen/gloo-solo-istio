@@ -1,0 +1,20 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: {{ service }}
+  namespace: {{ service_namespace }}
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: {{ gateway_namespace }}
+  to:
+{% if multicluster %}
+  - kind: Hostname
+    group: networking.istio.io
+{% else %}
+  - group: ""
+    kind: Service
+{% endif %}
+...

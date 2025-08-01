@@ -1,0 +1,23 @@
+---
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualGateway
+metadata:
+  name: ingress-vg
+  namespace: {{ gateways_workspace }}-config
+spec:
+  workloads:
+    - selector:
+        labels:
+          app: istio-ingressgateway
+          istio: ingressgateway
+        cluster: {{ ingress_gateway_cluster_name }}
+        namespace: {{ gateways_namespace }}
+  listeners:
+    # HTTP port
+    - http: {}
+      port:
+        number: 80
+##      allowedRouteTables:
+##        - host: '*'
+##          selector:
+##            workspace: applications # Optional?

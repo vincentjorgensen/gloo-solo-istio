@@ -1,0 +1,55 @@
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ name }}
+  namespace: {{ namespace }}
+spec:
+  gateways:
+  - {{ name }}-gateway
+  hosts:
+  - '{{ service_name }}.{{ tldn }}'
+  http:
+  - name: {{ service_name }}
+    match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+{% if gme_enabled %}
+        host: {{ service_name }}.{{ tldn }}
+{% else %}
+        host: {{ service_name }}
+{% endif %}
+        port:
+          number: {{ service_port }}
+---
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: {{ name }}-gateway
+  namespace: {{ namespace }}
+spec:
+  selector:
+    app: istio-ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+#    - "{{ service_name }}.{{ tldn }}"
+    - "*.{{ tldn }}"
+{% if cert_manager_enabled %}
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "*.{{ tldn }}"
+    tls:
+      mode: SIMPLE
+      credentialName: {{ secret_name }}
+##      maxProtocolVersion: TLSV1_2
+{% endif %}
+...

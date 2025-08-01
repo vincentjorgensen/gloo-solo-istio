@@ -1,4 +1,4 @@
-{% if gateway_class_name == "kgateway" %}
+{%- if gateway_class_name == "kgateway" %}
 ---
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: GatewayParameters
@@ -15,7 +15,7 @@ spec:
     deployment:
       replicas: {{ size }}
 {% endif %}
-{% if gateway_class_name == "gloo-gateway-v2" %}
+{%- if gateway_class_name == "gloo-gateway-v2" %}
 ---
 apiVersion: gloo.solo.io/v1alpha1
 kind: GlooGatewayParameters
@@ -31,19 +31,21 @@ spec:
       type: LoadBalancer
     deployment:
       replicas: {{ size }}
-{%   if extauth_enabled or ratelimiter_enabled %}
   sharedExtensions:
-{%     if extauth_enabled %}
     extauth:
+{%   if extauth_enabled %}
       enabled: true
-{%     endif %}
-{%     if ratelimiter_enabled %}
+{%   else %}
+      enabled: false
+{%   endif %}
     ratelimiter:
+{%   if ratelimiter_enabled %}
       enabled: true
-{%     endif %}
+{%   else %}
+      enabled: false
 {%   endif %}
 {% endif %}
-{% if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
+{%- if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -58,8 +60,8 @@ spec:
     kind: Deployment
     name: {{ name }}
 {% endif %}
-{% if gateway_class_name == "istio" %}
-{% if istio_126 %}
+{%- if gateway_class_name == "istio" %}
+{%   if istio_126 %}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -110,13 +112,13 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ name }}-{{ gateway_class_name }}
-{% endif %}
+{%   endif %}
 {% endif %}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-{% if cert_manager_enabled %}
+{%- if cert_manager_enabled %}
   annotations:
 ###    cert-manager.io/issuer: {{ name }}-ca-issuer
     cert-manager.io/issuer: ingress-gateway-ca-issuer
@@ -125,10 +127,10 @@ metadata:
   namespace: {{ namespace }}
   labels:
     app: {{ name }}
-{% if gateway_class_name == "istio" %}
-{% if revision %}
+{%- if gateway_class_name == "istio" %}
+{%   if revision %}
     istio.io/rev: {{ revision }}
-{% endif %}
+{%   endif %}
 {% endif %}
 spec:
   gatewayClassName: {{ gateway_class_name }}
@@ -139,8 +141,8 @@ spec:
     protocol: HTTP
     allowedRoutes:
       namespaces:
-        from: Same # All
-{% if cert_manager_enabled %}
+        from: All # Same
+{%- if cert_manager_enabled %}
   - name: https
     hostname: "*.{{ tldn }}"
     port: {{ ssl_port }}
@@ -155,21 +157,21 @@ spec:
           kind: Secret
 ###      options:
 {% endif %}
-{% if gateway_class_name == "kgateway" %}
+{%- if gateway_class_name == "kgateway" %}
   infrastructure:
     parametersRef:
       name: {{ name }}-gw-params
       group: gateway.kgateway.dev
       kind: GatewayParameters  
 {% endif %}
-{% if gateway_class_name == "gloo-gateway-v2" %}
+{%- if gateway_class_name == "gloo-gateway-v2" %}
 ###  infrastructure:
 ###    parametersRef:
 ###      name: {{ name }}-ggw-params
 ###      group: gloo.solo.io
 ###      kind: GlooGatewayParameters  
 {% endif %}
-{% if gateway_class_name == "istio" %}
+{%- if gateway_class_name == "istio" %}
   infrastructure:
     parametersRef:
       group: ""
@@ -180,7 +182,7 @@ spec:
 ##    labels:
 ##      key: value
 {% endif %}
-{% if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
+{%- if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
 ---
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: HTTPListenerPolicy

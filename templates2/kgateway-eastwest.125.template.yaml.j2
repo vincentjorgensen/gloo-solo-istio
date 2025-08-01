@@ -1,0 +1,139 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-eastwest
+  namespace: istio-eastwest
+  labels:
+    gateway.networking.k8s.io/gateway-name: istio-eastwest
+    istio.io/expose-istiod: "15012"
+    istio.io/rev: {{ revision }}
+    networking.istio.io/hboneGatewayPort: "15008"
+    topology.istio.io/network: {{ network }}
+spec:
+  type: LoadBalancer
+  ports:
+ - name: status-port
+    port: 15021
+    protocol: TCP
+    targetPort: 15021
+  - name: tls-hbone
+    port: 15008
+    protocol: TCP
+    targetPort: 15008
+  - name: tls-xds
+    port: 15012
+    protocol: TCP
+    targetPort: 15012
+  selector:
+    gateway.networking.k8s.io/gateway-name: istio-eastwest
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istio-eastwest
+  namespace: istio-eastwest
+  labels:
+    gateway.networking.k8s.io/gateway-name: istio-eastwest
+    istio.io/expose-istiod: "15012"
+    istio.io/rev: {{ revision }}
+    networking.istio.io/hboneGatewayPort: "15008"
+    topology.istio.io/network: {{ network }}
+spec:
+  selector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: istio-eastwest
+  template:
+    metadata:
+      annotations:
+        istio.io/rev: {{ revision }}
+        prometheus.io/path: /stats/prometheus
+        prometheus.io/port: "15020"
+        prometheus.io/scrape: "true"
+      labels:
+        gateway.networking.k8s.io/gateway-name: istio-eastwest
+        istio.io/expose-istiod: "15012"
+        istio.io/rev: {{ revision }}
+        service.istio.io/canonical-name: istio-eastwest
+        sidecar.istio.io/inject: "false"
+        topology.istio.io/network: {{ network }}
+#### I stopped here
+    spec:
+      securityContext:
+        sysctls:
+          - name: net.ipv4.ip_unprivileged_port_start
+            value: "0"
+      containers:
+        - name: istio-proxy
+          image: auto
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            runAsUser: 1337
+            runAsGroup: 1337
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: istio-ingressgateway-sds
+  namespace: istio-eastwest
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: istio-ingressgateway-sds
+  namespace: istio-eastwest
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: istio-ingressgateway-sds
+subjects:
+  - kind: ServiceAccount
+    name: default
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: istio-eastwest
+  namespace: istio-eastwest
+spec:
+  gatewayClassName: istio-eastwest
+  listeners:
+  - allowedRoutes:
+      namespaces:
+        from: Same
+    name: cross-network
+    port: 15008
+    protocol: HBONE
+    tls:
+      mode: Passthrough
+  - allowedRoutes:
+      namespaces:
+        from: Same
+    name: xds-tls
+    port: 15012
+    protocol: TLS
+    tls:
+      mode: Passthrough
+  addresses:
+    - value: istio-eastwest.istio-eastwest.svc.{{ trust_domain }}
+      type: Hostname
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: istio-eastwest
+  namespace: istio-eastwest
+spec:
+  maxReplicas: {{ size }}
+  minReplicas: {{ size }}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: istio-eastwest
+...
