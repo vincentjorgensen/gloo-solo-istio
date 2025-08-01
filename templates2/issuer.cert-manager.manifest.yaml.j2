@@ -1,0 +1,65 @@
+### https://cloudolife.com/2021/08/11/Kubernetes-K8S/cert-manager/Use-cert-manager-to-create-SelfSigned-Certificate-with-kubernetes-K8S/
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: selfsigned-ca
+  namespace: {{ namespace }}
+spec:
+  isCA: true
+  commonName: selfsigned-ca
+  secretName: {{ name }}-ca-issuer-secret
+  privateKey:
+    rotationPolicy: Always
+    algorithm: RSA
+    encoding: PKCS1 #default
+    size: 2048 #default
+  duration: 8760h
+  renewBefore: 720h
+  issuerRef:
+    name: selfsigned-cluster-issuer # cluster-issuer must already exist
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ name }}-ca-issuer
+  namespace: {{ namespace }}
+spec:
+  ca:
+    secretName: {{ name }}-ca-issuer-secret
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ name }}-selfsigned-ca
+  namespace: {{ namespace }}
+spec:
+  isCA: false
+  commonName: {{ name }}-selfsigned-ca
+  subject:
+    organizations:
+      - "{{ org }}"
+    countries:
+    - {{ country }}
+    organizationalUnits:
+    - {{ ou }}
+    provinces:
+    - {{ state }}
+    localities:
+    - {{ locale }}
+    serialNumber: '{{ serial_no }}'
+  dnsNames:
+  - '*.{{ tldn }}'
+  secretName: {{ secret_name }}
+  privateKey:
+    rotationPolicy: Always
+    algorithm: RSA
+    encoding: PKCS1 #default
+    size: 2048 #default
+  issuerRef:
+    name: {{ name }}-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+...

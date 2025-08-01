@@ -1,0 +1,14 @@
+---
+apiVersion: gloo.solo.io/v1alpha1
+kind: GlooGatewayParameters
+metadata:
+  name: {{ name }}
+  namespace: {{ namespace }}
+spec:
+  kube: {} 
+  sharedExtensions:
+    extauth:
+      enabled: true
+    ratelimiter:
+      enabled: true
+...

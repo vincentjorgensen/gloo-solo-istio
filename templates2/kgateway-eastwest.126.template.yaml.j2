@@ -1,0 +1,66 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  labels:
+    istio.io/expose-istiod: "15012"
+    topology.istio.io/network: {{ network }}
+{% if revision %}
+    istio.io/rev: {{ revision }}
+{% endif %}
+  name: istio-eastwest
+  namespace: istio-eastwest
+spec:
+  gatewayClassName: istio-eastwest
+  listeners:
+  - name: cross-network
+    port: 15008
+    protocol: HBONE
+    tls:
+      mode: Passthrough
+  - name: xds-tls
+    port: 15012
+    protocol: TLS
+    tls:
+      mode: Passthrough
+  infrastructure:
+##    annotations:
+##      some-key: some-value
+##    labels:
+##      key: value
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: istio-eastwest-options
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-eastwest-options
+  namespace: istio-eastwest
+data:
+  horizontalPodAutoscaler: |
+    spec:
+      minReplicas: {{ size }}
+      maxReplicas: {{ size }}
+
+##  deployment: |
+##    metadata:
+##      annotations:
+##        additional-annotation: some-value
+##    spec:
+##      replicas: {{ size }}
+##      template:
+##        spec:
+##          containers:
+##          - name: istio-proxy
+##            resources:
+##              requests:
+##                cpu: 1234m
+##
+##  service: |
+##    spec:
+##      ports:
+##      - "\$patch": delete
+##        port: 15021
+...

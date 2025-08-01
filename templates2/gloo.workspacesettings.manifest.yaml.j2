@@ -1,0 +1,33 @@
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: {{ name }}
+  namespace: {{ name }}-config
+spec:
+  exportTo:
+  - workspaces:
+{%- for workspace in export_workspaces %}
+    - name: '{{ workspace }}'
+{%- endfor %}
+    resources:
+    - kind: SERVICE
+    - kind: VIRTUAL_DESTINATION
+    - kind: ROUTE_TABLE
+    - kind: EXTERNAL_SERVICE
+  importFrom:
+  - workspaces:
+{%- for workspace in import_workspaces %}
+    - name: '{{ workspace }}'
+{%- endfor %}
+    resources:
+    - kind: SERVICE
+    - kind: VIRTUAL_DESTINATION
+    - kind: ROUTE_TABLE
+    - kind: EXTERNAL_SERVICE
+  options:
+    eastWestGateways:               # default east-west gateway routing
+    - selector:
+        labels:
+          istio: eastwestgateway
+...

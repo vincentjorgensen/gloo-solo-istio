@@ -1,0 +1,35 @@
+global:
+  spire:
+    trustDomain: {{ trust_domain }}
+spire-agent:
+    authorizedDelegates:
+        - "spiffe://{{ trust_domain }}/ns/istio-system/sa/ztunnel"
+    sockets:
+        admin:
+            enabled: true
+            mountOnHost: true
+        hostBasePath: /run/spire/agent/sockets
+    tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+spire-server:
+  upstreamAuthority:
+    disk:
+      enabled: true
+      secret:
+        create: false
+        name: "{{ spire_secret }}"
+###  persistence:
+###    type: emptyDir
+spiffe-csi-driver:
+    tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists

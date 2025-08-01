@@ -1,0 +1,56 @@
+---
+name: istio-ingressgateway
+{% if revision %}
+revision: {{ revision }}
+{% endif %}
+global:
+  hub: {{ istio_repo }}
+  tag: {{ istio_ver }}{{ flavor }}
+labels:
+  istio: ingressgateway
+  app: istio-ingressgateway
+  topology.istio.io/network: {{ network }}
+#  proxy.istio.io/config: '{"discoveryAddress" : "istiod-main.istio-system.svc:15012" }'
+##env:
+##  ISTIO_META_ROUTER_MODE: sni-dnat
+##  ISTIO_META_REQUESTED_NETWORK_VIEW: ${_context}
+service:
+{% if azure %}
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+{% endif %}
+{% if aws %}
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: "gateway.{{ network }}.soloio.vincentjorgensen.com"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/healthz/ready"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15021"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: http
+    service.beta.kubernetes.io/aws-load-balancer-name: "gateway-{{ network }}"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+##    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-038141dc2328de084
+######    service.beta.kubernetes.io/aws-load-balancer-type: external
+{% endif %}
+
+  type: LoadBalancer
+replicaCount: {{ size }}
+autoscaling:
+    minReplicas: {{ size }}
+    maxReplicas: {{ size }}
+#affinity:
+#  podAntiAffinity:
+#    preferredDuringSchedulingIgnoredDuringExecution:
+#    - podAffinityTerm:
+#        labelSelector:
+#          matchExpressions:
+#          - key: istio
+#            operator: In
+#            values:
+#            - ingressgateway-${_revision}
+#        topologyKey: topology.kubernetes.io/zone
+#      weight: 100
+
+##podAnnotations:
+##  inject.istio.io/templates: "gateway,custom_ingress"
+...

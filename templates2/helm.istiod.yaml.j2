@@ -1,0 +1,75 @@
+---
+{% if revision %}
+revision: {{ revision }}
+{% endif %}
+{% if ambient %}
+profile: ambient
+{% if multicluster %}
+platforms:
+  peering:
+    enabled: true
+{% endif %}
+license:
+  value: {{  license_key }}
+{% endif %}
+global:
+  hub: {{ istio_repo }}
+  tag: {{ istio_ver }}{{ flavor }}
+  variant: {{ variant }}
+{% if multicluster %}
+  meshID: {{ mesh_id }}
+  multiCluster:
+    clusterName: {{ cluster_name }}
+    enabled: true
+  network: {{ network }}
+{% endif %}
+{%if spire %}
+gateways:
+  spire:
+    workloads: true
+{% endif %}
+env:
+  AUTO_RELOAD_PLUGIN_CERTS: true
+##  PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: false
+  PILOT_SKIP_VALIDATE_TRUST_DOMAIN: true
+######  VERIFY_CERTIFICATE_AT_CLIENT: false
+{% if ambient %}
+##  PILOT_ENABLE_ALPHA_GATEWAY_API: true
+  PILOT_ENABLE_IP_AUTOALLOCATE: true
+  PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
+  PILOT_ENABLE_WORKLOAD_ENTRY_HEALTHCHECKS: true
+{% endif %}
+meshConfig:
+  defaultConfig:
+    holdApplicationUntilProxyStarts: true
+    proxyMetadata:
+      ISTIO_META_DNS_CAPTURE: "true"
+  defaultHttpRetryPolicy:
+    attempts: 3
+    retryOn: connect-failure,refused-stream,unavailable,cancelled,reset,503
+  trustDomain: {{ trust_domain }}
+###  trustDomain: {{ cluster_name }}.local
+resources:
+  limits:
+    cpu: 20m
+    memory: 256Mi
+  requests:
+    cpu: 2m
+    memory: 64Mi
+autoscaleMin: 1
+autoscaleMax: 1
+
+##sidecarInjectorWebhook:
+##  templates:
+##    custom_ingress: |
+##      spec:
+##        containers:
+##        - name: istio-proxy
+##          ports:
+##          - containerPort: 8080
+##            hostPort: 80
+##          - containerPort: 8443
+##            hostPort: 443
+##          - containerPort: 15021
+##            hostPort: 15021
+...

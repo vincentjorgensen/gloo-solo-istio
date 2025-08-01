@@ -1,0 +1,33 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  annotations:
+    gateway.istio.io/service-account: {{ name }}
+    gateway.istio.io/trust-domain: {{ trust_domain }}
+  labels:
+    topology.istio.io/network: {{ network }}
+{% if gateway_class_name == "istio-remote" %}
+{% if revision %}
+    istio.io/rev: {{ revision }}
+{% endif %}
+{% endif %}
+  name: istio-remote-peer-{{ cluster }}
+  namespace: {{ namespace }}
+spec:
+  addresses:
+  - type: {{ address_type }}
+    value: {{ remote_address }}
+  gatewayClassName: {{ gateway_class_name }}
+  listeners:
+  - name: cross-network
+    port: 15008
+    protocol: HBONE
+    tls:
+      mode: Passthrough
+  - name: xds-tls
+    port: 15012
+    protocol: TLS
+    tls:
+      mode: Passthrough
+...

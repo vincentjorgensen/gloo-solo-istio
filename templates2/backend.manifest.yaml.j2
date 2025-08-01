@@ -1,0 +1,13 @@
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: {{ service_name }}
+  namespace: {{ service_namespace }}
+spec:
+  type: Static
+  static:
+    hosts:
+    - host: {{ service_name }}.{{ service_namespace }}.mesh.internal
+      port: {{ service_port }}
+...
