@@ -1,0 +1,18 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:{{ partition }}:iam::{{ account_id }}:oidc-provider/{{ oidc_issuer }}"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "{{ oidc_issuer }}:aud": "sts.amazonaws.com",
+                    "{{ oidc_issuer }}:sub": "system:serviceaccount:cert-manager:aws-pca-issuer"
+                }
+            }
+        }
+    ]
+}

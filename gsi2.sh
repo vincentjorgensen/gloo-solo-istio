@@ -10,18 +10,28 @@ GSI_DECK=(
   gsi_init
 
   app_init_namespaces
+
+  app_init_aws
+
   app_init_spire
   app_init_cert_manager
   app_init_keycloak
+  app_init_gme
   app_init_istio
+
+  app_init_istio_gateway
+  app_init_gateway_api
 
   app_init_helloworld
   app_init_curl
   app_init_tools
+  app_init_httpbin
+
+  ###app_init_ingress_istio
+  app_init_eastwest_gateway_api
+  app_init_ingress_gateway_api
 
   app_init_external_dns
-
-  app_init_gateway_api
 )
 
 function play_gsi {

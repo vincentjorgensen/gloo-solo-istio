@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 function app_init_gateway_api {
   if $GATEWAY_API_ENABLED; then 
-    exec_gateway_api_crds
+    exec_gateway_api_crds 
     if $KGATEWAY_ENABLED; then
       exec_kgateway_crds
       exec_kgateway
@@ -9,7 +9,26 @@ function app_init_gateway_api {
       exec_gloo_gateway_v2_crds
       exec_gloo_gateway_v2
     fi
+    ### ### ### exec_ingress_gateway_api
+  fi
+}
 
+function app_init_ingress_gateway_api {
+  if $GATEWAY_API_ENABLED; then 
+    if $KEYCLOAK_ENABLED; then
+      if $KGATEWAY_ENABLED; then
+        exec_kgateway_keycloak_secret
+      elif $GLOO_GATEWAY_V2_ENABLED; then
+        exec_gloo_gateway_v2_keycloak_secret
+      fi
+    fi
+
+    exec_ingress_gateway_api
+  fi
+}
+
+function app_init_eastwest_gateway_api {
+  if $GATEWAY_API_ENABLED; then 
     # EastWest linking via Gateway API
     if $MULTICLUSTER_ENABLED; then
       exec_eastwest_gateway_api
@@ -17,7 +36,7 @@ function app_init_gateway_api {
       exec_gateway_api_crds
       exec_eastwest_gateway_api
       exec_eastwest_link_gateway_api
-      exec_gsi_cluster_swap
+      gsi_cluster_swap
       exec_eastwest_link_gateway_api
     fi
   fi
@@ -28,9 +47,12 @@ function exec_gateway_api_crds {
   local _standard=standard
   $EXPERIMENTAL_GATEWAY_API_CRDS && _ver="$KGATEWAY_EXPERIMENTAL_VER" && _standard=experimental
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$_ver"/"${_standard}"-install.yaml
+  if [[ -z $(eval echo '$'GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
+    $DRY_RUN kubectl "$GSI_MODE"                                              \
+    --context "$GSI_CONTEXT"                                                  \
+    -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$_ver"/"${_standard}"-install.yaml
+    [[ -z $DRY_RUN ]] && eval GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
+  fi
 }
 
 function exec_kgateway_crds {
@@ -98,11 +120,13 @@ function exec_eastwest_gateway_api {
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 
+  sleep 1.5
+
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
     --context "$GSI_CONTEXT"                                                  \
     --namespace "$EASTWEST_NAMESPACE"                                         \
-    --for=condition=Ready pods --all
+    --for=condition=Ready pods -l app="$EASTWEST_GATEWAY_NAME"
   fi
 }
 
@@ -166,7 +190,7 @@ function exec_ingress_gateway_api {
         "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2             \
     > "$_manifest"
 
-  if $EXTAUTH_ENABLED; then
+  if $GLOO_GATEWAY_V2_ENABLED; then
     patch_gloo_gateway_v2 "$INGRESS_NAMESPACE" "${INGRESS_GATEWAY_NAME}-ggw-params"
   fi
 
@@ -272,6 +296,51 @@ function exec_httproute {
   -f "$_manifest"
 }
 
+function create_httproute {
+  local _service_name _service_port _namespace
+  while getopts "m:n:p:s:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      m)
+        _service_name=$OPTARG ;;
+      s)
+        _service_namespace=$OPTARG ;;
+      n)
+        _namespace=$OPTARG ;;
+      p)
+        _service_port=$OPTARG ;;
+    esac
+  done
+
+  local _manifest="$MANIFESTS/httproute.${_service_name}.${_namespace}.${GSI_CLUSTER}.yaml"
+
+  exec_gateway_api_crds
+
+  jinja2 -D tldn="$TLDN"                                                      \
+         -D namespace="$_namespace"                                           \
+         -D gateway_name="$INGRESS_GATEWAY_NAME"                              \
+         -D gateway_namespace="$INGRESS_NAMESPACE"                            \
+         -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
+         -D extauth_enabled="$EXTAUTH_FLAG"                                   \
+         -D traffic_policy_name="$TRAFFIC_POLICY_NAME"                        \
+         -D service="$_service_name"                                          \
+         -D service_namespace="$_service_namespace"                           \
+         -D service_port="$_service_port"                                     \
+         -D multicluster="$MC_FLAG"                                           \
+         "$TEMPLATES"/httproute.manifest.yaml.j2                              \
+    > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest"
+
+  # TODO if _service_namespace != _namespace
+  # create_reference_grant
+  if [[ $_service_namespace != "$_namespace" ]]; then
+    create_reference_grant -m "$_service_name" -s "$_service_namespace" -n "$_namespace"
+  fi
+}
+
 function exec_backend {
   local _manifest="$MANIFESTS/backend.${GSI_CLUSTER}.yaml"
 
@@ -302,3 +371,65 @@ function exec_reference_grant {
   -f "$_manifest"
 }
 
+function create_reference_grant {
+
+  while getopts "m:n:s:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      m)
+        _service_name=$OPTARG ;;
+      n)
+        _namespace=$OPTARG ;;
+      s)
+        _service_namespace=$OPTARG ;;
+    esac
+  done
+  local _manifest="$MANIFESTS/reference_grant.${_service_name}.${_service_namespace}.${GSI_CLUSTER}.yaml"
+
+  jinja2 -D gateway_namespace="$_namespace"                                   \
+         -D service="$_service_name"                                          \
+         -D service_namespace="$_service_namespace"                           \
+         -D multicluster="$MC_FLAG"                                           \
+         "$TEMPLATES"/reference_grant.manifest.yaml.j2                        \
+    > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest"
+}
+
+function exec_gloo_gateway_v2_keycloak_secret {
+  create_keycloak_secret "$GLOO_GATEWAY_V2_NAMESPACE"
+}
+
+function exec_kgateway_keycloak_secret {
+  create_keycloak_secret "$KGATEWAY_SYSTEM_NAMESPACE"
+}
+
+function exec_extauth_keycloak_ggv2_auth_config {
+  local _gateway_address
+  local _manifest="$MANIFESTS/auth_config.oauth.${GSI_CLUSTER}.yaml"
+
+##  _gateway_address=$(
+##    kubectl get svc "$INGRESS_GATEWAY_NAME"                                   \
+##    --context "$GSI_CONTEXT"                                                  \
+##    --namespace "$INGRESS_NAMESPACE"                                          \
+##    -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
+
+  jinja2 -D namespace="$GSI_APP_SERVICE_NAMESPACE"                            \
+         -D gateway_address="${GSI_APP_SERVICE_NAME}.${TLDN}"                 \
+         -D http_port="$HTTP_INGRESS_PORT"                                    \
+         -D client_id="$KEYCLOAK_CLIENT"                                      \
+         -D system_namespace="$GLOO_GATEWAY_V2_NAMESPACE"                     \
+         -D keycloak_url="$KEYCLOAK_URL"                                      \
+         -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
+         -D gateway_namespace="$INGRESS_NAMESPACE"                            \
+         -D traffic_policy_name="$TRAFFIC_POLICY_NAME"                        \
+         -D httproute_name="${GSI_APP_SERVICE_NAME}-route"                    \
+         "$TEMPLATES"/auth_config.oauth.manifest.yaml.j2                      \
+    > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest" 
+}

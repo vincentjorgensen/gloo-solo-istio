@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+function app_init_istio_gateway {
+  if $ISTIO_GATEWAY_ENABLED; then
+    exec_istio_ingressgateway
+
+    # EastWest linking via Istio Gateway
+    if $MULTICLUSTER_ENABLED; then
+      exec_eastwest_istio_gateway
+      gsi_cluster_swap
+      exec_eastwest_istio_gateway
+      ! $GME_ENABLED && exec_eastwest_istio_oss_remote_secrets
+      exec_gsi_cluster_swap
+      ! $GME_ENABLED && exec_eastwest_istio_oss_remote_secrets
+    fi
+  fi
+}
 function exec_istio_ingressgateway {
   local _manifest="$MANIFESTS/helm.istio-ingressgateway.${GSI_CLUSTER}.yaml"
 
@@ -28,7 +43,7 @@ function exec_istio_ingressgateway {
   fi
 }
 
-function exec_istio_eastwest {
+function exec_eastwest_istio_gateway {
   local _manifest="$MANIFESTS/helm.istio-eastwestgateway.${GSI_CLUSTER}.yaml"
 
   if is_create_mode; then
@@ -67,20 +82,20 @@ function exec_istio_eastwest {
   fi
 }
 
-function exec_oss_istio_remote_secrets {
+function exec_eastwest_istio_oss_remote_secrets {
   # For K3D, Kind, and Rancher clusters
   if "$DOCKER_DESKTOP_ENABLED"; then
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-    --context "$GSI_CONTEXT_REMOTE"                                           \
-    --name "$GSI_CLUSTER_REMOTE"                                              \
-    --server https://"$($DRY_RUN kubectl --context "$GSI_CONTEXT_REMOTE" get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[0].address}')":6443 |
-    $DRY_RUN kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT_LOCAL"
+    --context "$GSI_REMOTE_CONTEXT"                                           \
+    --name "$GSI_REMOTE_CLUSTER"                                              \
+    --server https://"$($DRY_RUN kubectl --context "$GSI_REMOTE_CONTEXT" get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[0].address}')":6443 |
+    $DRY_RUN kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT"
   # For AWS and Azure (and GCP?) clusters
   else
     istioctl-"${ISTIO_VER/-*/}" create-remote-secret                          \
-    --context "$GSI_CONTEXT_REMOTE"                                           \
-    --name "$GSI_CLUSTER_REMOTE"                                              |
-    $DRY_RUN kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT_LOCAL"
+    --context "$GSI_REMOTE_CONTEXT"                                           \
+    --name "$GSI_REMOTE_CLUSTER"                                              |
+    $DRY_RUN kubectl "$GSI_MODE" -f - --context="$GSI_CONTEXT"
   fi
 }
 

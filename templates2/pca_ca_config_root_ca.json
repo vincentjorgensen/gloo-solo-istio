@@ -1,0 +1,12 @@
+{
+  "KeyAlgorithm":"RSA_2048",
+  "SigningAlgorithm":"SHA256WITHRSA",
+  "Subject": {
+    "Country":"US",
+    "Organization":"Solo.io",
+    "OrganizationalUnit":"Customer Success",
+    "State":"CA",
+    "Locality":"Sunnyvale",
+    "CommonName":"Root CA"
+  }
+}

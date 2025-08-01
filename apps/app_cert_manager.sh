@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 function app_init_cert_manager {
   if $CERT_MANAGER_ENABLED; then
-    exec_cert_manager_secrets
+    if $DOCKER_DESKTOP_ENABLED; then
+      exec_cert_manager_secrets
+    fi
     exec_cert_manager
+    if $MULTICLUSTER_ENABLED; then
+      gsi_cluster_swap
+      exec_cert_manager
+      gsi_cluster_swap
+    fi
     exec_cert_manager_cluster_issuer
   fi
 }
@@ -23,6 +30,10 @@ function exec_cert_manager_secrets {
 
 function exec_cert_manager {
   if is_create_mode; then
+
+    # Requires Gateway API CRDs
+    exec_gateway_api_crds 
+ 
     $DRY_RUN helm upgrade --install cert-manager jetstack/cert-manager        \
     --version "$CERT_MANAGER_VER"                                             \
     --kube-context="$GSI_CONTEXT"                                             \

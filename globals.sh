@@ -7,7 +7,7 @@
 #-------------------------------------------------------------------------------
 # Global versions of Helm Repos, Istio Repos, and Istio settings
 #-------------------------------------------------------------------------------
-export TEMPLATES CERTS MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS
+export TEMPLATES CERTS UTAG MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS
 TEMPLATES="$(dirname "$0")"/templates
 CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
@@ -241,7 +241,8 @@ function is_create_mode {
 
 function gsi_init {
   # For reproducibilty and sharing, we save the manifests
-  MANIFESTS="$(dirname "$0")"/manifests/$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
+  UTAG=$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
+  MANIFESTS="$(dirname "$0")"/manifests/$UTAG
   mkdir -p "$MANIFESTS"
   echo "export MANIFESTS=$MANIFESTS"
 

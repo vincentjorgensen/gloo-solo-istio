@@ -7,6 +7,10 @@ function app_init_namespaces {
     exec_namespaces
     gsi_cluster_swap
   fi
+
+  if $GME_ENABLED; then
+    create_namespace "$GME_CONTEXT" "$GME_NAMESPACE"
+  fi
 }
 
 function exec_namespaces {
@@ -15,7 +19,7 @@ function exec_namespaces {
     if eval '$'"${enabled}"; then
       # shellcheck disable=SC2116
       if [[ -n "$(eval echo '$'"$(echo "${enabled%%_ENABLED}_NAMESPACE")")" ]]; then
-        echo '#' "${enabled%%_ENABLED} is enabled, creating namespace ${enabled%%_ENABLED}_NAMESPACE"
+        echo '#' "${enabled%%_ENABLED} is enabled, creating namespace $(eval echo '$'"${enabled%%_ENABLED}_NAMESPACE")"
         create_namespace "$GSI_CONTEXT" "$(eval echo '$'"$(echo "${enabled%%_ENABLED}_NAMESPACE")")"
       fi
     fi

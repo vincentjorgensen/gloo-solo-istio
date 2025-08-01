@@ -48,8 +48,5 @@ function exec_curl {
     --context "$GSI_CONTEXT"                                                  \
     --namespace "$CURL_NAMESPACE"                                             \
     --for=condition=Ready pods -l app=curl
-
-  alias kcurl="kubectl --context \$GSI_CONTEXT --namespace \$CURL_NAMESPACE exec -it deployment/curl -- sh"
   fi
 }
-

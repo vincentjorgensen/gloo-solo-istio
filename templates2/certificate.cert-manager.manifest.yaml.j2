@@ -1,0 +1,29 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ component }}-ca
+  namespace: {{ namespace }}
+spec:
+  isCA: true
+  duration: 720h #30d
+  renewBefore: 360h #15d
+  secretName: {{ secret_name }}
+  commonName: {{ component }}-ca
+  dnsNames:
+{%- if revision %}
+  - "*.istiod-{{ revision }}"
+{%- else %}
+  - "*.istiod"
+{%- endif %}
+  subject:
+    organizations:
+    - {{ trust_domain }}
+    - cert-manager
+  issuerRef:
+    group: awspca.cert-manager.io
+    kind: AWSPCAIssuer
+    name: aws-pca-issuer-{{ component }}
+  privateKey:
+    rotationPolicy: Always
+...

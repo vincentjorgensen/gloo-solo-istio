@@ -1,13 +1,30 @@
 #!/usr/bin/env bash
 function app_init_istio {
   if $SIDECAR_ENABLED || $AMBIENT_ENABLED; then
-    $MULTICLUSTER_ENABLED && exec_istio_secrets
+    if $AWS_ENABLED && $CERT_MANAGER_ENABLED; then
+      create_aws_intermediate_pca Istio
+      create_aws_pca_issuer_role Istio
+      exec_aws_pca_serviceaccount
+      exec_aws_pca_privateca_issuer
+      create_aws_pca_issuer istio istio-system
+      exec_istio_awspca_secrets
+    else
+      $MULTICLUSTER_ENABLED && exec_istio_secrets
+    fi
     exec_istio
     exec_telemetry_defaults
 
     if $MULTICLUSTER_ENABLED; then
       gsi_cluster_swap
-      exec_istio_secrets
+      if $AWS_ENABLED && $CERT_MANAGER_ENABLED; then
+      create_aws_pca_issuer_role Istio
+        exec_aws_pca_serviceaccount
+        exec_aws_pca_privateca_issuer
+        create_aws_pca_issuer istio istio-system
+        exec_istio_awspca_secrets
+      else
+        exec_istio_secrets
+      fi
       exec_istio
       exec_telemetry_defaults
       gsi_cluster_swap
@@ -31,8 +48,37 @@ function exec_istio_secrets {
   fi
 }
 
+function exec_istio_awspca_secrets {
+  local _manifest="$MANIFESTS"/certificate.cert-manager."$GSI_CLUSTER".yaml
+
+  jinja2 -D component="istio"                                                 \
+         -D revision="$REVISION"                                              \
+         -D namespace="$ISTIO_SYSTEM_NAMESPACE"                               \
+         -D secret_name="$ISTIO_SECRET"                                       \
+         -D trust_domain="$TRUST_DOMAIN"                                      \
+         "$TEMPLATES"/certificate.cert-manager.manifest.yaml.j2               \
+  > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest"
+}
+
 function exec_istio_base {
-  local _manifest="$MANIFESTS/helm.istio-base.${GSI_CLUSTER}.yaml"
+  local _cluster=$GSI_CLUSTER
+  local _context=$GSI_CONTEXT
+
+  while getopts "c:x:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      c)
+        _cluster=$OPTARG ;;
+      x)
+        _context=$OPTARG ;;
+    esac
+  done
+
+  local _manifest="$MANIFESTS/helm.istio-base.${_cluster}.yaml"
 
   if is_create_mode; then
     jinja2 -D revision="$REVISION"                                            \
@@ -42,14 +88,14 @@ function exec_istio_base {
     # shellcheck disable=SC2086
     $DRY_RUN helm upgrade --install istio-base "$HELM_REPO"/base              \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
-    --kube-context="$GSI_CONTEXT"                                             \
+    --kube-context="$_context"                                                \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
     --create-namespace                                                        \
     --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall istio-base                                        \
-    --kube-context="$GSI_CONTEXT"                                             \
+    --kube-context="$_context"                                                \
     --namespace "$ISTIO_SYSTEM_NAMESPACE"
   fi
 }
@@ -126,6 +172,8 @@ function exec_istio_ztunnel {
            -D spire="$SPIRE_FLAG"                                             \
            -D multicluster="$MC_FLAG"                                         \
            -D variant="$ISTIO_DISTRO"                                         \
+           -D gme_enabled="$GME_FLAG"                                         \
+           -D gme_namespace="$GME_NAMESPACE"                                  \
            "$TEMPLATES"/helm.ztunnel.yaml.j2                                  \
       > "$_manifest"
 

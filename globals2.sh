@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
  ###############################################################################
-# globals.sh
+# globals2.sh
 # 
 # functions for setting global state
 ###############################################################################
 #-------------------------------------------------------------------------------
 # Global versions of Helm Repos, Istio Repos, and Istio settings
 #-------------------------------------------------------------------------------
-export TEMPLATES CERTS MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS
+export TEMPLATES CERTS UTAG MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS
 TEMPLATES="$(dirname "$0")"/templates2
 CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
 CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
 
-export REVISION GME_SECRET_TOKEN TLDN MESH_ID
+export REVISION GME_SECRET GME_SECRET_TOKEN TLDN MESH_ID
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
-export GSI_MODE
+export GSI_MODE GSI_CLUSTER GSI_CONTEXT GSI_NETWORK
+export GSI_REMOTE_CLUSTER GSI_REMOTE_CONTEXT GSI_REMOTE_NETWORK
 export EASTWEST_GATEWAY_CLASS_NAME EASTWEST_REMOTE_GATEWAY_CLASS_NAME
 
 # Jinja2 flags
@@ -29,13 +30,17 @@ export DRY_RUN=""
 
 # Cloud Providers
 export DOCKER_DESKTOP_ENABLED="${DOCKER_DESKTOP_ENABLED:-true}"
-export AWS_ENABLED="${AWS_ENABLED:-false}"
 export AZURE_ENABLED="${AZURE_ENABLED:-false}"
 export GCP_ENABLED="${GCP_ENABLED:-false}"
 
+# AWS
+export AWS_ENABLED="${AWS_ENABLED:-false}"
+export ROOT_CAARN ROOT_CERTARN SUBORDINATE_CAARN SUBORDINATE_CERTARN
+export AWS_PCA_POLICY_ARN AWS_PCA_ROLE_ARN
+export AWSPCA_ISSUER_VER=v1.6.0
+
 # Namespaces
 export ARGOCD_NAMESPACE=argocd
-export GLOO_MESH_NAMESPACE=gloo-mesh
 export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system
 export ISTIO_SYSTEM_NAMESPACE=istio-system
 export KUBE_SYSTEM_NAMESPACE=kube-system
@@ -60,6 +65,11 @@ export HELLOWORLD_NAMESPACE=helloworld
 export HELLOWORLD_SERVICE_NAME=helloworld
 export HELLOWORLD_SERVICE_PORT=8001
 
+export HTTPBIN_ENABLED=${HTTPBIN_ENABLED:-false}
+export HTTPBIN_NAMESPACE=httpbin
+export HTTPBIN_SERVICE_NAME=httpbin
+export HTTPBIN_SERVICE_PORT=8002
+
 export CURL_ENABLED=${CURL_ENABLED:-false}
 export CURL_NAMESPACE=curl
 
@@ -76,11 +86,14 @@ export CERT_MANAGER_NAMESPACE="cert-manager"
 export CERT_MANAGER_INGRESS_SECRET="ingress-ca-key-pair"
 
 # Spire
-export SPIRE_ENABLED="${SPIER_ENABLED:-false}"
+export SPIRE_ENABLED="${SPIRE_ENABLED:-false}"
 export SPIRE_NAMESPACE=spire-server
 export SPIRE_CRDS_VER=0.5.0
 export SPIRE_SERVER_VER=0.24.2
 export SPIRE_SECRET=spiffe-upstream-ca
+
+# Istio Gateway
+export ISTIO_GATEWAY_ENABLED=${ISTIO_GATEWAY_ENABLED:-false}
 
 # Gateway API
 export EXPERIMENTAL_GATEWAY_API_CRDS=${EXPERIMENTAL_GATEWAY_API_CRDS:-false}
@@ -99,14 +112,19 @@ export KGATEWAY_HELM_VER=v2.0.3
 export GLOO_GATEWAY_V2_ENABLED="${GLOO_GATEWAY_V2_ENABLED:-false}"
 export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway-crds
 export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway
-export GLOO_GATEWAY_V2_HELM_VER=2.0.0-alpha.2
+export GLOO_GATEWAY_V2_HELM_VER=2.0.0-alpha.3
 export GLOO_GATEWAY_V2_NAMESPACE=gloo-gateway-system
 
 export TRAFFIC_POLICY_NAME=oauth-authorization-code
 
+# keycloak
 export KEYCLOAK_ENABLED="${KEYCLOAK_ENABLED:-false}"
 export KEYCLOAK_NAMESPACE=keycloak
 export KEYCLOAK_VER=26.3
+export KEYCLOAK_ENDPOINT KEYCLOAK_HOST KEYCLOAK_PORT KEYCLOAK_URL
+export KEYCLOAK_TOKEN KEYCLOAK_CLIENT KEYCLOAK_SECRET
+export EXTAUTH_ENABLED=${EXTAUTH_ENABLED:-false}
+export RATELIMITER_ENABLED=${RATELIMITER_ENABLED:-false}
 
 # Istio repo versions
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
@@ -127,17 +145,24 @@ export ISTIO_SECRET=cacerts
 export AMBIENT_ENABLED="${AMBIENT_ENABLED:-false}"
 export SIDECAR_ENABLED="${SIDECAR_ENABLED:-false}"
 
+# Gloo Edge (Gloo Gateway)
+export GLOO_EDGE_ENABLED="${GLOO_EDGE_ENABLED:-false}"
+export GLOO_EDGE_NAMESPACE=gloo-system
+
 # GME
 export GME_ENABLED="${GME_ENABLED:-false}"
+export GME_NAMESPACE="gloo-mesh"
+export GME_MGMT_AGENT_ENABLED="${GME_MGMT_AGENT_ENABLED:-false}"
 export GME_VER_26="2.6.12"
 export GME_VER_27="2.7.3"
 export GME_VER_28="2.8.1"
-export GME_VER_29="2.9.0"
+export GME_VER_29="2.9.2"
 
 export GME_GATEWAYS_WORKSPACE=gateways
 export GME_APPLICATIONS_WORKSPACE=applications
 
 export DEFAULT_GME="2.9"
+export DEFAULT_GME_SECRET="relay-token"
 export DEFAULT_GME_SECRET_TOKEN="my-lucky-secret-token"
 export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TLDN=example.com
@@ -160,106 +185,121 @@ function enable_gme {
 }
 
 function disable_gme {
- export GME_ENABLED=false 
-}
+	 export GME_ENABLED=false 
+	}
 
-function set_revision {
-  local _revision
-  _revision=$1
+	function set_revision {
+		local _revision
+		_revision=$1
 
-  export REVISION="$_revision"
-}
+		export REVISION="$_revision"
+	}
 
-function set_istio {
-  local _istio _flavor _distro
-  _istio=$1
-  _flavor=$2
-  _variant=$3
+	function set_istio {
+		local _istio _flavor _distro
+		_istio=$1
+		_flavor=$2
+		_variant=$3
 
-  export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO
-  ISTIO_VER=$(eval echo \$ISTIO_VER_"${_istio//.}")
-  ISTIO_REPO=$(eval echo \$ISTIO_REPO_"${_istio//.}")
-  HELM_REPO=$(eval echo \$HELM_REPO_"${_istio//.}")
-  [[ -n $_flavor ]] && ISTIO_FLAVOR="-${_flavor}"
-  [[ -n $_variant ]] && ISTIO_DISTRO="${_variant}"
+		export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO
+		ISTIO_VER=$(eval echo \$ISTIO_VER_"${_istio//.}")
+		ISTIO_REPO=$(eval echo \$ISTIO_REPO_"${_istio//.}")
+		HELM_REPO=$(eval echo \$HELM_REPO_"${_istio//.}")
+		[[ -n $_flavor ]] && ISTIO_FLAVOR="-${_flavor}"
+		[[ -n $_variant ]] && ISTIO_DISTRO="${_variant}"
 
-  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
-    ISTIO_126_FLAG="enabled"
+		if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
+			ISTIO_126_FLAG="enabled"
+		fi
+	}
+
+	function set_gme {
+		local _gme
+		_gme=$1
+
+		export GME_VER
+		GME_VER=$(eval echo \$GME_VER_"${_gme//.}")
+	}
+
+	function set_trust_domain {
+		local _trust_domain
+		_trust_domain=${1:-$DEFAULT_TRUST_DOMAIN}
+
+		export TRUST_DOMAIN="$_trust_domain"
+	}
+
+	function set_mesh_id {
+		local _mesh_id
+		_mesh_id=${1:-$DEFAULT_MESH_ID}
+
+		export MESH_ID="$_mesh_id"
+	}
+
+	function set_gme_secret {
+		local _gme_secret
+		_gme_secret=${1:-$DEFAULT_GME_SECRET}
+
+		export GME_SECRET="$_gme_secret"
+	}
+
+	function set_gme_secret_token {
+		local _gme_secret_token
+		_gme_secret_token=${1:-$DEFAULT_GME_SECRET_TOKEN}
+
+		export GME_SECRET_TOKEN="$_gme_secret_token"
+	}
+
+	function set_tldn {
+		local _tldn
+		_tldn=${1:-$DEFAULT_TLDN}
+
+		export TLDN="$_tldn"
+	}
+
+	function set_oss_defaults {
+		set_revision main
+		set_istio 1.26 solo distroless
+		set_trust_domain $DEFAULT_TRUST_DOMAIN
+		set_mesh_id $DEFAULT_MESH_ID
+		set_gme $DEFAULT_GME
+		set_gme_secret $DEFAULT_GME_SECRET
+		set_gme_secret_token $DEFAULT_GME_SECRET_TOKEN
+		set_tldn $DEFAULT_TLDN
+	}
+
+	function set_gme_defaults {
+		set_oss_defaults
+		enable_gme
+		set_gme $DEFAULT_GME
+	}
+
+	function gsi_set_defaults {
+		set_oss_defaults
+	}
+
+	function is_create_mode {
+		if [[ $GSI_MODE =~ (create|apply) ]]; then
+			return 0
+		else
+			return 1
+		fi
+	}
+
+	function gsi_init {
+		# For reproducibilty and sharing, we save the manifests
+		MANIFESTS="$(dirname "$0")"/manifests/$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
+		mkdir -p "$MANIFESTS"
+		echo "export MANIFESTS=$MANIFESTS"
+
+		# Gloo Mesh Enterprise (GME)
+		if $GME_ENABLED; then
+     GME_FLAG=enabled  
+     echo '#' GME is enabled
+     if $GME_MGMT_AGENT_ENABLED; then
+       GME_MGMT_AGENT_FLAG=enabled 
+       echo '#' GME MGMT Agent is enabled
+     fi
   fi
-}
-
-function set_gme {
-  local _gme
-  _gme=$1
-
-  export GME_VER
-  GME_VER=$(eval echo \$GME_VER_"${_gme//.}")
-}
-
-function set_trust_domain {
-  local _trust_domain
-  _trust_domain=${1:-$DEFAULT_TRUST_DOMAIN}
-
-  export TRUST_DOMAIN="$_trust_domain"
-}
-
-function set_mesh_id {
-  local _mesh_id
-  _mesh_id=${1:-$DEFAULT_MESH_ID}
-
-  export MESH_ID="$_mesh_id"
-}
-
-function set_gme_secret_token {
-  local _gme_secret_token
-  _gme_secret_token=${1:-$DEFAULT_GME_SECRET_TOKEN}
-
-  export GME_SECRET_TOKEN="$_gme_secret_token"
-}
-
-function set_tldn {
-  local _tldn
-  _tldn=${1:-$DEFAULT_TLDN}
-
-  export TLDN="$_tldn"
-}
-
-function set_oss_defaults {
-  set_revision main
-  set_istio 1.26 solo distroless
-  set_trust_domain $DEFAULT_TRUST_DOMAIN
-  set_mesh_id $DEFAULT_MESH_ID
-  set_gme_secret_token $DEFAULT_GME_SECRET_TOKEN
-  set_tldn $DEFAULT_TLDN
-}
-
-function set_gme_defaults {
-  set_oss_defaults
-  enable_gme
-  set_gme $DEFAULT_GME
-}
-
-function gsi_set_defaults {
-  set_oss_defaults
-}
-
-function is_create_mode {
-  if [[ $GSI_MODE =~ (create|apply) ]]; then
-    return 0
-  else
-    return 1
-  fi
-}
-
-function gsi_init {
-  # For reproducibilty and sharing, we save the manifests
-  MANIFESTS="$(dirname "$0")"/manifests/$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
-  mkdir -p "$MANIFESTS"
-  echo "export MANIFESTS=$MANIFESTS"
-
-  # Gloo Mesh Enterprise (GME)
-  $GME_ENABLED && GME_FLAG=enabled && echo '#' GME is enabled
-  $GME_MGMT_AGENT_ENABLED && GME_MGMT_AGENT_FLAG=enabled
 
   # cloud / k8s providers
   $DOCKER_DESKTOP_ENABLED   && DOCKER_FLAG=enabled   && echo '#' Docker Desktop is enabled
@@ -268,8 +308,8 @@ function gsi_init {
   $GCP_ENABLED && GCP_FLAG=enabled && echo '#' AZURE is enabled
 
   # Istio mesh mode
-  $SIDECAR_ENABLED && SIDECAR_FLAG=enabled && echo '#' Istio Sidecar is enabled
-  $AMBIENT_ENABLED && AMBIENT_FLAG=enabled && echo '#' Istio Ambient is enabled
+  $SIDECAR_ENABLED && SIDECAR_FLAG=enabled && echo '#' Istio Sidecar
+  $AMBIENT_ENABLED && AMBIENT_FLAG=enabled && echo '#' Istio Ambient
   
   # Istio multicluster
   if $MULTICLUSTER_ENABLED; then
@@ -278,7 +318,7 @@ function gsi_init {
     if $AMBIENT_ENABLED; then
       EASTWEST_GATEWAY_CLASS_NAME=istio-eastwest
       EASTWEST_REMOTE_GATEWAY_CLASS_NAME=istio-remote
-      echo '#' Ambient Multicluster is enabled 
+      echo '#' Ambient Multicluster is enabled
     fi
   fi
   
@@ -288,7 +328,7 @@ function gsi_init {
     GATEWAY_CLASS_NAME=kgateway
     INGRESS_ENABLED=true
     GATEWAY_API_ENABLED=true
-    echo '#' Kgateway is enabled 
+    echo '#' Kgateway is enabled  on "$GSI_CLUSTER"
   fi
   # Gloo Gateway V2 (aka kgateway Enterprise)
   if $GLOO_GATEWAY_V2_ENABLED; then
@@ -309,8 +349,8 @@ function gsi_init {
   # Keycloak and ExtAuth
   if $KEYCLOAK_ENABLED; then
     echo '#' Keycloak is enabled
-    EXTAUTH_FLAG=enabled && echo '#' ExtAuth is enabled
-    RATELIMITER_FLAG=enabled && echo '#' Rate-limiter is enabled
+    EXTAUTH_ENABLED=true && EXTAUTH_FLAG=enabled && echo '#' ExtAuth is enabled
+    RATELIMITER_ENABLED=true && RATELIMITER_FLAG=enabled && echo '#' Rate-limiter is enabled
   fi
 
   gsi_set_defaults

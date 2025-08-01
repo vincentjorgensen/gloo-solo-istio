@@ -8,6 +8,26 @@ function app_init_helloworld {
       exec_helloworld
       gsi_cluster_swap
     fi
+
+    if $EXTAUTH_ENABLED; then
+      create_keycloak_extauth_auth_config -m "$HELLOWORLD_SERVICE_NAME"       \
+                                          -s "$HELLOWORLD_NAMESPACE"          \
+                                          -h "$HELLOWORLD_NAMESPACE"          \
+                                          -n "$HELLOWORLD_NAMESPACE"          \
+                                          -p "$HELLOWORLD_SERVICE_PORT"
+
+    fi
+
+    if $GATEWAY_API_ENABLED; then
+###      create_httproute -m "$HELLOWORLD_SERVICE_NAME"                          \
+###                       -n "$INGRESS_NAMESPACE"                                \
+###                       -s "$HELLOWORLD_NAMESPACE"                             \
+###                       -p "$HELLOWORLD_SERVICE_PORT"
+      create_httproute -m "$HELLOWORLD_SERVICE_NAME"                          \
+                       -n "$HELLOWORLD_NAMESPACE"                             \
+                       -s "$HELLOWORLD_NAMESPACE"                             \
+                       -p "$HELLOWORLD_SERVICE_PORT"
+    fi
   fi
 }
 
@@ -15,6 +35,9 @@ function exec_helloworld {
   local _manifest="$MANIFESTS/helloworld.${GSI_CLUSTER}.yaml"
   local _region _zones _ztemp _service_version
 
+
+###  $DRY_RUN kubectl label namespace "$HELLOWORLD_NAMESPACE" "name=$HELLOWORLD_NAMESPACE" \
+###  --context "$GSI_CONTEXT" --overwrite
 
   if $AMBIENT_ENABLED; then
     local _k_label="=ambient"
@@ -62,6 +85,7 @@ function exec_helloworld {
   jinja2 -D region="$_region"                                                 \
          -D service_version="${_service_version:-none}"                       \
          -D ambient_enabled="$AMBIENT_FLAG"                                   \
+         -D sidecar_enabled="$SIDECAR_FLAG"                                   \
          -D traffic_distribution="${TRAFFIC_DISTRIBUTION:-Any}"               \
          -D size="${GSI_APP_SIZE:-1}"                                         \
          -D namespace="$HELLOWORLD_NAMESPACE"                                 \
