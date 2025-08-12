@@ -17,6 +17,7 @@ export REVISION GME_SECRET GME_SECRET_TOKEN TLDN MESH_ID
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
 export GSI_MODE GSI_CLUSTER GSI_CONTEXT GSI_NETWORK
 export GSI_REMOTE_CLUSTER GSI_REMOTE_CONTEXT GSI_REMOTE_NETWORK
+export GSI_MGMT_CLUSTER GSI_MGMT_CONTEXT GSI_MGMT_NETWORK
 export EASTWEST_GATEWAY_CLASS_NAME EASTWEST_REMOTE_GATEWAY_CLASS_NAME
 
 # Jinja2 flags
@@ -41,7 +42,6 @@ export AWSPCA_ISSUER_VER=v1.6.0
 export AWS_PROFILE=aws
 
 # Namespaces
-export ARGOCD_NAMESPACE=argocd
 export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system
 export ISTIO_SYSTEM_NAMESPACE=istio-system
 export KUBE_SYSTEM_NAMESPACE=kube-system
@@ -74,11 +74,19 @@ export HTTPBIN_SERVICE_PORT=8002
 export CURL_ENABLED=${CURL_ENABLED:-false}
 export CURL_NAMESPACE=curl
 
-export TOOLS_ENABLED=${TOOLS_ENABLED:-false}
-export TOOLS_NAMESPACE=tools
+# Tools 
+export UTILS_ENABLED=${UTILS_ENABLED:-false}
+export UTILS_NAMESPACE=tools
+
+export NETSHOOT_ENABLED=${NETSHOOT_ENABLED:-false}
+export NETSHOOT_NAMESPACE=tools
 
 # External DNS
 export EXTERNAL_DNS_ENABLED=${EXTERNAL_DNS_ENABLED:-false}
+
+# ArgoCD
+export ARGOCD_ENABLED=${ARGOCD_ENABLED:-false}
+export ARGOCD_NAMESPACE=argocd
 
 # Cert manager
 export CERT_MANAGER_ENABLED="${CERT_MANAGER_ENABLED:-false}"
@@ -90,11 +98,13 @@ export CERT_MANAGER_INGRESS_SECRET="ingress-ca-key-pair"
 export SPIRE_ENABLED="${SPIRE_ENABLED:-false}"
 export SPIRE_NAMESPACE=spire-server
 export SPIRE_CRDS_VER=0.5.0
-export SPIRE_SERVER_VER=0.24.2
+export SPIRE_SERVER_VER=0.26.0
 export SPIRE_SECRET=spiffe-upstream-ca
 
 # Istio Gateway
 export ISTIO_GATEWAY_ENABLED=${ISTIO_GATEWAY_ENABLED:-false}
+export TLS_TERMINATION_ENABLED=${TLS_TERMINATION_ENABLED:-false}
+export TLS_TERMINATION_FLAG
 
 # Gateway API
 export EXPERIMENTAL_GATEWAY_API_CRDS=${EXPERIMENTAL_GATEWAY_API_CRDS:-false}
@@ -139,7 +149,7 @@ export ISTIO_REPO_125=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_125=1.25.3
 export HELM_REPO_126=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_126=1.26.2
+export ISTIO_VER_126=1.26.3
 export ISTIO_SECRET=cacerts
 
 # Dataplane Modes
@@ -236,10 +246,18 @@ function gsi_reset {
   UTAG=""
 }
 
-function gsi_init {
-  # For reproducibilty and sharing, we save the manifests
-  UTAG=${UTAG:-$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)}
+# For reproducibilty and sharing, we save the manifests
+function set_utag {
+  local _utag=${1:-$UTAG}
+  export UTAG=${_utag:-$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)}
   MANIFESTS="$(dirname "$0")"/manifests/$UTAG
+}
+
+function gsi_init {
+##  # For reproducibilty and sharing, we save the manifests
+##  UTAG=${UTAG:-$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)}
+##  MANIFESTS="$(dirname "$0")"/manifests/$UTAG
+  set_utag
   mkdir -p "$MANIFESTS"
   echo "export MANIFESTS=$MANIFESTS"
 
@@ -273,6 +291,9 @@ function gsi_init {
       echo '#' Ambient Multicluster is enabled
     fi
   fi
+
+  # TLS Termination for istio gateway EW
+  $TLS_TERMINATION_ENABLED && TLS_TERMINATION_FLAG=enabled
   
   # Kgateway (OSS)
   if $KGATEWAY_ENABLED; then
@@ -336,18 +357,26 @@ function gsi_cluster_swap {
   export NEW_GSI_REMOTE_CLUSTER=$GSI_CLUSTER
   export NEW_GSI_REMOTE_CONTEXT=$GSI_CONTEXT
   export NEW_GSI_REMOTE_NETWORK=$GSI_NETWORK
+  export NEW_REMOTE_AWS_REGION=$AWS_REGION
+  export NEW_REMOTE_TRUST_DOMAIN=$TRUST_DOMAIN
   
   export NEW_GSI_LOCAL_CLUSTER=$GSI_REMOTE_CLUSTER
   export NEW_GSI_LOCAL_CONTEXT=$GSI_REMOTE_CONTEXT
   export NEW_GSI_LOCAL_NETWORK=$GSI_REMOTE_NETWORK
+  export NEW_LOCAL_AWS_REGION=$REMOTE_AWS_REGION
+  export NEW_LOCAL_TRUST_DOMAIN=${REMOTE_TRUST_DOMAIN:-$TRUST_DOMAIN}
 
   export GSI_CLUSTER=$NEW_GSI_LOCAL_CLUSTER
   export GSI_CONTEXT=$NEW_GSI_LOCAL_CONTEXT
   export GSI_NETWORK=$NEW_GSI_LOCAL_NETWORK
+  export AWS_REGION=$NEW_LOCAL_AWS_REGION
+  export TRUST_DOMAIN=$NEW_LOCAL_TRUST_DOMAIN
 
   export GSI_REMOTE_CLUSTER=$NEW_GSI_REMOTE_CLUSTER
   export GSI_REMOTE_CONTEXT=$NEW_GSI_REMOTE_CONTEXT
   export GSI_REMOTE_NETWORK=$NEW_GSI_REMOTE_NETWORK
+  export REMOTE_AWS_REGION=$NEW_REMOTE_AWS_REGION
+  export REMOTE_TRUST_DOMAIN=$NEW_REMOTE_TRUST_DOMAIN
 }
 
 function _f_debug {
@@ -358,6 +387,13 @@ function _f_debug {
     # shellcheck disable=SC1090
     source "$_cmd"
   fi
+}
+
+function wait_for_pods {
+  local _namespace=$1
+  local _app=$2
+
+
 }
 
 # END

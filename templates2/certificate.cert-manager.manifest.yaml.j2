@@ -22,8 +22,8 @@ spec:
     - cert-manager
   issuerRef:
     group: awspca.cert-manager.io
-    kind: AWSPCAIssuer
-    name: aws-pca-issuer-{{ component }}
+    kind: {{ issuer_kind }}
+    name: {{ issuer_name }}
   privateKey:
     rotationPolicy: Always
 ...

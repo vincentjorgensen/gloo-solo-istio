@@ -6,10 +6,15 @@ function app_init_istio {
       create_aws_pca_issuer_role Istio
       exec_aws_pca_serviceaccount
       exec_aws_pca_privateca_issuer
-      create_aws_pca_issuer istio istio-system
+      create_aws_pca_issuer -c istio -n istio-system -a "$SUBORDNIATE_CAARN"
+      ### create_aws_pca_cluster_issuer -c istio -n default -a "$ROOT_CAARN" # -a "$SUBORDNIATE_CAARN"
       exec_istio_awspca_secrets
     else
-      $MULTICLUSTER_ENABLED && exec_istio_secrets
+      if $MULTICLUSTER_ENABLED; then
+        if ! $SPIRE_ENABLED; then
+          exec_istio_secrets
+        fi
+      fi
     fi
     exec_istio
     exec_telemetry_defaults
@@ -20,10 +25,13 @@ function app_init_istio {
         create_aws_pca_issuer_role Istio
         exec_aws_pca_serviceaccount
         exec_aws_pca_privateca_issuer
-        create_aws_pca_issuer istio istio-system
+        create_aws_pca_cluster_issuer -c istio -n istio-system -a "$SUBORDNIATE_CAARN"
+        ### create_aws_pca_cluster_issuer -c istio -n default -a "$ROOT_CAARN" # -a "$SUBORDNIATE_CAARN"
         exec_istio_awspca_secrets
       else
-        exec_istio_secrets
+        if ! $SPIRE_ENABLED; then
+          exec_istio_secrets
+        fi
       fi
       exec_istio
       exec_telemetry_defaults
@@ -53,6 +61,8 @@ function exec_istio_awspca_secrets {
 
   jinja2 -D component="istio"                                                 \
          -D revision="$REVISION"                                              \
+         -D issuer_name="$AWSPCA_ISSUER"                                      \
+         -D issuer_kind="$AWSPCA_ISSUER_KIND"                                 \
          -D namespace="$ISTIO_SYSTEM_NAMESPACE"                               \
          -D secret_name="$ISTIO_SECRET"                                       \
          -D trust_domain="$TRUST_DOMAIN"                                      \
@@ -106,20 +116,22 @@ function exec_istio_istiod {
   if is_create_mode; then
     jinja2 -D ambient="$AMBIENT_FLAG"                                         \
            -D sidecar="$SIDECAR_FLAG"                                         \
-           -D spire="$SPIRE_FLAG"                                             \
+           -D spire_enabled="$SPIRE_FLAG"                                     \
            -D cluster_name="$GSI_CLUSTER"                                     \
            -D revision="$REVISION"                                            \
            -D network="$GSI_NETWORK"                                          \
            -D istio_repo="$ISTIO_REPO"                                        \
            -D istio_ver="$ISTIO_VER"                                          \
            -D trust_domain="$TRUST_DOMAIN"                                    \
+           -D remote_trust_domain="$REMOTE_TRUST_DOMAIN"                      \
            -D mesh_id="$MESH_ID"                                              \
            -D flavor="$ISTIO_FLAVOR"                                          \
            -D license_key="$GLOO_MESH_LICENSE_KEY"                            \
-           -D multicluster="$MC_FLAG"                                         \
+           -D multicluster_enabled="$MC_FLAG"                                 \
            -D variant="$ISTIO_DISTRO"                                         \
            "$TEMPLATES"/helm.istiod.yaml.j2                                   \
       > "$_manifest"
+#           -D license_key="$GLOO_MESH_LICENSE_KEY"                            \
 
     $DRY_RUN helm upgrade --install istiod "$HELM_REPO"/istiod                \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
@@ -169,8 +181,8 @@ function exec_istio_ztunnel {
            -D istio_repo="$ISTIO_REPO"                                        \
            -D istio_ver="$ISTIO_VER"                                          \
            -D flavor="$ISTIO_FLAVOR"                                          \
-           -D spire="$SPIRE_FLAG"                                             \
-           -D multicluster="$MC_FLAG"                                         \
+           -D spire_enabled="$SPIRE_FLAG"                                     \
+           -D multicluster_enabled="$MC_FLAG"                                 \
            -D variant="$ISTIO_DISTRO"                                         \
            -D gme_enabled="$GME_FLAG"                                         \
            -D gme_namespace="$GME_NAMESPACE"                                  \

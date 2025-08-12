@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 function app_init_helloworld {
   if $HELLOWORLD_ENABLED; then
+    export HW_SVC_VER=$((HW_SVC_VER+1))
     exec_helloworld
 
     if $MULTICLUSTER_ENABLED; then
+      HW_SVC_VER=$((HW_SVC_VER+1))
       gsi_cluster_swap
       exec_helloworld
       gsi_cluster_swap
@@ -27,6 +29,11 @@ function app_init_helloworld {
                        -n "$HELLOWORLD_NAMESPACE"                             \
                        -s "$HELLOWORLD_NAMESPACE"                             \
                        -p "$HELLOWORLD_SERVICE_PORT"
+    fi
+
+    if $GME_ENABLED; then
+      create_gloo_route_table -w "$GME_APPLICATIONS_WORKSPACE" -s "$HELLOWORLD_SERVICE_NAME"
+      create_gloo_virtual_destination -w "$GME_APPLICATIONS_WORKSPACE" -s "$HELLOWORLD_SERVICE_NAME" -p "$HELLOWORLD_SERVICE_PORT"
     fi
   fi
 }
@@ -78,8 +85,9 @@ function exec_helloworld {
 
   cp "$_ztemp" "$_ztemp".yaml
 
-  [[ $_region =~ west ]] && _service_version=v1
-  [[ $_region =~ east ]] && _service_version=v2
+###  [[ $_region =~ west ]] && _service_version=v1
+###  [[ $_region =~ east ]] && _service_version=v2
+  _service_version="v${HW_SVC_VER}"
   [[ -n $GSI_SERVICE_VERSION ]] && _service_version="$GSI_SERVICE_VERSION"
 
   jinja2 -D region="$_region"                                                 \

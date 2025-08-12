@@ -1,7 +1,7 @@
 name: istio-eastwestgateway
-{% if revision %}
+{%- if revision %}
 revision: {{ revision }}
-{% endif %}
+{%- endif %}
 global:
   hub: {{ istio_repo }}
   tag: {{ istio_ver }}{{ flavor }}
@@ -10,11 +10,11 @@ labels:
   app: istio-eastwestgateway
   topology.istio.io/network: {{ network }}
 service:
-{% if azure %}
+{%- if azure %}
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-internal: "true"
-{% endif %}
-{% if aws %}
+{%- endif %}
+{%- if aws %}
   annotations:
     external-dns.alpha.kubernetes.io/hostname: "eastwest.{{ network }}.soloio.vincentjorgensen.com"
     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
@@ -26,9 +26,28 @@ service:
     service.beta.kubernetes.io/aws-load-balancer-scheme: internal
 ##    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-038141dc2328de084
 ######    service.beta.kubernetes.io/aws-load-balancer-type: external
-{% endif %}
+{%- endif %}
   type: LoadBalancer
+{%- if tls_termination_enabled %}
+  ports:
+  - name: status-port
+    port: 15021
+    targetPort: 15021
+  - name: tls
+    port: 15443
+    targetPort: 15443
+  - name: https
+    port: 16443
+    targetPort: 16443
+  - name: tls-istiod
+    port: 15012
+    targetPort: 15012
+  - name: tls-webhook
+    port: 15017
+    targetPort: 15017
+{%- else %}
 networkGateway: {{ network }}
+{%- endif %}
 replicaCount: {{ size }}
 autoscaling:
     minReplicas: {{ size }}

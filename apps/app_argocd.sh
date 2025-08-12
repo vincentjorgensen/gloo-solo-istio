@@ -1,34 +1,29 @@
 #!/usr/bin/env bash
+function app_init_argocd {
+  if $ARGOCD_ENABLED; then
+    exec_argocd_server
+  fi
+}
+
 function exec_argocd_server {
-  local _context _cluster
-  _cluster=$1
-  _context=$2
+  local _manifest="$MANIFESTS/helm.argocd.${GSI_ARGOCD_CLUSTER}.yaml"
 
-  while getopts "c:x:" opt; do
-    # shellcheck disable=SC2220
-    case $opt in
-      c)
-        _cluster=$OPTARG ;;
-      x)
-        _context=$OPTARG ;;
-    esac
-  done
+    jinja2 -D cluster="$GSI_ARGOCD_CLUSTER"                                   \
+           -D tldn="$TLDN"                                                    \
+           "$TEMPLATES"/helm.argocd.yaml.j2                                   \
+    > "$_manifest"
 
-  [[ -z $_context ]] && _context="$_cluster"
 
   if is_create_mode; then
     $DRY_RUN helm upgrade --install argocd argo/argo-cd                       \
-    --kube-context "$_context"                                                \
+    --kube-context "$GSI_ARGOCD_CONTEXT"                                      \
     --namespace "$ARGOCD_NAMESPACE"                                           \
     --create-namespace                                                        \
-    --values <(jinja2                                                         \
-               -D cluster="$_cluster"                                         \
-               -D tldn="$TLDN"                                                \
-               "$TEMPLATES"/helm.argocd.yaml.j2 )                             \
+    --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall argocd                                            \
-    --kube-context "$_context"                                                \
+    --kube-context "$GSI_ARGOCD_CONTEXT"                                      \
     --namespace "$ARGOCD_NAMESPACE"
   fi
 }

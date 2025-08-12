@@ -10,6 +10,21 @@ function app_init_gateway_api {
       exec_gloo_gateway_v2
     fi
     ### ### ### exec_ingress_gateway_api
+  
+    if $MULTICLUSTER_ENABLED; then
+      gsi_cluster_swap
+
+      exec_gateway_api_crds 
+      if $KGATEWAY_ENABLED; then
+        exec_kgateway_crds
+        exec_kgateway
+      elif $GLOO_GATEWAY_V2_ENABLED; then
+        exec_gloo_gateway_v2_crds
+        exec_gloo_gateway_v2
+      fi
+
+      gsi_cluster_swap
+    fi
   fi
 }
 
@@ -31,6 +46,7 @@ function app_init_eastwest_gateway_api {
   if $GATEWAY_API_ENABLED; then 
     # EastWest linking via Gateway API
     if $MULTICLUSTER_ENABLED; then
+      exec_gateway_api_crds
       exec_eastwest_gateway_api
       gsi_cluster_swap
       exec_gateway_api_crds
@@ -52,6 +68,14 @@ function exec_gateway_api_crds {
     --context "$GSI_CONTEXT"                                                  \
     -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$_ver"/"${_standard}"-install.yaml
     [[ -z $DRY_RUN ]] && eval GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
+  fi
+
+  if ! is_create_mode; then
+    $DRY_RUN kubectl "$GSI_MODE"                                              \
+    --context "$GSI_CONTEXT"                                                  \
+    -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$_ver"/"${_standard}"-install.yaml
+    [[ -z $DRY_RUN ]] && eval unset GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
+    
   fi
 }
 
@@ -140,14 +164,16 @@ function exec_eastwest_link_gateway_api {
     --context "$GSI_CONTEXT"                                                  \
     -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
 
+  if is_create_mode; then
   while [[ -z $_remote_address ]]; do
-    _remote_address=$(
-      $DRY_RUN kubectl get svc "$EASTWEST_GATEWAY_NAME"                       \
-      --namespace "$EASTWEST_NAMESPACE"                                       \
-      --context "$GSI_CONTEXT"                                                \
-      -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
-    echo -n '.' && sleep 5
-  done && echo
+      _remote_address=$(
+        $DRY_RUN kubectl get svc "$EASTWEST_GATEWAY_NAME"                       \
+        --namespace "$EASTWEST_NAMESPACE"                                       \
+        --context "$GSI_CONTEXT"                                                \
+        -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
+      echo -n '.' && sleep 5
+    done && echo
+  fi
 
   if echo "$_remote_address" | grep -qE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+'; then
     _address_type=IPAddress
@@ -163,6 +189,7 @@ function exec_eastwest_link_gateway_api {
          -D gateway_class_name="$EASTWEST_REMOTE_GATEWAY_CLASS_NAME"          \
          -D address_type="$_address_type"                                     \
          -D remote_address="$_remote_address"                                 \
+         -D revision="$REVISION"                                              \
          "$TEMPLATES"/gateway_api.eastwest_remote_gateway.manifest.yaml.j2    \
     > "$_manifest"
 

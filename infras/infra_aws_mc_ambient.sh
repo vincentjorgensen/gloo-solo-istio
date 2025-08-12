@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-export GSI_CLUSTER=c1-us-west-2
-export GSI_CONTEXT=c1-us-west-2
-export GSI_NETWORK=c1-us-west-2
-export AWS_REGION=us-west-2
+export GSI_CLUSTER=vj1-us-east-2
+export GSI_CONTEXT=vj1-us-east-2
+export GSI_NETWORK=vj1-us-east-2
+export AWS_REGION=us-east-2
 
-export GSI_REMOTE_CLUSTER=c2-us-west-2
-export GSI_REMOTE_CONTEXT=c2-us-west-2
-export GSI_REMOTE_NETWORK=c2-us-west-2
-export REMOTE_AWS_REGION=us-west-2
+export GSI_REMOTE_CLUSTER=vj2-us-east-2
+export GSI_REMOTE_CONTEXT=vj2-us-east-2
+export GSI_REMOTE_NETWORK=vj2-us-east-2
+export REMOTE_AWS_REGION=us-east-2
 
 export DOCKER_DESKTOP_ENABLED=false
 export AWS_ENABLED=true

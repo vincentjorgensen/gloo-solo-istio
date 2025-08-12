@@ -1,6 +1,11 @@
 global:
   domain: {{ cluster }}.{{ tldn }}
+configs:
+  params:
+    server.insecure: true
 server:
   name: {{ cluster }}
   service:
-    type: LoadBalancer
+    labels:
+      app: argocd-{{ cluster }}
+###    type: LoadBalancer

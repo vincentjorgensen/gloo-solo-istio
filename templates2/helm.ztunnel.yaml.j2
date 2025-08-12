@@ -1,14 +1,14 @@
-{% if revision %}
+{%- if revision %}
 revision: {{ revision }}
-{% endif %}
+{%- endif %}
 hub: {{ istio_repo }}
 tag: {{ istio_ver }}{{ flavor }}
 variant: {{ variant }}
-{% if multicluster %}
+{%- if multicluster_enabled %}
 multiCluster:
   clusterName: {{ cluster }}
 network: {{ network }}
-{% endif %}
+{%- endif %}
 env:
   ISTIO_META_ENABLE_HBONE: true
   ISTIO_META_DNS_CAPTURE: true
@@ -20,12 +20,12 @@ resources:
   requests:
     cpu: 1m
     memory: 2Mi
-{% if spire %}
+{%- if spire_enabled %}
 spire:
   enabled: true
-{% endif %}
-{% if gme_enabled %}
+{%- endif %}
+{%- if gme_enabled %}
 l7Telemetry:
   distributedTracing:
     otlpEndpoint: "http://gloo-telemetry-collector.{{ gme_namespace }}.svc.cluster.local:4317"
-{% endif %}
+{%- endif %}

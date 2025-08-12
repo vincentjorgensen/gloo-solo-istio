@@ -9,7 +9,7 @@ function app_init_namespaces {
   fi
 
   if $GME_ENABLED; then
-    create_namespace "$GME_CONTEXT" "$GME_NAMESPACE"
+    create_namespace "$GSI_MGMT_CONTEXT" "$GSI_NAMESPACE"
   fi
 }
 

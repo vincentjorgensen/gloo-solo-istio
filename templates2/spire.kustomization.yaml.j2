@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- base.yaml
+patches:
+- path: configmap.spire-server.yaml
+  target:
+    kind: ConfigMap
+    name: spire-server
+    version: v1
+    namespace: {{ spire_namespace }}

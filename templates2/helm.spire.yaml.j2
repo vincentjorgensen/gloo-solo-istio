@@ -1,22 +1,42 @@
 global:
   spire:
+    clusterName: {{ cluster_name }}
     trustDomain: {{ trust_domain }}
+    caSubject:
+      country: US
+      organization: "Customer Success"
+      commonName: {{ tldn }}
 spire-agent:
     authorizedDelegates:
-        - "spiffe://{{ trust_domain }}/ns/istio-system/sa/ztunnel"
+    - "spiffe://{{ trust_domain }}/ns/istio-system/sa/ztunnel"
     sockets:
         admin:
             enabled: true
             mountOnHost: true
         hostBasePath: /run/spire/agent/sockets
     tolerations:
-      - effect: NoSchedule
-        operator: Exists
-      - key: CriticalAddonsOnly
-        operator: Exists
-      - effect: NoExecute
-        operator: Exists
+    - effect: NoSchedule
+      operator: Exists
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - effect: NoExecute
+      operator: Exists
 spire-server:
+{%- if multicluster_enabled %}
+  service:
+    type: LoadBalancer
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: "ss{{ cluster_name }}.{{ tldn }}"
+###  nodeAttestor:
+###    httpChallenge:
+###      enabled: true
+  federation:
+    enabled: true
+    bundleEndpoint:
+      port: 8443
+      address: '0.0.0.0'
+      refreshHint: 5m
+{%- endif %}
   upstreamAuthority:
     disk:
       enabled: true
@@ -26,10 +46,10 @@ spire-server:
 ###  persistence:
 ###    type: emptyDir
 spiffe-csi-driver:
-    tolerations:
-      - effect: NoSchedule
-        operator: Exists
-      - key: CriticalAddonsOnly
-        operator: Exists
-      - effect: NoExecute
-        operator: Exists
+  tolerations:
+  - effect: NoSchedule
+    operator: Exists
+  - key: CriticalAddonsOnly
+    operator: Exists
+  - effect: NoExecute
+    operator: Exists
