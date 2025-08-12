@@ -12,6 +12,8 @@ GSI_DECK=(
 
   app_init_aws
 
+  app_init_external_dns
+
   app_init_spire
   app_init_cert_manager
   app_init_keycloak
@@ -20,17 +22,18 @@ GSI_DECK=(
 
   app_init_istio_gateway
   app_init_gateway_api
+  app_init_gme_workspaces
 
   app_init_helloworld
   app_init_curl
-  app_init_tools
+  app_init_utils
+  app_init_netshoot
   app_init_httpbin
 
   ###app_init_ingress_istio
   app_init_eastwest_gateway_api
   app_init_ingress_gateway_api
 
-  app_init_external_dns
 )
 
 function play_gsi {
@@ -46,6 +49,10 @@ function play_gsi {
 }
 
 function rew_gsi {
+  infra=$1
+
+  # shellcheck source=/dev/null
+  source "$(dirname "$0")/infras/infra_${infra}.sh"
   export GSI_MODE=delete
   # shellcheck disable=SC2296
   for exe in "${(Oa)GSI_DECK[@]}"; do
@@ -55,6 +62,10 @@ function rew_gsi {
 }
 
 function dry_run_gsi {
+  infra=$1
+
+  # shellcheck source=/dev/null
+  source "$(dirname "$0")/infras/infra_${infra}.sh"
   export DRY_RUN="echo"
   for exe in "${GSI_DECK[@]}"; do
     echo '#'"$exe"

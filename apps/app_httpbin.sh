@@ -16,6 +16,11 @@ function app_init_httpbin {
                        -s "$HTTPBIN_NAMESPACE"                                \
                        -p "$HTTPBIN_SERVICE_PORT"
     fi
+
+    if $GME_ENABLED; then
+      create_gloo_route_table -w "$GME_APPLICATIONS_WORKSPACE" -s "$HTTPBIN_SERVICE_NAME"
+      create_gloo_virtual_destination -w "$GME_APPLICATIONS_WORKSPACE" -s "$HTTPBIN_SERVICE_NAME" -p "$HTTPBIN_SERVICE_PORT"
+    fi
  fi
 }
 

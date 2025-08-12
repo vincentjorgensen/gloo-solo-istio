@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 
-function app_init_tools {
-  if $TOOLS_ENABLED; then
-    exec_tools
+function app_init_utils {
+  if $UTILS_ENABLED; then
+    exec_utils
   fi
 }
 
-function exec_tools {
+function app_init_netshoot {
+  if $NETSHOOT_ENABLED; then
+    exec_netshoot
+  fi
+}
+
+function exec_utils {
   local _manifest="$MANIFESTS/tools.${GSI_CLUSTER}.yaml"
 
   if $AMBIENT_ENABLED; then
@@ -35,20 +41,27 @@ function exec_tools {
     --context "$GSI_CONTEXT" --overwrite
   fi
 
-  jinja2 -D namespace="$TOOLS_NAMESPACE"                                      \
-         "$TEMPLATES"/tools.manifest.yaml.j2                                  \
+  jinja2 -D tools_namespace="$TOOLS_NAMESPACE"                                \
+         "$TEMPLATES"/utils.manifest.yaml.j2                                  \
   > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 
-  if is_create_mode; then
-    $DRY_RUN kubectl wait                                                     \
-    --context "$GSI_CONTEXT"                                                  \
-    --namespace "$TOOLS_NAMESPACE"                                            \
-    --for=condition=Ready pods -l app=tools
-  fi
+  wait_for_pods "$TOOLS_NAMESPACE" utils
+}
 
-  alias ktools="kubectl --context \$GSI_CONTEXT --namespace \$TOOLS_NAMESPACE exec -it deployment/tools -- bash"
+function exec_netshoot {
+  local _manifest="$MANIFESTS/netshoot.${GSI_CLUSTER}.yaml"
+
+  jinja2 -D tools_namespace="$TOOLS_NAMESPACE"                                \
+         "$TEMPLATES"/netshoot.manifest.yaml.j2                               \
+  > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest"
+
+  wait_for_pods "$TOOLS_NAMESPACE" netshoot
 }

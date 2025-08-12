@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  bundle.spiffe: '{{ spire_bundle }}'
+kind: ConfigMap
+metadata:
+  name: spire-bundle
+  namespace: spire-server

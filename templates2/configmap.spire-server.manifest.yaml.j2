@@ -1,0 +1,143 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-server
+  namespace: {{ spire_namespace }}
+data:
+  server.conf: |
+    {
+      "health_checks": {
+        "bind_address": "0.0.0.0",
+        "bind_port": "8080",
+        "listener_enabled": true,
+        "live_path": "/live",
+        "ready_path": "/ready"
+      },
+      "plugins": {
+        "BundlePublisher": [
+          {
+            "k8s_configmap": {
+              "plugin_data": {
+                "clusters": [
+                  {
+                    "chart-internal": {
+                      "configmap_key": "bundle.spiffe",
+                      "configmap_name": "spire-bundle",
+                      "format": "spiffe",
+                      "namespace": "{{ spire_namespace }}"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "DataStore": [
+          {
+            "sql": {
+              "plugin_data": {
+                "connection_string": "/run/spire/data/datastore.sqlite3",
+                "database_type": "sqlite3",
+                "disable_migration": false,
+                "max_idle_conns": 2,
+                "max_open_conns": 100
+              }
+            }
+          }
+        ],
+        "KeyManager": [
+          {
+            "disk": {
+              "plugin_data": {
+                "keys_path": "/run/spire/data/keys.json"
+              }
+            }
+          }
+        ],
+        "NodeAttestor": [
+          {
+            "k8s_psat": {
+              "plugin_data": {
+                "clusters": [
+                  {
+                    "{{ cluster_name }}": {
+                      "allowed_node_label_keys": [],
+                      "allowed_pod_label_keys": [],
+                      "audience": [
+                        "spire-server"
+                      ],
+                      "service_account_allow_list": [
+                        "spire-server:spire-agent"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "UpstreamAuthority": [
+          {
+            "disk": {
+              "plugin_data": {
+                "cert_file_path": "/run/spire/upstream_ca/tls.crt",
+                "key_file_path": "/run/spire/upstream_ca/tls.key"
+              }
+            }
+          }
+        ]
+      },
+      "server": {
+        "audit_log_enabled": false,
+        "bind_address": "0.0.0.0",
+        "bind_port": "8081",
+        "ca_key_type": "rsa-2048",
+        "ca_subject": [
+          {
+            "common_name": "{{ tldn }}",
+            "country": [
+              "{{ ca_country }}"
+            ],
+            "organization": [
+              "{{ ca_ou }}"
+            ]
+          }
+        ],
+        "ca_ttl": "24h",
+        "data_dir": "/run/spire/data",
+        "default_jwt_svid_ttl": "1h",
+        "default_x509_svid_ttl": "4h",
+        "federation": {
+          "bundle_endpoint": {
+            "address": "0.0.0.0",
+            "port": 8443,
+            "profile": [
+              {
+                "https_spiffe": {}
+              }
+            ],
+            "refresh_hint": "5m"
+          },
+          "federates_with": [
+            {
+              "{{ remote_trust_domain }}": {
+                "bundle_endpoint_url": "https://ss{{ remote_cluster_name }}.{{ tldn }}:8443",
+                "bundle_endpoint_profile": [
+                  {
+                    "https_spiffe": {
+                      "endpoint_spiffe_id": "spiffe://{{ remote_trust_domain }}/spire/server"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "jwt_issuer": "https://oidc-discovery.{{ trust_domain }}",
+        "log_level": "info",
+        "trust_domain": "{{ trust_domain }}"
+      }
+    }
+
+...

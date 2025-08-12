@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: utils
+  namespace: {{ tools_namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: utils
+  namespace: {{ tools_namespace }}
+  labels:
+    app: utils
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: utils
+  template:
+    metadata:
+      labels:
+        app: utils
+    spec:
+      serviceAccountName: utils
+      containers:
+      - name: utils
+        command:
+        - "tail"
+        - "-f"
+        - "/dev/null"
+        image: arunvelsriram/utils:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 3m
+            memory: 40Mi
+          requests:
+            cpu: 1m
+            memory: 20Mi
+...

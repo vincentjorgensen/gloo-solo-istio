@@ -7,11 +7,11 @@ metadata:
     gateway.istio.io/trust-domain: {{ trust_domain }}
   labels:
     topology.istio.io/network: {{ network }}
-{% if gateway_class_name == "istio-remote" %}
-{% if revision %}
+{%- if gateway_class_name == "istio-remote" %}
+{%-   if revision %}
     istio.io/rev: {{ revision }}
-{% endif %}
-{% endif %}
+{%-   endif %}
+{%- endif %}
   name: istio-remote-peer-{{ cluster }}
   namespace: {{ namespace }}
 spec:

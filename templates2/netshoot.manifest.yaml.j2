@@ -2,40 +2,40 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: tools
-  namespace: {{ namespace }}
+  name: netshoot
+  namespace: {{ tools_namespace }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: tools
-  namespace: {{ namespace }}
+  name: netshoot
+  namespace: {{ tools_namespace }}
   labels:
-    app: tools
+    app: netshoot
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: tools
+      app: netshoot
   template:
     metadata:
       labels:
-        app: tools
+        app: netshoot
     spec:
-      serviceAccountName: tools
+      serviceAccountName: netshoot
       containers:
-      - name: tools
+      - name: netshoot
         command:
         - "tail"
         - "-f"
         - "/dev/null"
-        image: arunvelsriram/utils:latest
+        image: nicolaka/netshoot:latest # https://github.com/nicolaka/netshoot
         imagePullPolicy: IfNotPresent
         resources:
           limits:
-            cpu: 3m
+            cpu: 15m
             memory: 40Mi
           requests:
-            cpu: 1m
+            cpu: 5m
             memory: 20Mi
 ...

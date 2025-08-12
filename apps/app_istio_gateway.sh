@@ -9,8 +9,12 @@ function app_init_istio_gateway {
       gsi_cluster_swap
       exec_eastwest_istio_gateway
       ! $GME_ENABLED && exec_eastwest_istio_oss_remote_secrets
-      exec_gsi_cluster_swap
+      gsi_cluster_swap
       ! $GME_ENABLED && exec_eastwest_istio_oss_remote_secrets
+    fi
+
+    if $GME_ENABLED; then
+      exec_gloo_virtual_gateway
     fi
   fi
 }
@@ -55,6 +59,7 @@ function exec_eastwest_istio_gateway {
            -D flavor="$ISTIO_FLAVOR"                                          \
            -D azure="$AZURE_FLAG"                                             \
            -D aws="$AWS_FLAG"                                                 \
+           -D tls_termination_enabled="$TLS_TERMINATION_FLAG"                 \
            "$TEMPLATES"/helm.istio-eastwestgateway.yaml.j2                    \
       > "$_manifest"
 

@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 function app_init_external_dns {
   if $EXTERNAL_DNS_ENABLED; then
+    exec_gateway_api_crds
     exec_external_dns_for_pihole
+
+    if $MULTICLUSTER_ENABLED; then
+      gsi_cluster_swap
+      exec_gateway_api_crds
+      exec_external_dns_for_pihole
+      gsi_cluster_swap
+    fi
   fi
 }
 
