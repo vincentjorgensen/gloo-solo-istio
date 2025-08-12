@@ -1,0 +1,34 @@
+global:
+  spire:
+    clusterName: {{ cluster_name }}
+    trustDomain: {{ trust_domain }}
+spire-agent:
+  logLevel: debug
+  authorizedDelegates:
+  - "spiffe://{{ trust_domain }}/ns/istio-system/sa/ztunnel"
+  sockets:
+      admin:
+          enabled: true
+          mountOnHost: true
+      hostBasePath: /run/spire/agent/sockets
+  server:
+    address: {{ spire_server_address }}
+    port: {{ spire_server_port }}
+  tolerations:
+  - effect: NoSchedule
+    operator: Exists
+  - key: CriticalAddonsOnly
+    operator: Exists
+  - effect: NoExecute
+    operator: Exists
+  nodeAttestor:
+    httpChallenge:
+      enabled: true
+    k8sPSAT:
+      enabled: false
+spire-server:
+  enabled: false
+spiffe-csi-driver:
+  enabled: false
+spiffe-oidc-discovery-provider:
+  enabled: false
