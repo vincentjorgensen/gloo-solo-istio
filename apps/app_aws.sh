@@ -5,6 +5,10 @@ function app_init_aws {
     if $CERT_MANAGER_ENABLED; then
       exec_initialize_root_pca
     fi
+
+    if $COGNITO_ENABLED; then
+      exec_cognito_route_option
+    fi
   fi
 }
 
@@ -448,3 +452,19 @@ function create_aws_pca_cluster_issuer {
   -f "$_manifest"
 }
 # END
+
+function exec_cognito_route_option {
+  local _manifest="$MANIFESTS"/route_option.cognitio."$GSI_CLUSTER".yaml
+
+  # shellcheck disable=SC2299
+  jinja2 -D cognito_jwt_route_option_name="$COGNITO_JWT_ROUTE_OPTION"         \
+         -D namespace="$GLOO_SYSTEM_NAMESPACE"                                \
+         -D cognito_issuer_url="$COGNITO_ISSUER_URL"                          \
+         -D cognito_issuer_fqdn="${${cognito_issuer_url##*//}%%/*}"           \
+         "$TEMPLATES"/route_options.cognito.manifest.yaml.j2                  \
+  > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_manifest"
+}

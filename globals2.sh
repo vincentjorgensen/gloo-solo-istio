@@ -41,6 +41,8 @@ export ROOT_CAARN ROOT_CERTARN SUBORDINATE_CAARN SUBORDINATE_CERTARN
 export AWS_PCA_POLICY_ARN AWS_PCA_ROLE_ARN
 export AWSPCA_ISSUER_VER=v1.6.0
 export AWS_PROFILE=aws
+export COGNITO_JWT_ROUTE_OPTION=jwt-cognito
+export COGNITO_ISSUER_URL="https://cognito-idp.us-west-2.amazonaws.com/us-west-2_ZrUc2TqWw"
 
 # Namespaces
 export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system

@@ -1,0 +1,35 @@
+---
+apiVersion: gloo.solo.io/v1
+kind: Upstream
+metadata:
+  name: cognito-upstream
+  namespace: {{ gloo_system_namespace }}
+spec:
+  static:
+    hosts:
+    - addr: {{ cognito_issuer_fqdn }}
+      port: 443
+---
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: {{ cognito_jwt_route_option_name }}
+  namespace: {{ gloo_system_namespace }}
+spec:
+  options:
+    jwtProvidersStaged:
+      afterExtAuth:
+        providers:
+          cognito:
+            issuer: {{ cognito_issuer_url }}
+            jwks:
+              remote:
+                url: {{ cognito_issuer_url }}/.well-known/jwks.json
+                upstreamRef:
+                  name: cognito-upstream
+                  namespace: {{ gloo_system_namespace }}
+            tokenSource:
+              headers:
+              - header: authorization
+            keepToken: {{ cognito_keep_token_bool }}
+...
