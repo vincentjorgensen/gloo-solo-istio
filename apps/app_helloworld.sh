@@ -72,46 +72,18 @@ function exec_helloworld {
     --context "$GSI_CONTEXT" --overwrite
   fi
 
-  # Traffic Distribution: PreferNetwork, PreferClose, PreferRegion, Any
-  _ztemp=$(mktemp)
-  _region=$(get_k8s_region "$GSI_CONTEXT")
-  _zones=$(get_k8s_zones "$GSI_CONTEXT")
-
-  echo "zones:" > "$_ztemp"
-
-  while read -r zone; do
-    echo "- $zone" >> "$_ztemp"
-  done <<< "$_zones"
-
-  cp "$_ztemp" "$_ztemp".yaml
-
-###  [[ $_region =~ west ]] && _service_version=v1
-###  [[ $_region =~ east ]] && _service_version=v2
   _service_version="v${HW_SVC_VER}"
   [[ -n $GSI_SERVICE_VERSION ]] && _service_version="$GSI_SERVICE_VERSION"
 
-  jinja2 -D region="$_region"                                                 \
-         -D service_version="${_service_version:-none}"                       \
-         -D ambient_enabled="$AMBIENT_FLAG"                                   \
-         -D sidecar_enabled="$SIDECAR_FLAG"                                   \
-         -D traffic_distribution="${TRAFFIC_DISTRIBUTION:-Any}"               \
-         -D size="${GSI_APP_SIZE:-1}"                                         \
-         -D namespace="$HELLOWORLD_NAMESPACE"                                 \
-         -D service_port="$HELLOWORLD_SERVICE_PORT"                           \
-         -D service_name="$HELLOWORLD_SERVICE_NAME"                           \
+  jinja2                                                                      \
+         -D helloworld_service_version="${_service_version:-none}"            \
          "$TEMPLATES"/helloworld.manifest.yaml.j2                             \
-         "$_ztemp".yaml                                                       \
+         "$J2_GLOBALS"                                                        \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 
-  if is_create_mode; then
-    $DRY_RUN kubectl wait                                                     \
-    --context "$GSI_CONTEXT"                                                  \
-    --namespace "$HELLOWORLD_NAMESPACE"                                       \
-    --for=condition=Ready pods -l app=helloworld
-  fi
+  _wait_for_pods "$HELLOWORLD_NAMESPACE" helloworld
 }
-

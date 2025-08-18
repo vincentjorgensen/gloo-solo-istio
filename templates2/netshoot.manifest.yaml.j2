@@ -3,13 +3,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: netshoot
-  namespace: {{ tools_namespace }}
+  namespace: {{ netshoot_namespace }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: netshoot
-  namespace: {{ tools_namespace }}
+  namespace: {{ netshoot_namespace }}
   labels:
     app: netshoot
 spec:

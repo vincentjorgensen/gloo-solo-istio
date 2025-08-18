@@ -3,13 +3,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: curl
-  namespace: {{ namespace }}
+  namespace: {{ curl_namespace }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: curl
-  namespace: {{ namespace }}
+  namespace: {{ curl_namespace }}
   labels:
     app: curl
 spec:

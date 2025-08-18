@@ -461,6 +461,7 @@ function exec_cognito_route_option {
          -D namespace="$GLOO_SYSTEM_NAMESPACE"                                \
          -D cognito_issuer_url="$COGNITO_ISSUER_URL"                          \
          -D cognito_issuer_fqdn="${${cognito_issuer_url##*//}%%/*}"           \
+         -D cognito_keep_token_bool="$COGNITO_KEEP_TOKEN"                     \
          "$TEMPLATES"/route_options.cognito.manifest.yaml.j2                  \
   > "$_manifest"
 

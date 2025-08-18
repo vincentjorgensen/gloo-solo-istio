@@ -1,40 +1,24 @@
-###---
-###apiVersion: v1
-###kind: Namespace
-###metadata:
-###  name: {{ namespace }}
-###  labels:
-###    name: {{ namespace }}
-###{% if ambient_enabled %}
-###    istio.io/dataplane-mode: ambient
-###{% endif %}
-###{% if sidecar_enabled %}
-###{% if revision %}
-###    istio.io/rev: {{ revision }}
-###{% else %}
-###    istio-injection: enabled
-###{% endif %}
-###{% endif %}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-{% if ambient_enabled %}
+{%- if ambient_enabled %}
   annotations:
-    networking.istio.io/traffic-distribution: {{ traffic_distribution }}
-{% endif %}
-  name: {{ service_name }}
-  namespace: {{ namespace }}
+    networking.istio.io/traffic-distribution: {{ istio_traffic_distribution }}
+{%- endif %}
+  name: {{ helloworld_service_name }}
+  namespace: {{ helloworld_namespace }}
   labels:
     app: helloworld
-    service: {{ service_name }}
-{% if ambient_enabled %}
+    service: {{ helloworld_service_name }}
+{%- if ambient_enabled %}
     solo.io/service-scope: global
-{% endif %}
+{%- endif %}
 spec:
   ports:
-  - port: {{ service_port }}
-    name: http
+  - name: http
+    port: {{ helloworld_service_port }}
+    targetPort: http
   selector:
     app: helloworld
 ---
@@ -42,19 +26,19 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: helloworld
-  namespace: {{ namespace }}
-{% for zone in zones -%}
+  namespace: {{ helloworld_namespace }}
+{%- for zone in zones -%}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: helloworld-{{ zone }}
-  namespace: {{ namespace }}
+  namespace: {{ helloworld_namespace }}
   labels:
     app: helloworld
-    version: {{ service_version }}
+    version: {{ helloworld_service_version }}
 spec:
-  replicas: {{ size }}
+  replicas: {{ helloworld_size }}
   selector:
     matchLabels:
       app: helloworld
@@ -80,17 +64,18 @@ spec:
       - name: helloworld
         env:
         - name: SERVICE_VERSION
-          value: {{ service_version }}
+          value: {{ helloworld_service_version }}
         - name: ZONE
           value: {{ zone }}
         - name: REGION
           value: {{ region }}
         - name: SERVER_PORT
-          value: '8001'
+          value: '{{ helloworld_container_port }}'
         image: vincentjorgensen/node-helloworld:0.0.3
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 8001
+        - containerPort: {{ helloworld_container_port }}
+          name: http
         resources:
           limits:
             cpu: 3m

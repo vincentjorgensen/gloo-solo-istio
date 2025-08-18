@@ -35,7 +35,7 @@ function exec_curl {
     --context "$GSI_CONTEXT" --overwrite
   fi
 
-  jinja2 -D namespace="$CURL_NAMESPACE"                                       \
+  jinja2 -D curl_namespace="$CURL_NAMESPACE"                                  \
          "$TEMPLATES"/curl.manifest.yaml.j2                                   \
     > "$_manifest"
 

@@ -12,6 +12,7 @@ TEMPLATES="$(dirname "$0")"/templates2
 CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
 CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
+export J2_GLOBALS
 
 export REVISION GME_SECRET GME_SECRET_TOKEN TLDN MESH_ID
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
@@ -43,6 +44,7 @@ export AWSPCA_ISSUER_VER=v1.6.0
 export AWS_PROFILE=aws
 export COGNITO_JWT_ROUTE_OPTION=jwt-cognito
 export COGNITO_ISSUER_URL="https://cognito-idp.us-west-2.amazonaws.com/us-west-2_ZrUc2TqWw"
+export COGNITO_KEEP_TOKEN="true"
 
 # Namespaces
 export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system
@@ -68,6 +70,7 @@ export HELLOWORLD_ENABLED=${HELLOWORLD_ENABLED:-false}
 export HELLOWORLD_NAMESPACE=helloworld
 export HELLOWORLD_SERVICE_NAME=helloworld
 export HELLOWORLD_SERVICE_PORT=8001
+export HELLOWORLD_CONTAINER_PORT=8001
 
 export HTTPBIN_ENABLED=${HTTPBIN_ENABLED:-false}
 export HTTPBIN_NAMESPACE=httpbin
@@ -346,9 +349,10 @@ function gsi_init {
   fi
 
   gsi_set_defaults
+  _jinja2_values
 }
 
-function get_k8s_region {
+function _get_k8s_region {
   local _context
   _context=$1
 
@@ -359,7 +363,7 @@ function get_k8s_region {
   echo "$_region"
 }
 
-function get_k8s_zones {
+function _get_k8s_zones {
   local _context
   _context=$1
 
@@ -408,11 +412,49 @@ function _f_debug {
   fi
 }
 
-function wait_for_pods {
+function _wait_for_pods {
   local _namespace=$1
   local _app=$2
 
+  if is_create_mode; then
+    $DRY_RUN kubectl wait                                                     \
+    --context "$GSI_CONTEXT"                                                  \
+    --namespace "$_namespace"                                                 \
+    --for=condition=Ready pods -l app="$_app"     
+  fi
+}
 
+function _jinja2_values {
+  J2_GLOBALS="$MANIFESTS"/jinja2_globals.yaml
+
+  _region=$(_get_k8s_region "$GSI_CONTEXT")
+  _zones=$(_get_k8s_zones "$GSI_CONTEXT")
+
+  echo "zones:" > "$J2_GLOBALS"
+
+  while read -r zone; do
+    echo "- $zone" >> "$J2_GLOBALS"
+  done <<< "$_zones"
+
+  jinja2                                                                      \
+         -D ambient_enabled="$AMBIENT_FLAG"                                   \
+         -D cognito_keep_token_bool="$COGNITO_KEEP_TOKEN"                     \
+         -D curl_namespace="$CURL_NAMESPACE"                                  \
+         -D curl_namespace="$CURL_NAMESPACE"                                  \
+         -D gloo_gateway_namespace="$GLOO_GATEWAY_NAMESPACE"                  \
+         -D helloworld_container_port="$HELLOWORLD_CONTAINER_PORT"            \
+         -D helloworld_namespace="$HELLOWORLD_NAMESPACE"                      \
+         -D helloworld_service_name="$HELLOWORLD_SERVICE_NAME"                \
+         -D helloworld_service_port="$HELLOWORLD_SERVICE_PORT"                \
+         -D helloworld_service_version="${_service_version:-none}"            \
+         -D helloworld_size="${GSI_APP_SIZE:-1}"                              \
+         -D istio_traffic_distribution="${TRAFFIC_DISTRIBUTION:-Any}"         \
+         -D netshoot_namespace="$NETSHOOT_NAMESPACE"                          \
+         -D region="$_region"                                                 \
+         -D sidecar_enabled="$SIDECAR_FLAG"                                   \
+         -D utils_namespace="$UTILS_NAMESPACE"                                \
+         "$TEMPLATES"/jinja2_globals.yaml.j2                                  \
+    >> "$J2_GLOBALS"
 }
 
 # END
