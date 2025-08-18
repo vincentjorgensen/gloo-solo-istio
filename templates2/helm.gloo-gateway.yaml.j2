@@ -1,0 +1,30 @@
+---
+license_key: {{ gloo_gateway_license_key }}
+gloo:
+  discovery:
+    enabled: false
+  gatewayProxies:
+    gatewayProxy:
+      disabled: true
+  kubeGateway:
+    enabled: true
+  gloo:
+    disableLeaderElection: true
+gloo-fed:
+  enabled: false
+  glooFedApiserver:
+    enable: false
+grafana:
+  defaultInstallationEnabled: false
+observability:
+  enabled: false
+prometheus:
+  enabled: false
+global:
+  extensions:
+    extAuth:
+      enabled: true
+      requestTimeout: 3s
+      deployment:
+        logLevel: debug
+...

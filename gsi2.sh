@@ -73,3 +73,9 @@ function dry_run_gsi {
   done
   export DRY_RUN=""
 }
+
+function zip_gsi {
+  dry_run_gsi "$1" | tee -a "run_${UTAG}.sh"
+  zip "${UTAG}.zip" "run_${UTAG}.sh" "$MANIFESTS"/*
+  echo '# '"${UTAG}.zip"
+}

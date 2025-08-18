@@ -15,6 +15,7 @@ CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
 
 export REVISION GME_SECRET GME_SECRET_TOKEN TLDN MESH_ID
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
+export HTTPS_FLAG
 export GSI_MODE GSI_CLUSTER GSI_CONTEXT GSI_NETWORK
 export GSI_REMOTE_CLUSTER GSI_REMOTE_CONTEXT GSI_REMOTE_NETWORK
 export GSI_MGMT_CLUSTER GSI_MGMT_CONTEXT GSI_MGMT_NETWORK
@@ -119,12 +120,17 @@ export KGATEWAY_CRDS_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgatewa
 export KGATEWAY_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
 export KGATEWAY_HELM_VER=v2.0.3
 
+# Gloo Gateway (V1) (Edge)
+export GLOO_GATEWAY_ENABLED="${GLOO_GATEWAY_ENABLED:-false}"
+export GLOO_GATEWAY_NAMESPACE=gloo-system
+export GLOO_GATEWAY_VER=1.19.7
+export GLOO_GATEWAY_FLAG
+
 # Gloo Gateway V2
 export GLOO_GATEWAY_V2_ENABLED="${GLOO_GATEWAY_V2_ENABLED:-false}"
 export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway-crds
 export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway
-export GLOO_GATEWAY_V2_HELM_VER=2.0.0-alpha.3
-export GLOO_GATEWAY_V2_NAMESPACE=gloo-gateway-system
+export GLOO_GATEWAY_V2_HELM_VER=2.0.0-alpha.4
 
 export TRAFFIC_POLICY_NAME=oauth-authorization-code
 
@@ -303,6 +309,13 @@ function gsi_init {
     GATEWAY_API_ENABLED=true
     echo '#' Kgateway is enabled  on "$GSI_CLUSTER"
   fi
+
+  if $GLOO_GATEWAY_ENABLED; then
+    GATEWAY_API_ENABLED=true
+    GLOO_GATEWAY_FLAG=enabled 
+    GATEWAY_CLASS_NAME=gloo-gateway
+  fi
+
   # Gloo Gateway V2 (aka kgateway Enterprise)
   if $GLOO_GATEWAY_V2_ENABLED; then
     GLOO_GATEWAY_V2_FLAG=enabled 
@@ -317,7 +330,11 @@ function gsi_init {
   $SPIRE_ENABLED && SPIRE_FLAG=enabled && echo '#' SPIRE is enabled
 
   # Cert-manager
-  $CERT_MANAGER_ENABLED && CERT_MANAGER_FLAG=enabled && echo '#' Cert-manager is enabled
+  if $CERT_MANAGER_ENABLED; then
+    CERT_MANAGER_FLAG=enabled 
+    HTTPS_FLAG=enabled
+    echo '#' Cert-manager is enabled
+  fi
 
   # Keycloak and ExtAuth
   if $KEYCLOAK_ENABLED; then

@@ -21,6 +21,8 @@ function app_init_spire {
   fi
 }
 
+### https://github.com/vchaudh3/istio-multi-cluster-federation/blob/main/spire/install-spire.sh
+
 function exec_spire_secrets {
   if is_create_mode; then
 ###    kubectl "$GSI_MODE" secret generic "$SPIRE_SECRET"                        \

@@ -211,7 +211,10 @@ function exec_ingress_gateway_api {
          -D istio_126="$ISTIO_126_FLAG"                                       \
          -D tldn="$TLDN"                                                      \
          -D cert_manager_enabled="$CERT_MANAGER_FLAG"                         \
+         -D https_enabled="$HTTPS_FLAG"                                       \
          -D ratelimiter_enabled="$RATELIMITER_FLAG"                           \
+         -D network="$GSI_NETWORK"                                            \
+         -D aws_enabled="$AWS_FLAG"                                           \
          -D extauth_enabled="$EXTAUTH_FLAG"                                   \
          -D secret_name="$CERT_MANAGER_INGRESS_SECRET"                        \
         "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2             \
