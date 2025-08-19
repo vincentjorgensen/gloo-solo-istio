@@ -21,10 +21,6 @@ function app_init_helloworld {
     fi
 
     if $GATEWAY_API_ENABLED; then
-###      create_httproute -m "$HELLOWORLD_SERVICE_NAME"                          \
-###                       -n "$INGRESS_NAMESPACE"                                \
-###                       -s "$HELLOWORLD_NAMESPACE"                             \
-###                       -p "$HELLOWORLD_SERVICE_PORT"
       create_httproute -m "$HELLOWORLD_SERVICE_NAME"                          \
                        -n "$HELLOWORLD_NAMESPACE"                             \
                        -s "$HELLOWORLD_NAMESPACE"                             \
@@ -40,44 +36,16 @@ function app_init_helloworld {
 
 function exec_helloworld {
   local _manifest="$MANIFESTS/helloworld.${GSI_CLUSTER}.yaml"
-  local _region _zones _ztemp _service_version
+  local _template="$TEMPLATES"/helloworld.manifest.yaml.j2
 
-
-###  $DRY_RUN kubectl label namespace "$HELLOWORLD_NAMESPACE" "name=$HELLOWORLD_NAMESPACE" \
-###  --context "$GSI_CONTEXT" --overwrite
-
-  if $AMBIENT_ENABLED; then
-    local _k_label="=ambient"
-
-    if ! is_create_mode; then
-      _k_label="-"
-    fi
-    $DRY_RUN kubectl label namespace "$HELLOWORLD_NAMESPACE" "istio.io/dataplane-mode${_k_label}"  \
-    --context "$GSI_CONTEXT" --overwrite
-  fi
-
-  if $SIDECAR_ENABLED; then
-    if [[ -n "$REVISION" ]]; then
-      local _k_key="istio.io/rev"
-      local _k_label="=${REVISION}"
-    else
-      local _k_key="istio-injection"
-      local _k_label="=enabled"
-    fi
-
-    if ! is_create_mode; then
-      _k_label="-"
-    fi
-    $DRY_RUN kubectl label namespace "$HELLOWORLD_NAMESPACE" "${_k_key}${_k_label}"  \
-    --context "$GSI_CONTEXT" --overwrite
-  fi
+  _label_ns_for_istio "$HELLOWORLD_NAMESPACE"
 
   _service_version="v${HW_SVC_VER}"
   [[ -n $GSI_SERVICE_VERSION ]] && _service_version="$GSI_SERVICE_VERSION"
 
   jinja2                                                                      \
          -D helloworld_service_version="${_service_version:-none}"            \
-         "$TEMPLATES"/helloworld.manifest.yaml.j2                             \
+         "$_template"                                                         \
          "$J2_GLOBALS"                                                        \
     > "$_manifest"
 

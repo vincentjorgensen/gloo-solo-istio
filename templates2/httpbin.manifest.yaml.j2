@@ -4,7 +4,7 @@ kind: Service
 metadata:
 {%- if ambient_enabled %}
   annotations:
-    networking.istio.io/traffic-distribution: {{ traffic_distribution }}
+    networking.istio.io/traffic-distribution: {{ istio_traffic_distribution }}
 {%- endif %}
   name: {{ httpbin_service_name }}
   namespace: {{ httpbin_namespace }}
@@ -17,7 +17,7 @@ spec:
   ports:
     - name: http
       port: {{ httpbin_service_port }}
-      targetPort: 8080
+      targetPort: http
   selector:
     app: httpbin
 ---
@@ -33,7 +33,7 @@ metadata:
   name: httpbin
   namespace: {{ httpbin_namespace }}
 spec:
-  replicas: 1
+  replicas: {{ httpbin_size }}
   selector:
     matchLabels:
       app: httpbin
@@ -50,8 +50,9 @@ spec:
           command: [ go-httpbin ]
           args:
             - "-port"
-            - "8080"
+            - "{{ httpbin_container_port }}"
             - "-max-duration"
             - "600s" # override default 10s
           ports:
-            - containerPort: 8080
+            - containerPort: {{ httpbin_container_port }}
+              name: http

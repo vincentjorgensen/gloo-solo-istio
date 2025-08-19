@@ -14,54 +14,36 @@ function app_init_netshoot {
 
 function exec_utils {
   local _manifest="$MANIFESTS/tools.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/utils.manifest.yaml.j2
 
-  if $AMBIENT_ENABLED; then
-    local _k_label="=ambient"
+  _label_ns_for_istio "$UTILS_NAMESPACE"
 
-    if ! is_create_mode; then
-      _k_label="-"
-    fi
-    $DRY_RUN kubectl label namespace "$TOOLS_NAMESPACE" "istio.io/dataplane-mode${_k_label}"  \
-    --context "$GSI_CONTEXT" --overwrite
-  fi
-
-  if $SIDECAR_ENABLED; then
-    if [[ -n "$REVISION" ]]; then
-      local _k_key="istio.io/rev"
-      local _k_label="=${REVISION}"
-    else
-      local _k_key="istio-injection"
-      local _k_label="=enabled"
-    fi
-
-    if ! is_create_mode; then
-      _k_label="-"
-    fi
-    $DRY_RUN kubectl label namespace "$TOOLS_NAMESPACE" "${_k_key}${_k_label}"  \
-    --context "$GSI_CONTEXT" --overwrite
-  fi
-
-  jinja2 -D tools_namespace="$TOOLS_NAMESPACE"                                \
-         "$TEMPLATES"/utils.manifest.yaml.j2                                  \
-  > "$_manifest"
+  jinja2                                                                      \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+    > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 
-  wait_for_pods "$TOOLS_NAMESPACE" utils
+  _wait_for_pods "$CURL_NAMESPACE" utils
 }
 
 function exec_netshoot {
   local _manifest="$MANIFESTS/netshoot.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/netshoot.manifest.yaml.j2
 
-  jinja2 -D tools_namespace="$TOOLS_NAMESPACE"                                \
-         "$TEMPLATES"/netshoot.manifest.yaml.j2                               \
-  > "$_manifest"
+  _label_ns_for_istio "$NETSHOOT_NAMESPACE"
+
+  jinja2                                                                      \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+    > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 
-  wait_for_pods "$TOOLS_NAMESPACE" netshoot
+  _wait_for_pods "$NETSHOOT_NAMESPACE" netshoot
 }

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 function app_init_curl {
   if $CURL_ENABLED; then
     exec_curl
@@ -8,45 +7,18 @@ function app_init_curl {
 
 function exec_curl {
   local _manifest="$MANIFESTS/curl.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/curl.manifest.yaml.j2
 
-  if $AMBIENT_ENABLED; then
-    local _k_label="=ambient"
+  _label_ns_for_istio "$CURL_NAMESPACE"
 
-    if ! is_create_mode; then
-      _k_label="-"
-    fi
-    $DRY_RUN kubectl label namespace "$CURL_NAMESPACE" "istio.io/dataplane-mode${_k_label}"  \
-    --context "$GSI_CONTEXT" --overwrite
-  fi
-
-  if $SIDECAR_ENABLED; then
-    if [[ -n "$REVISION" ]]; then
-      local _k_key="istio.io/rev"
-      local _k_label="=${REVISION}"
-    else
-      local _k_key="istio-injection"
-      local _k_label="=enabled"
-    fi
-
-    if ! is_create_mode; then
-      _k_label="-"
-    fi
-    $DRY_RUN kubectl label namespace "$CURL_NAMESPACE" "${_k_key}${_k_label}"  \
-    --context "$GSI_CONTEXT" --overwrite
-  fi
-
-  jinja2 -D curl_namespace="$CURL_NAMESPACE"                                  \
-         "$TEMPLATES"/curl.manifest.yaml.j2                                   \
+  jinja2                                                                      \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 
-  if is_create_mode; then
-    $DRY_RUN kubectl wait                                                     \
-    --context "$GSI_CONTEXT"                                                  \
-    --namespace "$CURL_NAMESPACE"                                             \
-    --for=condition=Ready pods -l app=curl
-  fi
+  _wait_for_pods "$CURL_NAMESPACE" curl
 }

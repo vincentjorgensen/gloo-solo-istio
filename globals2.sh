@@ -70,12 +70,14 @@ export HELLOWORLD_ENABLED=${HELLOWORLD_ENABLED:-false}
 export HELLOWORLD_NAMESPACE=helloworld
 export HELLOWORLD_SERVICE_NAME=helloworld
 export HELLOWORLD_SERVICE_PORT=8001
-export HELLOWORLD_CONTAINER_PORT=8001
+export HELLOWORLD_CONTAINER_PORT=8080
 
 export HTTPBIN_ENABLED=${HTTPBIN_ENABLED:-false}
 export HTTPBIN_NAMESPACE=httpbin
 export HTTPBIN_SERVICE_NAME=httpbin
 export HTTPBIN_SERVICE_PORT=8002
+export HTTPBIN_CONTAINER_PORT=8080
+export HTTPBIN_SIZE=1
 
 export CURL_ENABLED=${CURL_ENABLED:-false}
 export CURL_NAMESPACE=curl
@@ -421,6 +423,37 @@ function _wait_for_pods {
     --context "$GSI_CONTEXT"                                                  \
     --namespace "$_namespace"                                                 \
     --for=condition=Ready pods -l app="$_app"     
+  fi
+}
+
+function _label_ns_for_istio {
+  local _namespace=$1
+  local _k_label _k_key
+
+  if $AMBIENT_ENABLED; then
+    local _k_label="=ambient"
+
+    if ! is_create_mode; then
+      _k_label="-"
+    fi
+    $DRY_RUN kubectl label namespace "$_namespace" "istio.io/dataplane-mode${_k_label}"  \
+    --context "$GSI_CONTEXT" --overwrite
+  fi
+
+  if $SIDECAR_ENABLED; then
+    if [[ -n "$REVISION" ]]; then
+      local _k_key="istio.io/rev"
+      local _k_label="=${REVISION}"
+    else
+      local _k_key="istio-injection"
+      local _k_label="=enabled"
+    fi
+
+    if ! is_create_mode; then
+      _k_label="-"
+    fi
+    $DRY_RUN kubectl label namespace "$_namespace" "${_k_key}${_k_label}"  \
+    --context "$GSI_CONTEXT" --overwrite
   fi
 }
 
