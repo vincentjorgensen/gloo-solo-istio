@@ -89,11 +89,13 @@ function exec_istio_base {
   done
 
   local _manifest="$MANIFESTS/helm.istio-base.${_cluster}.yaml"
+  local _template="$TEMPLATES"/helm.istio-base.yaml.j2
 
   if is_create_mode; then
-    jinja2 -D revision="$REVISION"                                            \
-           "$TEMPLATES"/helm.istio-base.yaml.j2                               \
-      > "$_manifest"
+    jinja2                                                                    \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+    > "$_manifest"
 
     # shellcheck disable=SC2086
     $DRY_RUN helm upgrade --install istio-base "$HELM_REPO"/base              \

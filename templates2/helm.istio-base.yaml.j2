@@ -1,5 +1,5 @@
-{% if revision %}
-defaultRevision: {{ revision }}
-{% endif %}
+{%- if istio_revision %}
+defaultRevision: {{ istio_revision }}
+{%- endif %}
 base:
   enableCRDTemplates: true
