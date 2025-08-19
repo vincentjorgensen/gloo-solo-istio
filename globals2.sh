@@ -103,6 +103,7 @@ export CERT_MANAGER_ENABLED="${CERT_MANAGER_ENABLED:-false}"
 export CERT_MANAGER_VER="v1.18.2"
 export CERT_MANAGER_NAMESPACE="cert-manager"
 export CERT_MANAGER_INGRESS_SECRET="ingress-ca-key-pair"
+export CLUSTER_ISSUER="selfsigned-cluster-issuer"
 
 # Spire
 export SPIRE_ENABLED="${SPIRE_ENABLED:-false}"
@@ -516,6 +517,9 @@ function _jinja2_values {
          -D spire_enabled="$SPIRE_FLAG"                                       \
          -D utils_namespace="$UTILS_NAMESPACE"                                \
          -D kube_system_namespace="$KUBE_SYSTEM_NAMESPACE"                    \
+         -D cert_manager_namespace="$CERT_MANAGER_NAMESPACE"                  \
+         -D tldn="$TLDN"                                                      \
+         -D cluster_issuer="$CLUSTER_ISSUER"                                  \
          "$TEMPLATES"/jinja2_globals.yaml.j2                                  \
     >> "$J2_GLOBALS"
 }

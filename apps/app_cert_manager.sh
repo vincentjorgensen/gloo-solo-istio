@@ -60,18 +60,20 @@ function exec_cert_manager {
 
 function exec_cert_manager_cluster_issuer {
   local _manifest="$MANIFESTS/cluster_issuer.cert-manager.${GSI_CLUSTER}.yaml"
-  
-  jinja2 -D namespace="$CERT_MANAGER_NAMESPACE"                               \
-         "$TEMPLATES"/cluster_issuer.cert-manager.manifest.yaml.j2            \
-    > "$_manifest"
+  local _template="$TEMPLATES"/cluster_issuer.cert-manager.manifest.yaml.j2
 
+  jinja2                                                                      \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
+  
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest" 
 }
 
 function create_cert_manager_issuer {
-    local _name _namespace _org _secret_name
+    local _name _namespace _org _secret_name _country _locale _state _ou
 
     while getopts "c:l:m:n:o:p:s:u:" opt; do
     # shellcheck disable=SC2220
@@ -96,17 +98,22 @@ function create_cert_manager_issuer {
   done
 
   local _manifest="$MANIFESTS/issuer.cert-manager.${_name}.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/issuer.cert-manager.manifest.yaml.j2
+
+  jinja2                                                                      \
+         -D serial_no="$(date +%Y%m%d)"                                       \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   jinja2 -D name="$_name"                                                     \
          -D namespace="$_namespace"                                           \
-         -D serial_no="$(date +%Y%m%d)"                                       \
          -D org="$_org"                                                       \
          -D ou="$_ou"                                                         \
          -D country="$_country"                                               \
          -D state="$_state"                                                   \
          -D locale="$_locale"                                                 \
          -D secret_name="$_secret_name"                                       \
-         -D tldn="$TLDN"                                                      \
          "$TEMPLATES"/issuer.cert-manager.manifest.yaml.j2                    \
     > "$_manifest"
 

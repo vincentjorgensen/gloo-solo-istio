@@ -17,7 +17,7 @@ spec:
   duration: 8760h
   renewBefore: 720h
   issuerRef:
-    name: selfsigned-cluster-issuer # cluster-issuer must already exist
+    name: {{ cluster_issuer }} # cluster-issuer must already exist
     kind: ClusterIssuer
     group: cert-manager.io
 ---
