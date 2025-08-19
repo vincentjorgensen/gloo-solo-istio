@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-source "$(dirname "$0")"/globals2.sh
+source "$(dirname "$0")"/globals.sh
 for app in "$(dirname "$0")"/apps/*; do
   # shellcheck source=/dev/null
   source "$app"
