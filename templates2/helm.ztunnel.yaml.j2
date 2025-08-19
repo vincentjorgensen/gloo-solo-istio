@@ -1,9 +1,9 @@
-{%- if revision %}
-revision: {{ revision }}
+{%- if istio_revision %}
+revision: {{ istio_revision }}
 {%- endif %}
 hub: {{ istio_repo }}
-tag: {{ istio_ver }}{{ flavor }}
-variant: {{ variant }}
+tag: {{ istio_ver }}{{ istio_flavor }}
+variant: {{ istio_variant }}
 {%- if multicluster_enabled %}
 multiCluster:
   clusterName: {{ cluster }}

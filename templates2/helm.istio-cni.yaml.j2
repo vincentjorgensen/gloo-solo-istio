@@ -1,11 +1,11 @@
 profile: ambient
-{% if revision %}
-revision: {{ revision }}
-{% endif %}
+{%- if istio_revision %}
+revision: {{ istio_revision }}
+{%- endif %}
 global:
   hub: {{ istio_repo }}
-  tag: {{ istio_ver }}{{ flavor }}
-  variant: {{ variant }}
+  tag: {{ istio_ver }}{{ istio_flavor }}
+  variant: {{ istio_variant }}
 ambient:
   dnsCapture: true
 resources:

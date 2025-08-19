@@ -112,26 +112,17 @@ function exec_istio_base {
 
 function exec_istio_istiod {
   local _manifest="$MANIFESTS/helm.istiod.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.istiod.yaml.j2
 
   if is_create_mode; then
-    jinja2 -D ambient="$AMBIENT_FLAG"                                         \
-           -D sidecar="$SIDECAR_FLAG"                                         \
-           -D spire_enabled="$SPIRE_FLAG"                                     \
-           -D cluster_name="$GSI_CLUSTER"                                     \
-           -D revision="$REVISION"                                            \
-           -D network="$GSI_NETWORK"                                          \
-           -D istio_repo="$ISTIO_REPO"                                        \
-           -D istio_ver="$ISTIO_VER"                                          \
-           -D trust_domain="$TRUST_DOMAIN"                                    \
-           -D remote_trust_domain="$REMOTE_TRUST_DOMAIN"                      \
-           -D mesh_id="$MESH_ID"                                              \
-           -D flavor="$ISTIO_FLAVOR"                                          \
-           -D license_key="$GLOO_MESH_LICENSE_KEY"                            \
-           -D multicluster_enabled="$MC_FLAG"                                 \
-           -D variant="$ISTIO_DISTRO"                                         \
-           "$TEMPLATES"/helm.istiod.yaml.j2                                   \
-      > "$_manifest"
-#           -D license_key="$GLOO_MESH_LICENSE_KEY"                            \
+    jinja2                                                                    \
+         -D cluster="$GSI_CLUSTER"                                            \
+         -D trust_domain="$TRUST_DOMAIN"                                      \
+         -D remote_trust_domain="$REMOTE_TRUST_DOMAIN"                        \
+         -D network="$GSI_NETWORK"                                            \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+    > "$_manifest"
 
     $DRY_RUN helm upgrade --install istiod "$HELM_REPO"/istiod                \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
@@ -148,15 +139,13 @@ function exec_istio_istiod {
 
 function exec_istio_cni {
   local _manifest="$MANIFESTS/helm.istio-cni.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.istio-cni.yaml.j2
 
   if is_create_mode; then
-      jinja2 -D revision="$REVISION"                                          \
-             -D istio_repo="$ISTIO_REPO"                                      \
-             -D istio_ver="$ISTIO_VER"                                        \
-             -D flavor="$ISTIO_FLAVOR"                                        \
-             -D variant="$ISTIO_DISTRO"                                       \
-             "$TEMPLATES"/helm.istio-cni.yaml.j2                              \
-        > "$_manifest"
+    jinja2                                                                    \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+    > "$_manifest"
 
     $DRY_RUN helm upgrade --install istio-cni "$HELM_REPO"/cni                \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
@@ -173,21 +162,15 @@ function exec_istio_cni {
 
 function exec_istio_ztunnel {
   local _manifest="$MANIFESTS/helm.ztunnel.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.ztunnel.yaml.j2
 
   if is_create_mode; then
-    jinja2 -D cluster="$GSI_CLUSTER"                                          \
+    jinja2                                                                    \
+           -D cluster="$GSI_CLUSTER"                                          \
            -D network="$GSI_NETWORK"                                          \
-           -D revision="$REVISION"                                            \
-           -D istio_repo="$ISTIO_REPO"                                        \
-           -D istio_ver="$ISTIO_VER"                                          \
-           -D flavor="$ISTIO_FLAVOR"                                          \
-           -D spire_enabled="$SPIRE_FLAG"                                     \
-           -D multicluster_enabled="$MC_FLAG"                                 \
-           -D variant="$ISTIO_DISTRO"                                         \
-           -D gme_enabled="$GME_FLAG"                                         \
-           -D gme_namespace="$GME_NAMESPACE"                                  \
-           "$TEMPLATES"/helm.ztunnel.yaml.j2                                  \
-      > "$_manifest"
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+    > "$_manifest"
 
     $DRY_RUN helm upgrade --install ztunnel "$HELM_REPO"/ztunnel              \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \

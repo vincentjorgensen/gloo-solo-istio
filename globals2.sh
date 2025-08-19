@@ -29,7 +29,7 @@ export GLOO_GATEWAY_V2_FLAG GATEWAY_CLASS_NAME SPIRE_FLAG MC_FLAG
 export RATELIMITER_FLAG DOCKER_FLAG GCP_FLAG
 
 # Testing and generating reproducible plans
-export DRY_RUN=""
+export DRY_RUN="${DRY_RUN:-}"
 
 # Cloud Providers
 export DOCKER_DESKTOP_ENABLED="${DOCKER_DESKTOP_ENABLED:-true}"
@@ -43,8 +43,9 @@ export AWS_PCA_POLICY_ARN AWS_PCA_ROLE_ARN
 export AWSPCA_ISSUER_VER=v1.6.0
 export AWS_PROFILE=aws
 export COGNITO_JWT_ROUTE_OPTION=jwt-cognito
-export COGNITO_ISSUER_URL="https://cognito-idp.us-west-2.amazonaws.com/us-west-2_ZrUc2TqWw"
-export COGNITO_KEEP_TOKEN="true"
+export COGNITO_ISSUER="https://cognito-idp.us-west-2.amazonaws.com/us-west-2_ZrUc2TqWw"
+export COGNITO_ISSUER_FQDN=
+export COGNITO_KEEP_TOKEN='true'
 
 # Namespaces
 export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system
@@ -71,6 +72,7 @@ export HELLOWORLD_NAMESPACE=helloworld
 export HELLOWORLD_SERVICE_NAME=helloworld
 export HELLOWORLD_SERVICE_PORT=8001
 export HELLOWORLD_CONTAINER_PORT=8080
+export HELLOWORLD_SIZE=1
 
 export HTTPBIN_ENABLED=${HTTPBIN_ENABLED:-false}
 export HTTPBIN_NAMESPACE=httpbin
@@ -163,6 +165,9 @@ export ISTIO_VER_125=1.25.3
 export HELM_REPO_126=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_126=1.26.3
+export HELM_REPO_127=oci://us-docker.pkg.dev/soloio-img/istio-helm
+export ISTIO_REPO_127=us-docker.pkg.dev/soloio-img/istio
+export ISTIO_VER_127=1.27.0
 export ISTIO_SECRET=cacerts
 
 # Dataplane Modes
@@ -350,6 +355,11 @@ function gsi_init {
     RATELIMITER_ENABLED=true && RATELIMITER_FLAG=enabled && echo '#' Rate-limiter is enabled
   fi
 
+  if $AWS_ENABLED; then
+    # shellcheck disable=SC2299
+    COGNITO_ISSUER_FQDN="${${COGNITO_ISSUER_URL##*//}%%/*}"
+  fi
+
   gsi_set_defaults
   _jinja2_values
 }
@@ -471,20 +481,37 @@ function _jinja2_values {
 
   jinja2                                                                      \
          -D ambient_enabled="$AMBIENT_FLAG"                                   \
+         -D cognito_issuer_fqdn="$COGNITO_ISSUER_FQDN"                        \
+         -D cognito_issuer_url="$COGNITO_ISSUER"                              \
+         -D cognito_jwt_route_option_name="$COGNITO_JWT_ROUTE_OPTION"         \
          -D cognito_keep_token_bool="$COGNITO_KEEP_TOKEN"                     \
          -D curl_namespace="$CURL_NAMESPACE"                                  \
-         -D curl_namespace="$CURL_NAMESPACE"                                  \
+         -D docker_desktop_enabled="$DOCKER_DESKTOP_ENABLED"                  \
          -D gloo_gateway_namespace="$GLOO_GATEWAY_NAMESPACE"                  \
+         -D gme_namespace="$GME_NAMESPACE"                                    \
          -D helloworld_container_port="$HELLOWORLD_CONTAINER_PORT"            \
          -D helloworld_namespace="$HELLOWORLD_NAMESPACE"                      \
          -D helloworld_service_name="$HELLOWORLD_SERVICE_NAME"                \
          -D helloworld_service_port="$HELLOWORLD_SERVICE_PORT"                \
-         -D helloworld_service_version="${_service_version:-none}"            \
-         -D helloworld_size="${GSI_APP_SIZE:-1}"                              \
+         -D helloworld_size="$HELLOWORLD_SIZE"                                \
+         -D httpbin_container_port="$HTTPBIN_CONTAINER_PORT"                  \
+         -D httpbin_namespace="$HTTPBIN_NAMESPACE"                            \
+         -D httpbin_service_name="$HTTPBIN_SERVICE_NAME"                      \
+         -D httpbin_service_port="$HTTPBIN_SERVICE_PORT"                      \
+         -D httpbin_size="$HTTPBIN_SIZE"                                      \
+         -D istio_flavor="$ISTIO_FLAVOR"                                      \
+         -D istio_repo="$ISTIO_REPO"                                          \
+         -D istio_revision="$REVISION"                                        \
          -D istio_traffic_distribution="${TRAFFIC_DISTRIBUTION:-Any}"         \
+         -D istio_variant="$ISTIO_DISTRO"                                     \
+         -D istio_ver="$ISTIO_VER"                                            \
+         -D license_key="$GLOO_MESH_LICENSE_KEY"                              \
+         -D mesh_id="$MESH_ID"                                                \
+         -D multicluster_enabled="$MC_FLAG"                                   \
          -D netshoot_namespace="$NETSHOOT_NAMESPACE"                          \
          -D region="$_region"                                                 \
          -D sidecar_enabled="$SIDECAR_FLAG"                                   \
+         -D spire_enabled="$SPIRE_FLAG"                                       \
          -D utils_namespace="$UTILS_NAMESPACE"                                \
          "$TEMPLATES"/jinja2_globals.yaml.j2                                  \
     >> "$J2_GLOBALS"

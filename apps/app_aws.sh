@@ -455,15 +455,12 @@ function create_aws_pca_cluster_issuer {
 
 function exec_cognito_route_option {
   local _manifest="$MANIFESTS"/route_option.cognitio."$GSI_CLUSTER".yaml
+  local _template="$TEMPLATES"/route_options.cognito.manifest.yaml.j2
 
-  # shellcheck disable=SC2299
-  jinja2 -D cognito_jwt_route_option_name="$COGNITO_JWT_ROUTE_OPTION"         \
-         -D namespace="$GLOO_SYSTEM_NAMESPACE"                                \
-         -D cognito_issuer_url="$COGNITO_ISSUER_URL"                          \
-         -D cognito_issuer_fqdn="${${cognito_issuer_url##*//}%%/*}"           \
-         -D cognito_keep_token_bool="$COGNITO_KEEP_TOKEN"                     \
-         "$TEMPLATES"/route_options.cognito.manifest.yaml.j2                  \
-  > "$_manifest"
+  jinja2                                                                      \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+    > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \

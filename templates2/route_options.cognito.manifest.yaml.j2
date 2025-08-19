@@ -3,7 +3,7 @@ apiVersion: gloo.solo.io/v1
 kind: Upstream
 metadata:
   name: cognito-upstream
-  namespace: {{ gloo_system_namespace }}
+  namespace: {{ gloo_gateway_namespace }}
 spec:
   static:
     hosts:
@@ -14,7 +14,7 @@ apiVersion: gateway.solo.io/v1
 kind: RouteOption
 metadata:
   name: {{ cognito_jwt_route_option_name }}
-  namespace: {{ gloo_system_namespace }}
+  namespace: {{ gloo_gateway_namespace }}
 spec:
   options:
     jwtProvidersStaged:
@@ -27,9 +27,9 @@ spec:
                 url: {{ cognito_issuer_url }}/.well-known/jwks.json
                 upstreamRef:
                   name: cognito-upstream
-                  namespace: {{ gloo_system_namespace }}
+                  namespace: {{ gloo_gateway_namespace }}
             tokenSource:
               headers:
               - header: authorization
-            keepToken: {{ cognito_keep_token_bool }}
+            keepToken: {{ cognito_keep_token_bool | string | lower }}
 ...
