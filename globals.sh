@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
  ###############################################################################
-# globals2.sh
+# globals.sh
 # 
 # functions for setting global state
 ###############################################################################
@@ -8,7 +8,7 @@
 # Global versions of Helm Repos, Istio Repos, and Istio settings
 #-------------------------------------------------------------------------------
 export TEMPLATES CERTS UTAG MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS
-TEMPLATES="$(dirname "$0")"/templates2
+TEMPLATES="$(dirname "$0")"/templates
 CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
 CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
