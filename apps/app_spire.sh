@@ -60,41 +60,41 @@ function exec_spire_crds {
 
 function exec_spire_server {
   local _manifest="$MANIFESTS/helm.spire.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.spire.yaml.j2
   local _cm_manifest="$MANIFESTS/spire-${GSI_CLUSTER}/configmap.spire-server.yaml"
+  local _cm_template="$TEMPLATES"/configmap.spire-server.manifest.yaml.j2
   local _kustomize_renderer="$MANIFESTS/spire-${GSI_CLUSTER}/kustomize.sh"
-  local _kustomization="$MANIFESTS/spire-${GSI_CLUSTER}/kustomization.yaml"
+  local _kustomize="$MANIFESTS/spire-${GSI_CLUSTER}/kustomization.yaml"
+  local _kustomize_template="$TEMPLATES"/spire.kustomization.yaml.j2
 #  local _federation_patch="$MANIFESTS/spire-${GSI_CLUSTER}/spire-federation-patch.yaml"
   local _post_renderer=""
 
   if is_create_mode; then
-    jinja2 -D trust_domain="$TRUST_DOMAIN"                                    \
-           -D spire_secret="$SPIRE_SECRET"                                    \
-           -D cluster_name="$GSI_CLUSTER"                                     \
-           -D tldn="$TLDN"                                                    \
-           -D multicluster_enabled="$MC_FLAG"                                 \
-           -D cluster_name="$GSI_CLUSTER"                                     \
-           -D remote_cluster_name="$GSI_REMOTE_CLUSTER"                       \
-           -D tldn="$TLDN"                                                    \
-           "$TEMPLATES"/helm.spire.yaml.j2                                    \
-      > "$_manifest"
+    jinja2                                                                    \
+           -D trust_domain="$TRUST_DOMAIN"                                    \
+           -D cluster="$GSI_CLUSTER"                                          \
+           -D remote_cluster="$GSI_REMOTE_CLUSTER"                            \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+    > "$_manifest"
 
     if $MULTICLUSTER_ENABLED; then
       [[ ! -e $(dirname "$_kustomize_renderer") ]] && mkdir "$(dirname "$_kustomize_renderer")"
 
       jinja2 -D trust_domain="$TRUST_DOMAIN"                                  \
              -D remote_trust_domain="$REMOTE_TRUST_DOMAIN"                    \
-             -D cluster_name="$GSI_CLUSTER"                                   \
-             -D remote_cluster_name="$GSI_REMOTE_CLUSTER"                     \
-             -D tldn="$TLDN"                                                  \
-             -D spire_namespace="$SPIRE_NAMESPACE"                            \
+             -D cluster="$GSI_CLUSTER"                                        \
+             -D remote_cluster="$GSI_REMOTE_CLUSTER"                          \
              -D ca_country="US"                                               \
              -D ca_ou="Customer Success"                                      \
-             "$TEMPLATES"/configmap.spire-server.manifest.yaml.j2             \
-        > "$_cm_manifest"
+         "$_cm_template"                                                      \
+         "$J2_GLOBALS"                                                        \
+      > "$_cm_manifest"
 
-      jinja2 -D spire_namespace="$SPIRE_NAMESPACE"                            \
-             "$TEMPLATES"/spire.kustomization.yaml.j2                         \
-        > "$_kustomization"
+      jinja2                                                                  \
+         "$_kustomize_template"                                               \
+         "$J2_GLOBALS"                                                        \
+      > "$_kustomize"
 
 ##      jinja2 -D spire_namespace="$SPIRE_NAMESPACE"                            \
 ##             "$TEMPLATES"/spire-federation-patch.yaml.j2                      \
@@ -152,18 +152,20 @@ function exec_spire_server {
 
 function exec_spire_agent {
   local _manifest="$MANIFESTS/helm.spire.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.spire-agent.yaml.j2
   local _spire_bundle="$MANIFESTS/configmap.spire-bundle.${GSI_CLUSTER}.yaml"
 
     jinja2 -D spire_bundle="$(cat "$MANIFESTS"/spire-server.bundle)"          \
-           "$TEMPLATES"/configmap.spire-bundle.yaml.j2                        \
+         "$TEMPLATES"/configmap.spire-bundle.yaml.j2                          \
+         "$J2_GLOBALS"                                                        \
       > "$_spire_bundle"
 
     jinja2 -D trust_domain="$TRUST_DOMAIN"                                    \
-           -D cluster_name="$GSI_CLUSTER"                                     \
-           -D tldn="$TLDN"                                                    \
+           -D cluster="$GSI_CLUSTER"                                          \
            -D spire_server_address="$(cat "$MANIFESTS"/spire-server.address)" \
            -D spire_server_port="$(cat "$MANIFESTS"/spire-server.port)"       \
-           "$TEMPLATES"/helm.spire-agent.yaml.j2                              \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
       > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \

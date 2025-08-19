@@ -520,6 +520,8 @@ function _jinja2_values {
          -D cert_manager_namespace="$CERT_MANAGER_NAMESPACE"                  \
          -D tldn="$TLDN"                                                      \
          -D cluster_issuer="$CLUSTER_ISSUER"                                  \
+         -D spire_secret="$SPIRE_SECRET"                                      \
+         -D spire_namespace="$SPIRE_NAMESPACE"                                \
          "$TEMPLATES"/jinja2_globals.yaml.j2                                  \
     >> "$J2_GLOBALS"
 }
