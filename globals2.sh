@@ -515,6 +515,7 @@ function _jinja2_values {
          -D sidecar_enabled="$SIDECAR_FLAG"                                   \
          -D spire_enabled="$SPIRE_FLAG"                                       \
          -D utils_namespace="$UTILS_NAMESPACE"                                \
+         -D kube_system_namespace="$KUBE_SYSTEM_NAMESPACE"                    \
          "$TEMPLATES"/jinja2_globals.yaml.j2                                  \
     >> "$J2_GLOBALS"
 }

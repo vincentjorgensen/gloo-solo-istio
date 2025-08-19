@@ -15,6 +15,7 @@ function app_init_external_dns {
 
 function exec_external_dns_for_pihole {
   local _manifest="$MANIFESTS/externaldns.pihole.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/externaldns.pihole.manifest.yaml.j2
   local _pihole_server_address
 
   _pihole_server_address=$(docker inspect pihole | jq -r '.[].NetworkSettings.Networks."'"$DOCKER_NETWORK"'".IPAddress')
@@ -25,7 +26,8 @@ function exec_external_dns_for_pihole {
   --from-literal EXTERNAL_DNS_PIHOLE_PASSWORD="$(yq -r '.services.pihole.environment.FTLCONF_webserver_api_password' "$K3D_DIR"/pihole.docker-compose.yaml.j2)"
 
   jinja2 -D pihole_server_address="$_pihole_server_address"                   \
-       "$TEMPLATES"/externaldns.pihole.manifest.yaml.j2                       \
+       "$_template"                                                           \
+       "$J2_GLOBALS"                                                          \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
