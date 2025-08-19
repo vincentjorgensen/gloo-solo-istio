@@ -2,17 +2,17 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ component }}-ca
-  namespace: {{ namespace }}
+  name: {{ awspca_component }}-ca
+  namespace: {{ istio_namespace }}
 spec:
   isCA: true
   duration: 720h #30d
   renewBefore: 360h #15d
-  secretName: {{ secret_name }}
-  commonName: {{ component }}-ca
+  secretName: {{ istio_secret }}
+  commonName: {{ awspca_component }}-ca
   dnsNames:
-{%- if revision %}
-  - "*.istiod-{{ revision }}"
+{%- if istio_revision %}
+  - "*.istiod-{{ istio_revision }}"
 {%- else %}
   - "*.istiod"
 {%- endif %}
@@ -22,8 +22,8 @@ spec:
     - cert-manager
   issuerRef:
     group: awspca.cert-manager.io
-    kind: {{ issuer_kind }}
-    name: {{ issuer_name }}
+    kind: {{ awspca_issuer_kind }}
+    name: {{ awspca_issuer }}
   privateKey:
     rotationPolicy: Always
 ...

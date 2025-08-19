@@ -49,10 +49,10 @@ export COGNITO_KEEP_TOKEN='true'
 
 # Namespaces
 export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system
-export ISTIO_SYSTEM_NAMESPACE=istio-system
+export ISTIO_NAMESPACE=istio-system
 export KUBE_SYSTEM_NAMESPACE=kube-system
-export AMBIENT_NAMESPACE=$ISTIO_SYSTEM_NAMESPACE
-export SIDECAR_NAMESPACE=$ISTIO_SYSTEM_NAMESPACE
+export AMBIENT_NAMESPACE=$ISTIO_NAMESPACE
+export SIDECAR_NAMESPACE=$ISTIO_NAMESPACE
 
 # Ingress
 export INGRESS_NAMESPACE=ingress-gateways
@@ -500,8 +500,10 @@ function _jinja2_values {
          -D httpbin_service_port="$HTTPBIN_SERVICE_PORT"                      \
          -D httpbin_size="$HTTPBIN_SIZE"                                      \
          -D istio_flavor="$ISTIO_FLAVOR"                                      \
+         -D istio_namespace="$ISTIO_NAMESPACE"                                \
          -D istio_repo="$ISTIO_REPO"                                          \
          -D istio_revision="$REVISION"                                        \
+         -D istio_secret="$ISTIO_SECRET"                                      \
          -D istio_traffic_distribution="${TRAFFIC_DISTRIBUTION:-Any}"         \
          -D istio_variant="$ISTIO_DISTRO"                                     \
          -D istio_ver="$ISTIO_VER"                                            \

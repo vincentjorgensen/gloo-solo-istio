@@ -58,15 +58,14 @@ function exec_istio_secrets {
 
 function exec_istio_awspca_secrets {
   local _manifest="$MANIFESTS"/certificate.cert-manager."$GSI_CLUSTER".yaml
+  local _template="$TEMPLATES"/certificate.cert-manager.manifest.yaml.j2
 
-  jinja2 -D component="istio"                                                 \
-         -D revision="$REVISION"                                              \
-         -D issuer_name="$AWSPCA_ISSUER"                                      \
-         -D issuer_kind="$AWSPCA_ISSUER_KIND"                                 \
-         -D namespace="$ISTIO_SYSTEM_NAMESPACE"                               \
-         -D secret_name="$ISTIO_SECRET"                                       \
+  jinja2 -D awspca_component="istio"                                          \
+         -D awspca_issuer="$AWSPCA_ISSUER"                                    \
+         -D awspca_issuer_kind="$AWSPCA_ISSUER_KIND"                          \
          -D trust_domain="$TRUST_DOMAIN"                                      \
-         "$TEMPLATES"/certificate.cert-manager.manifest.yaml.j2               \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
   > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
