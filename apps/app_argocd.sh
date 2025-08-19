@@ -17,6 +17,7 @@ function exec_argocd_server {
   if is_create_mode; then
     $DRY_RUN helm upgrade --install argocd argo/argo-cd                       \
     --kube-context "$GSI_ARGOCD_CONTEXT"                                      \
+    --version "$ARGOCD_VERSION"                                               \
     --namespace "$ARGOCD_NAMESPACE"                                           \
     --create-namespace                                                        \
     --values "$_manifest"                                                     \

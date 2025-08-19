@@ -7,26 +7,23 @@ function app_init_keycloak {
 }
 function exec_keycloak {
   local _manifest="$MANIFESTS/keycloak.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/keycloak.manifest.yaml.j2
 
-  jinja2 -D namespace="$KEYCLOAK_NAMESPACE"                                   \
-         -D version="$KEYCLOAK_VER"                                           \
-         "$TEMPLATES"/keycloak.manifest.yaml.j2                               \
-    > "$_manifest"
+  jinja2                                                                      \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest" 
 
   if is_create_mode; then
-    $DRY_RUN kubectl wait                                                     \
-    --context="$GSI_CONTEXT"                                                  \
-    --namespace "$KEYCLOAK_NAMESPACE"                                         \
-    --for=condition=Ready pods -l app=keycloak
+    _wait_for_pods "$KEYCLOAK_NAMESPACE" keycloak
   fi
 }
 
 function set_keycloak_token_client_and_secret {
-  export KEYCLOAK_TOKEN KEYCLOAK_CLIENT KEYCLOAK_SECRET KEYCLOAK_ID
   KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin"          \
                         -d "password=admin" -d "grant_type=password"          \
                   "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" |
@@ -94,13 +91,15 @@ function exec_initialize_keycloak {
 function create_keycloak_secret {
   local _namespace=$1
   local _manifest="$MANIFESTS/secret.keycloak.${_namespace}.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/secret.keycloak.manifest.yaml.j2
 
   ### set_keycloak_token_client_and_secret # sets KEYCLOAK_TOKEN, KEYCLOAK_CLIENT, KEYCLOAK_SECRET, and KEYCLOAK_ID
 
   jinja2 -D namespace="$_namespace"                                           \
          -D secret="$KEYCLOAK_SECRET"                                         \
-         "$TEMPLATES"/secret.keycloak.manifest.yaml.j2                        \
-    > "$_manifest"
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
@@ -125,20 +124,19 @@ function create_keycloak_extauth_auth_config {
     esac
   done
   local _manifest="$MANIFESTS/auth_config.oauth.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/auth_config.oauth.manifest.yaml.j2
 
-  jinja2 -D service_namespace="$_service_namespace"                           \
-         -D gateway_address="${_service_name}.${TLDN}"                        \
-         -D http_port="$HTTP_INGRESS_PORT"                                    \
+  jinja2                                                                      \
          -D client_id="$KEYCLOAK_CLIENT"                                      \
-         -D system_namespace="$GLOO_GATEWAY_V2_NAMESPACE"                     \
-         -D keycloak_url="$KEYCLOAK_URL"                                      \
-         -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
-         -D gateway_namespace="$INGRESS_NAMESPACE"                            \
-         -D traffic_policy_name="$TRAFFIC_POLICY_NAME"                        \
+         -D gateway_address="${_service_name}.${TLDN}"                        \
          -D httproute_name="${_service_name}-route"                           \
          -D httproute_namespace="${_httproute_namespace}"                     \
-         "$TEMPLATES"/auth_config.oauth.manifest.yaml.j2                      \
-    > "$_manifest"
+         -D keycloak_url="$KEYCLOAK_URL"                                      \
+         -D service_namespace="$_service_namespace"                           \
+         -D system_namespace="$GLOO_GATEWAY_NAMESPACE"                        \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \

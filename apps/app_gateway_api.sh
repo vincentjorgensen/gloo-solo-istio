@@ -427,12 +427,13 @@ function exec_extauth_keycloak_ggv2_auth_config {
 ##    --namespace "$INGRESS_NAMESPACE"                                          \
 ##    -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
   jinja2                                                                      \
-         -D namespace="$GSI_APP_SERVICE_NAMESPACE"                            \
-         -D gateway_address="${GSI_APP_SERVICE_NAME}.${TLDN}"                 \
          -D client_id="$KEYCLOAK_CLIENT"                                      \
-         -D system_namespace="$GLOO_GATEWAY_NAMESPACE"                        \
-         -D keycloak_url="$KEYCLOAK_URL"                                      \
+         -D gateway_address="${GSI_APP_SERVICE_NAME}.${TLDN}"                 \
          -D httproute_name="${GSI_APP_SERVICE_NAME}-route"                    \
+         -D httproute_namespace="${GSI_APP_SERVICE_NAMESPACE}-route"          \
+         -D keycloak_url="$KEYCLOAK_URL"                                      \
+         -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                    \
+         -D system_namespace="$GLOO_GATEWAY_NAMESPACE"                        \
          "$_template"                                                         \
          "$J2_GLOBALS"                                                        \
   > "$_manifest"

@@ -2,7 +2,7 @@
  ###############################################################################
 # globals.sh
 # 
-# functions for setting global state
+# Env vars and functions for setting global state of the k8s clusters
 ###############################################################################
 #-------------------------------------------------------------------------------
 # Global versions of Helm Repos, Istio Repos, and Istio settings
@@ -20,10 +20,9 @@ export HTTPS_FLAG
 export GSI_MODE GSI_CLUSTER GSI_CONTEXT GSI_NETWORK
 export GSI_REMOTE_CLUSTER GSI_REMOTE_CONTEXT GSI_REMOTE_NETWORK
 export GSI_MGMT_CLUSTER GSI_MGMT_CONTEXT GSI_MGMT_NETWORK
-export EASTWEST_GATEWAY_CLASS
 
 # Jinja2 flags
-export AZURE_FLAG AWS_FLAG GME_MGMT_AGENT_FLAG KGATEWAY_FLAG
+export GME_MGMT_AGENT_FLAG KGATEWAY_FLAG
 export SIDECAR_FLAG AMBIENT_FLAG CERT_MANAGER_FLAG INGRESS_ENABLED EXTAUTH_FLAG
 export INGRESS_GATEWAY_CLASS SPIRE_FLAG MC_FLAG
 export RATELIMITER_FLAG DOCKER_FLAG GCP_FLAG
@@ -31,21 +30,39 @@ export RATELIMITER_FLAG DOCKER_FLAG GCP_FLAG
 # Testing and generating reproducible plans
 export DRY_RUN="${DRY_RUN:-}"
 
-# Cloud Providers
-export DOCKER_DESKTOP_ENABLED="${DOCKER_DESKTOP_ENABLED:-true}"
-export AZURE_ENABLED="${AZURE_ENABLED:-false}"
-export GCP_ENABLED="${GCP_ENABLED:-false}"
+###############################################################################
+# K8s Providers
+###############################################################################
+#-------------------------------------------------------------------------------
+# Docker Desktop Settings
+#-------------------------------------------------------------------------------
+export DOCKER_DESKTOP_ENABLED=${DOCKER_DESKTOP_ENABLED:-true}
+export DOCKER_DESKTOP_FLAG
 
-# AWS
-export AWS_ENABLED="${AWS_ENABLED:-false}"
+#-------------------------------------------------------------------------------
+# Google GCP Seettings
+#-------------------------------------------------------------------------------
+export GCP_ENABLED="${GCP_ENABLED:-false}"
+export GCP_FLAG
+
+#-------------------------------------------------------------------------------
+# Amazon AWS Settings
+#-------------------------------------------------------------------------------
+export AWS_ENABLED=${AWS_ENABLED:-false}
 export ROOT_CAARN ROOT_CERTARN SUBORDINATE_CAARN SUBORDINATE_CERTARN
 export AWS_PCA_POLICY_ARN AWS_PCA_ROLE_ARN
 export AWSPCA_ISSUER_VER=v1.6.0
 export AWS_PROFILE=aws
 export COGNITO_JWT_ROUTE_OPTION=jwt-cognito
 export COGNITO_ISSUER="https://cognito-idp.us-west-2.amazonaws.com/us-west-2_ZrUc2TqWw"
-export COGNITO_ISSUER_FQDN=
 export COGNITO_KEEP_TOKEN='true'
+export AWS_FLAG COGNITO_ISSUER_FQDN
+
+#-------------------------------------------------------------------------------
+# Microsoft Azure Settings
+#-------------------------------------------------------------------------------
+export AZURE_ENABLED=${AZURE_ENABLED:-false}
+export AZURE_FLAG
 
 # Namespaces
 export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system
@@ -54,20 +71,12 @@ export KUBE_SYSTEM_NAMESPACE=kube-system
 export AMBIENT_NAMESPACE=$ISTIO_NAMESPACE
 export SIDECAR_NAMESPACE=$ISTIO_NAMESPACE
 
-# Ingress
-export INGRESS_NAMESPACE=ingress-gateways
-export HTTP_INGRESS_PORT=80
-export HTTPS_INGRESS_PORT=443
-export INGRESS_GATEWAY_NAME=ingress-gateway
-
-# Eastwest
-export MULTICLUSTER_ENABLED=${MULTICLUSTER_ENABLED:-false}
-export EASTWEST_NAMESPACE=eastwest-gateways
-export EASTWEST_GATEWAY=eastwest-gateway
-export MULTICLUSTER_NAMESPACE=$EASTWEST_NAMESPACE
-export EASTWEST_SIZE=1
-
+###############################################################################
 # Testing Apps
+###############################################################################
+#-------------------------------------------------------------------------------
+# Homegrown Helloworld App
+#-------------------------------------------------------------------------------
 export HELLOWORLD_ENABLED=${HELLOWORLD_ENABLED:-false}
 export HELLOWORLD_NAMESPACE=helloworld
 export HELLOWORLD_SERVICE_NAME=helloworld
@@ -75,6 +84,9 @@ export HELLOWORLD_SERVICE_PORT=8001
 export HELLOWORLD_CONTAINER_PORT=8080
 export HELLOWORLD_SIZE=1
 
+#-------------------------------------------------------------------------------
+# HTTPBIN App
+#-------------------------------------------------------------------------------
 export HTTPBIN_ENABLED=${HTTPBIN_ENABLED:-false}
 export HTTPBIN_NAMESPACE=httpbin
 export HTTPBIN_SERVICE_NAME=httpbin
@@ -82,45 +94,90 @@ export HTTPBIN_SERVICE_PORT=8002
 export HTTPBIN_CONTAINER_PORT=8080
 export HTTPBIN_SIZE=1
 
+#-------------------------------------------------------------------------------
+# Curl App
+#-------------------------------------------------------------------------------
 export CURL_ENABLED=${CURL_ENABLED:-false}
 export CURL_NAMESPACE=curl
 
-# Tools 
+#-------------------------------------------------------------------------------
+# Utils App 
+#-------------------------------------------------------------------------------
 export UTILS_ENABLED=${UTILS_ENABLED:-false}
 export UTILS_NAMESPACE=tools
 
+#-------------------------------------------------------------------------------
+# NetShoot App
+#-------------------------------------------------------------------------------
 export NETSHOOT_ENABLED=${NETSHOOT_ENABLED:-false}
 export NETSHOOT_NAMESPACE=tools
 
+###############################################################################
+# Integration Tools
+###############################################################################
+#-------------------------------------------------------------------------------
 # External DNS
+#-------------------------------------------------------------------------------
 export EXTERNAL_DNS_ENABLED=${EXTERNAL_DNS_ENABLED:-false}
 
+#-------------------------------------------------------------------------------
 # ArgoCD
+#-------------------------------------------------------------------------------
 export ARGOCD_ENABLED=${ARGOCD_ENABLED:-false}
+export ARGOCD_VER="8.2.5"
 export ARGOCD_NAMESPACE=argocd
 
+#-------------------------------------------------------------------------------
 # Cert manager
-export CERT_MANAGER_ENABLED="${CERT_MANAGER_ENABLED:-false}"
+#-------------------------------------------------------------------------------
+export CERT_MANAGER_ENABLED=${CERT_MANAGER_ENABLED:-false}
 export CERT_MANAGER_VER="v1.18.2"
 export CERT_MANAGER_NAMESPACE="cert-manager"
 export CERT_MANAGER_INGRESS_SECRET="ingress-ca-key-pair"
 export CLUSTER_ISSUER="selfsigned-cluster-issuer"
 
+#-------------------------------------------------------------------------------
 # Spire
+#-------------------------------------------------------------------------------
 export SPIRE_ENABLED="${SPIRE_ENABLED:-false}"
 export SPIRE_NAMESPACE=spire-server
 export SPIRE_CRDS_VER=0.5.0
 export SPIRE_SERVER_VER=0.26.0
 export SPIRE_SECRET=spiffe-upstream-ca
 
-# Istio Gateway
+###############################################################################
+# Ingress, Egress, and Eastwest Gateways
+###############################################################################
+#-------------------------------------------------------------------------------
+# Gateway API
+#-------------------------------------------------------------------------------
+export EXPERIMENTAL_GATEWAY_API_CRDS=${EXPERIMENTAL_GATEWAY_API_CRDS:-false}
+export GATEWAY_API_ENABLED=${GATEWAY_API_ENABLED:-false}
+
+#-------------------------------------------------------------------------------
+# Ingress Gateway Settings
+#-------------------------------------------------------------------------------
+export INGRESS_NAMESPACE=ingress-gateways
+export HTTP_INGRESS_PORT=80
+export HTTPS_INGRESS_PORT=443
+export INGRESS_GATEWAY_NAME=ingress-gateway
+
+#-------------------------------------------------------------------------------
+# Eastwest Gateway Settings
+#-------------------------------------------------------------------------------
+export MULTICLUSTER_ENABLED=${MULTICLUSTER_ENABLED:-false}
+export EASTWEST_NAMESPACE=eastwest-gateways
+export EASTWEST_GATEWAY=eastwest-gateway
+export MULTICLUSTER_NAMESPACE=$EASTWEST_NAMESPACE
+export EASTWEST_SIZE=1
+export EASTWEST_GATEWAY_CLASS
+
+#-------------------------------------------------------------------------------
+# Ingress Istio Gateway (OSS)
+#-------------------------------------------------------------------------------
 export ISTIO_GATEWAY_ENABLED=${ISTIO_GATEWAY_ENABLED:-false}
 export TLS_TERMINATION_ENABLED=${TLS_TERMINATION_ENABLED:-false}
 export TLS_TERMINATION_FLAG
-
-# Gateway API
-export EXPERIMENTAL_GATEWAY_API_CRDS=${EXPERIMENTAL_GATEWAY_API_CRDS:-false}
-export GATEWAY_API_ENABLED=${GATEWAY_API_ENABLED:-false}
 
 # KGateway
 export KGATEWAY_ENABLED="${KGATEWAY_ENABLED:-false}"
@@ -131,18 +188,24 @@ export KGATEWAY_CRDS_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgatewa
 export KGATEWAY_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
 export KGATEWAY_HELM_VER=v2.0.3
 
-#Gloo Gateway
-export GLOO_GATEWAY_ENABLED="${GLOO_GATEWAY_ENABLED:-false}"
+#-------------------------------------------------------------------------------
+#Gloo Gateway, v1 or v2
+#-------------------------------------------------------------------------------
+export GLOO_GATEWAY_ENABLED=${GLOO_GATEWAY_ENABLED:-false}
 export GLOO_GATEWAY_NAMESPACE GLOO_GATEWAY_VER GLOO_GATEWAY_FLAG
 
-# Gloo Gateway (V1) (Edge)
-export GLOO_GATEWAY_V1_ENABLED="${GLOO_GATEWAY_V1_ENABLED:-false}"
+#-------------------------------------------------------------------------------
+# Gloo Gateway (V1) (Edge or Gateway API)
+#-------------------------------------------------------------------------------
+export GLOO_GATEWAY_V1_ENABLED=${GLOO_GATEWAY_V1_ENABLED:-false}
 export GLOO_GATEWAY_V1_NAMESPACE=gloo-system
 export GLOO_GATEWAY_V1_VER=1.19.7
 export GLOO_GATEWAY_V1_FLAG
 
-# Gloo Gateway V2
-export GLOO_GATEWAY_V2_ENABLED="${GLOO_GATEWAY_V2_ENABLED:-false}"
+#-------------------------------------------------------------------------------
+# Gloo Gateway V2 (Gateway API)
+#-------------------------------------------------------------------------------
+export GLOO_GATEWAY_V2_ENABLED=${GLOO_GATEWAY_V2_ENABLED:-false}
 export GLOO_GATEWAY_V2_NAMESPACE=gloo-system
 export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway-crds
 export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway
@@ -151,12 +214,14 @@ export GLOO_GATEWAY_V2_FLAG
 
 export TRAFFIC_POLICY=oauth-authorization-code
 
-# keycloak
-export KEYCLOAK_ENABLED="${KEYCLOAK_ENABLED:-false}"
+#-------------------------------------------------------------------------------
+# Keycloak
+#-------------------------------------------------------------------------------
+export KEYCLOAK_ENABLED=${KEYCLOAK_ENABLED:-false}
 export KEYCLOAK_NAMESPACE=keycloak
 export KEYCLOAK_VER=26.3
 export KEYCLOAK_ENDPOINT KEYCLOAK_HOST KEYCLOAK_PORT KEYCLOAK_URL
-export KEYCLOAK_TOKEN KEYCLOAK_CLIENT KEYCLOAK_SECRET
+export KEYCLOAK_TOKEN KEYCLOAK_CLIENT KEYCLOAK_SECRET KEYCLOAK_ID
 
 # Gloo System
 export EXTAUTH_ENABLED=${EXTAUTH_ENABLED:-false}
@@ -547,6 +612,8 @@ function _jinja2_values {
          -D istio_traffic_distribution="${TRAFFIC_DISTRIBUTION:-Any}"         \
          -D istio_variant="$ISTIO_DISTRO"                                     \
          -D istio_ver="$ISTIO_VER"                                            \
+         -D keycloak_namespace="$KEYCLOAK_NAMESPACE"                          \
+         -D keycloak_ver="$KEYCLOAK_VER"                                      \
          -D kube_system_namespace="$KUBE_SYSTEM_NAMESPACE"                    \
          -D license_key="$GLOO_MESH_LICENSE_KEY"                              \
          -D mesh_id="$MESH_ID"                                                \
@@ -559,8 +626,8 @@ function _jinja2_values {
          -D spire_namespace="$SPIRE_NAMESPACE"                                \
          -D spire_secret="$SPIRE_SECRET"                                      \
          -D tldn="$TLDN"                                                      \
-         -D utils_namespace="$UTILS_NAMESPACE"                                \
          -D traffic_policy="$TRAFFIC_POLICY"                                  \
+         -D utils_namespace="$UTILS_NAMESPACE"                                \
          "$TEMPLATES"/jinja2_globals.yaml.j2                                  \
     >> "$J2_GLOBALS"
 }
