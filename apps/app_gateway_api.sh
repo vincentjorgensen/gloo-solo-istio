@@ -129,16 +129,13 @@ function exec_kgateway {
 
 function exec_eastwest_gateway_api {
   local _manifest="$MANIFESTS/gateway_api.eastwest_gateway.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gateway_api.eastwest_gateway.manifest.yaml.j2
 
-  jinja2 -D network="$GSI_NETWORK"                                            \
-         -D revision="$REVISION"                                              \
-         -D size="$GSI_EW_SIZE"                                               \
-         -D istio_126="$ISTIO_126_FLAG"                                       \
-         -D name="$EASTWEST_GATEWAY_NAME"                                     \
-         -D gateway_class_name="$EASTWEST_GATEWAY_CLASS_NAME"                 \
-         -D namespace="$EASTWEST_NAMESPACE"                                   \
-         "$TEMPLATES"/gateway_api.eastwest_gateway.manifest.yaml.j2           \
-    > "$_manifest"
+  jinja2                                                                      \
+         -D network="$GSI_NETWORK"                                            \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
@@ -147,15 +144,13 @@ function exec_eastwest_gateway_api {
   sleep 1.5
 
   if is_create_mode; then
-    $DRY_RUN kubectl wait                                                     \
-    --context "$GSI_CONTEXT"                                                  \
-    --namespace "$EASTWEST_NAMESPACE"                                         \
-    --for=condition=Ready pods -l app="$EASTWEST_GATEWAY_NAME"
+    _wait_for_pods "$EASTWEST_NAMESPACE" "$EASTWEST_GATEWAY_NAME"
   fi
 }
 
 function exec_eastwest_link_gateway_api {
   local _manifest="$MANIFESTS/gateway_api.eastwest_remote_gateway.${GSI_REMOTE_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gateway_api.eastwest_remote_gateway.manifest.yaml.j2
   local _remote_address _address_type
 
   _remote_address=$(
@@ -181,17 +176,15 @@ function exec_eastwest_link_gateway_api {
     _address_type=Hostname
   fi
 
-  jinja2 -D trust_domain="$TRUST_DOMAIN"                                      \
-         -D network="$GSI_NETWORK"                                            \
-         -D cluster="$GSI_CLUSTER"                                            \
-         -D name="$EASTWEST_GATEWAY_NAME"                                     \
-         -D namespace="$EASTWEST_NAMESPACE"                                   \
-         -D gateway_class_name="$EASTWEST_REMOTE_GATEWAY_CLASS_NAME"          \
+  jinja2                                                                      \
          -D address_type="$_address_type"                                     \
+         -D cluster="$GSI_CLUSTER"                                            \
+         -D network="$GSI_NETWORK"                                            \
          -D remote_address="$_remote_address"                                 \
-         -D revision="$REVISION"                                              \
-         "$TEMPLATES"/gateway_api.eastwest_remote_gateway.manifest.yaml.j2    \
-    > "$_manifest"
+         -D trust_domain="$TRUST_DOMAIN"                                      \
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_REMOTE_CONTEXT"                                             \
@@ -200,25 +193,13 @@ function exec_eastwest_link_gateway_api {
 
 function exec_ingress_gateway_api {
   local _manifest="$MANIFESTS/gateway_api.ingress_gateway.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2
 
-  jinja2 -D revision="$REVISION"                                              \
-         -D port="$HTTP_INGRESS_PORT"                                         \
-         -D ssl_port="$HTTPS_INGRESS_PORT"                                    \
-         -D namespace="$INGRESS_NAMESPACE"                                    \
-         -D name="$INGRESS_GATEWAY_NAME"                                      \
-         -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
-         -D size="${INGRESS_SIZE:-1}"                                         \
-         -D istio_126="$ISTIO_126_FLAG"                                       \
-         -D tldn="$TLDN"                                                      \
-         -D cert_manager_enabled="$CERT_MANAGER_FLAG"                         \
-         -D https_enabled="$HTTPS_FLAG"                                       \
-         -D ratelimiter_enabled="$RATELIMITER_FLAG"                           \
+  jinja2                                                                      \
          -D network="$GSI_NETWORK"                                            \
-         -D aws_enabled="$AWS_FLAG"                                           \
-         -D extauth_enabled="$EXTAUTH_FLAG"                                   \
-         -D secret_name="$CERT_MANAGER_INGRESS_SECRET"                        \
-        "$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2             \
-    > "$_manifest"
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   if $GLOO_GATEWAY_V2_ENABLED; then
     patch_gloo_gateway_v2 "$INGRESS_NAMESPACE" "${INGRESS_GATEWAY_NAME}-ggw-params"
@@ -306,20 +287,18 @@ function patch_gloo_gateway_v2 {
 
 function exec_httproute {
   local _manifest="$MANIFESTS/httproute.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/httproute.manifest.yaml.j2
 
-  jinja2 -D tldn="$TLDN"                                                      \
+  exec_gateway_api_crds
+
+  jinja2                                                                      \
          -D namespace="$INGRESS_NAMESPACE"                                    \
-         -D gateway_name="$INGRESS_GATEWAY_NAME"                              \
-         -D gateway_namespace="$INGRESS_NAMESPACE"                            \
-         -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
-         -D extauth_enabled="$EXTAUTH_FLAG"                                   \
-         -D traffic_policy_name="$TRAFFIC_POLICY_NAME"                        \
          -D service="$GSI_APP_SERVICE_NAME"                                   \
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                    \
          -D service_port="$GSI_APP_SERVICE_PORT"                              \
-         -D multicluster="$MC_FLAG"                                           \
-         "$TEMPLATES"/httproute.manifest.yaml.j2                              \
-    > "$_manifest"
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
@@ -343,28 +322,23 @@ function create_httproute {
   done
 
   local _manifest="$MANIFESTS/httproute.${_service_name}.${_namespace}.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/httproute.manifest.yaml.j2
 
   exec_gateway_api_crds
 
-  jinja2 -D tldn="$TLDN"                                                      \
+  jinja2                                                                      \
          -D namespace="$_namespace"                                           \
-         -D gateway_name="$INGRESS_GATEWAY_NAME"                              \
-         -D gateway_namespace="$INGRESS_NAMESPACE"                            \
-         -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
-         -D extauth_enabled="$EXTAUTH_FLAG"                                   \
-         -D traffic_policy_name="$TRAFFIC_POLICY_NAME"                        \
          -D service="$_service_name"                                          \
          -D service_namespace="$_service_namespace"                           \
          -D service_port="$_service_port"                                     \
-         -D multicluster="$MC_FLAG"                                           \
-         "$TEMPLATES"/httproute.manifest.yaml.j2                              \
-    > "$_manifest"
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 
-  # TODO if _service_namespace != _namespace
   # create_reference_grant
   if [[ $_service_namespace != "$_namespace" ]]; then
     create_reference_grant -m "$_service_name" -s "$_service_namespace" -n "$_namespace"
@@ -373,13 +347,15 @@ function create_httproute {
 
 function exec_backend {
   local _manifest="$MANIFESTS/backend.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/backend.manifest.yaml.j2
 
-  jinja2 -D tldn="$TLDN"                                                      \
+  jinja2                                                                      \
          -D service_name="$GSI_APP_SERVICE_NAME"                              \
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                    \
          -D service_port="$GSI_APP_SERVICE_PORT"                              \
-         "$TEMPLATES"/backend.manifest.yaml.j2                                \
-    > "$_manifest"
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
@@ -388,13 +364,16 @@ function exec_backend {
 
 function exec_reference_grant {
   local _manifest="$MANIFESTS/reference_grant.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/reference_grant.manifest.yaml.j2
 
-  jinja2 -D gateway_namespace="$INGRESS_NAMESPACE"                            \
+  jinja2                                                                      \
+         -D gateway_namespace="$INGRESS_NAMESPACE"                            \
          -D service="$GSI_APP_SERVICE_NAME"                                   \
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                    \
          -D multicluster="$MC_FLAG"                                           \
-         "$TEMPLATES"/reference_grant.manifest.yaml.j2                        \
-    > "$_manifest"
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
@@ -416,12 +395,13 @@ function create_reference_grant {
   done
   local _manifest="$MANIFESTS/reference_grant.${_service_name}.${_service_namespace}.${GSI_CLUSTER}.yaml"
 
-  jinja2 -D gateway_namespace="$_namespace"                                   \
+  jinja2                                                                      \
+         -D gateway_namespace="$_namespace"                                   \
          -D service="$_service_name"                                          \
          -D service_namespace="$_service_namespace"                           \
-         -D multicluster="$MC_FLAG"                                           \
-         "$TEMPLATES"/reference_grant.manifest.yaml.j2                        \
-    > "$_manifest"
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
@@ -439,25 +419,23 @@ function exec_kgateway_keycloak_secret {
 function exec_extauth_keycloak_ggv2_auth_config {
   local _gateway_address
   local _manifest="$MANIFESTS/auth_config.oauth.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/auth_config.oauth.manifest.yaml.j2
 
 ##  _gateway_address=$(
 ##    kubectl get svc "$INGRESS_GATEWAY_NAME"                                   \
 ##    --context "$GSI_CONTEXT"                                                  \
 ##    --namespace "$INGRESS_NAMESPACE"                                          \
 ##    -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
-
-  jinja2 -D namespace="$GSI_APP_SERVICE_NAMESPACE"                            \
+  jinja2                                                                      \
+         -D namespace="$GSI_APP_SERVICE_NAMESPACE"                            \
          -D gateway_address="${GSI_APP_SERVICE_NAME}.${TLDN}"                 \
-         -D http_port="$HTTP_INGRESS_PORT"                                    \
          -D client_id="$KEYCLOAK_CLIENT"                                      \
-         -D system_namespace="$GLOO_GATEWAY_V2_NAMESPACE"                     \
+         -D system_namespace="$GLOO_GATEWAY_NAMESPACE"                        \
          -D keycloak_url="$KEYCLOAK_URL"                                      \
-         -D gateway_class_name="$GATEWAY_CLASS_NAME"                          \
-         -D gateway_namespace="$INGRESS_NAMESPACE"                            \
-         -D traffic_policy_name="$TRAFFIC_POLICY_NAME"                        \
          -D httproute_name="${GSI_APP_SERVICE_NAME}-route"                    \
-         "$TEMPLATES"/auth_config.oauth.manifest.yaml.j2                      \
-    > "$_manifest"
+         "$_template"                                                         \
+         "$J2_GLOBALS"                                                        \
+  > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \

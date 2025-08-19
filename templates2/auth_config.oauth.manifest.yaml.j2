@@ -16,7 +16,7 @@ spec:
 apiVersion: gloo.solo.io/v1alpha1
 kind: GlooTrafficPolicy
 metadata:
-  name: {{ traffic_policy_name }}
+  name: {{ traffic_policy }}
   namespace: {{ httproute_namespace }}
 spec:
   targetRefs:
@@ -53,7 +53,7 @@ spec:
   configs:
   - oauth2:
       oidcAuthorizationCode:
-        appUrl: "http://{{ gateway_address }}:{{ http_port }}"
+        appUrl: "http://{{ gateway_address }}:{{ ingress_http_port }}"
         callbackPath: /callback
         clientId: {{ client_id }}
         clientSecretRef:
@@ -67,7 +67,7 @@ spec:
           redis:
             cookieName: keycloak-session
             options:
-              host: redis-{{ gateway_class_name }}.{{ system_namespace }}:6379
+              host: redis-{{ ingress_gateway_class }}.{{ system_namespace }}:6379
         headers:
           idTokenHeader: jwt
 ...

@@ -1,10 +1,10 @@
-{%- if gateway_class_name == "kgateway" %}
+{%- if ingress_gateway_class == "kgateway" %}
 ---
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: GatewayParameters
 metadata:
-  name: {{ name }}-gw-params
-  namespace: {{ namespace }}
+  name: {{ ingress_gateway }}-gw-params
+  namespace: {{ ingress_namespace }}
 spec:
   kube: 
     envoyContainer:
@@ -26,15 +26,15 @@ spec:
       target-workload: gateway
 {%-   endif %}
     deployment:
-      replicas: {{ size }}
+      replicas: {{ ingress_size }}
 {%- endif %}
-{%- if gateway_class_name == "gloo-gateway-v2" %}
+{%- if ingress_gateway_class == "gloo-gateway-v2" %}
 ---
 apiVersion: gloo.solo.io/v1alpha1
 kind: GlooGatewayParameters
 metadata:
-  name: {{ name }}-ggw-params
-  namespace: {{ namespace }}
+  name: {{ ingress_gateway }}-ggw-params
+  namespace: {{ ingress_namespace }}
 spec:
   kube: 
     envoyContainer:
@@ -43,57 +43,57 @@ spec:
     service:
       type: LoadBalancer
     deployment:
-      replicas: {{ size }}
+      replicas: {{ ingress_size }}
   sharedExtensions:
     extauth:
-{%   if extauth_enabled %}
+{%-   if extauth_enabled %}
       enabled: true
-{%   else %}
-      enabled: false
-{%   endif %}
-    ratelimiter:
-{%   if ratelimiter_enabled %}
-      enabled: true
-{%   else %}
+{%-   else %}
       enabled: false
 {%-   endif %}
-{% endif %}
-{%- if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" or  gateway_class_name == "gloo-gateway" %}
+    ratelimiter:
+{%-   if ratelimiter_enabled %}
+      enabled: true
+{%-   else %}
+      enabled: false
+{%-   endif %}
+{%- endif %}
+{%- if ingress_gateway_class == "kgateway" or ingress_gateway_class == "gloo-gateway-v2" or  ingress_gateway_class == "gloo-gateway" %}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ name }}
-  namespace: {{ namespace }}
+  name: {{ ingress_gateway }}
+  namespace: {{ ingress_namespace }}
 spec:
-  maxReplicas: {{ size }}
-  minReplicas: {{ size }}
+  maxReplicas: {{ ingress_size }}
+  minReplicas: {{ ingress_size }}
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-{%-   if gateway_class_name == "gloo-gateway" %}
-    name: gloo-proxy-{{ name }}
+{%-   if ingress_gateway_class == "gloo-gateway" %}
+    name: gloo-proxy-{{ ingress_gateway }}
 {%-   else %}
-    name: {{ name }}
+    name: {{ ingress_gateway }}
 {%-   endif %}
 {%- endif %}
-{%- if gateway_class_name == "istio" %}
-{%-   if istio_126 %}
+{%- if ingress_gateway_class == "istio" %}
+{%-   if istio_126_enabled %}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{name }}-options
-  namespace: {{ namespace }}
+  namespace: {{ ingress_namespace }}
 data:
   horizontalPodAutoscaler: |
     spec:
-      minReplicas: {{ size }}
-      maxReplicas: {{ size }}
+      minReplicas: {{ ingress_size }}
+      maxReplicas: {{ ingress_size }}
 
   deployment: |
     spec:
-      replicas: {{ size }}
+      replicas: {{ ingress_size }}
       template:
         spec:
           containers:
@@ -120,45 +120,45 @@ data:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ name }}
-  namespace: {{ namespace }}
+  name: {{ ingress_gateway }}
+  namespace: {{ ingress_namespace }}
 spec:
-  maxReplicas: {{ size }}
-  minReplicas: {{ size }}
+  maxReplicas: {{ ingress_size }}
+  minReplicas: {{ ingress_size }}
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ name }}-{{ gateway_class_name }}
+    name: {{ ingress_gateway }}-{{ ingress_gateway_class }}
 {%-   endif %}
 {%- endif %}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-{%- if gateway_class_name == "gloo-gateway" %}
+{%- if ingress_gateway_class == "gloo-gateway" %}
   annotations:
-    gateway.gloo.solo.io/gateway-parameters-name: "{{ name }}-gw-params"
+    gateway.gloo.solo.io/gateway-parameters-name: "{{ ingress_gateway }}-gw-params"
 {%- endif %}
 {%- if cert_manager_enabled %}
   annotations:
-###    cert-manager.io/issuer: {{ name }}-ca-issuer
+###    cert-manager.io/issuer: {{ ingress_gateway }}-ca-issuer
     cert-manager.io/issuer: ingress-gateway-ca-issuer
 {%- endif %}
-  name: {{ name }}
-  namespace: {{ namespace }}
+  name: {{ ingress_gateway }}
+  namespace: {{ ingress_namespace }}
   labels:
-    app: {{ name }}
-{%- if gateway_class_name == "istio" %}
-{%   if revision %}
-    istio.io/rev: {{ revision }}
+    app: {{ ingress_gateway }}
+{%- if ingress_gateway_class == "istio" %}
+{%   if istio_revision %}
+    istio.io/rev: {{ istio_revision }}
 {%   endif %}
 {% endif %}
 spec:
-  gatewayClassName: {{ gateway_class_name }}
+  gatewayClassName: {{ ingress_gateway_class }}
   listeners:
   - name: http
     hostname: "*.{{ tldn }}"
-    port: {{ port }}
+    port: {{ ingress_http_port }}
     protocol: HTTP
     allowedRoutes:
       namespaces:
@@ -166,7 +166,7 @@ spec:
 {%- if https_enabled %}
   - name: https
     hostname: "*.{{ tldn }}"
-    port: {{ ssl_port }}
+    port: {{ ingress_https_port }}
     protocol: HTTPS
     allowedRoutes:
       namespaces:
@@ -175,12 +175,12 @@ spec:
     tls:
       mode: Terminate
       certificateRefs:
-        - name: {{ secret_name }}
+        - name: {{ cert_manager_ingress_secret }}
           kind: Secret
 ###      options:
 {%-   endif %}
 {%- endif %}
-{%- if gateway_class_name == "gloo-gateway" %}
+{%- if ingress_gateway_class == "gloo-gateway" %}
   - name: readiness
     port: 9091
     protocol: HTTP
@@ -188,43 +188,43 @@ spec:
       namespaces:
         from: All # Same
 {%- endif %}
-{%- if gateway_class_name == "kgateway" %}
+{%- if ingress_gateway_class == "kgateway" %}
   infrastructure:
     parametersRef:
-      name: {{ name }}-gw-params
+      name: {{ ingress_gateway }}-gw-params
       group: gateway.kgateway.dev
       kind: GatewayParameters  
 {%- endif %}
-{%- if gateway_class_name == "gloo-gateway-v2" %} # Moved to Patch
+{%- if ingress_gateway_class == "gloo-gateway-v2" %} # Moved to Patch
 ###  infrastructure:
 ###    parametersRef:
-###      name: {{ name }}-ggw-params
+###      name: {{ ingress_gateway }}-ggw-params
 ###      group: gloo.solo.io
 ###      kind: GlooGatewayParameters  
 {%- endif %}
-{%- if gateway_class_name == "istio" %}
+{%- if ingress_gateway_class == "istio" %}
   infrastructure:
     parametersRef:
       group: ""
       kind: ConfigMap
-      name: {{ name }}-options
+      name: {{ ingress_gateway }}-options
 ##    annotations:
 ##      some-key: some-value
 ##    labels:
 ##      key: value
-{% endif %}
-{%- if gateway_class_name == "kgateway" or gateway_class_name == "gloo-gateway-v2" %}
+{%- endif %}
+{%- if ingress_gateway_class == "kgateway" or ingress_gateway_class == "gloo-gateway-v2" %}
 ---
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: HTTPListenerPolicy
 metadata:
   name: access-logs
-  namespace: {{ namespace }}
+  namespace: {{ ingress_namespace }}
 spec:
   targetRefs:
   - group: gateway.networking.k8s.io
     kind: Gateway
-    name: {{ name }}
+    name: {{ ingress_gateway }}
   accessLog:
   - fileSink:
       path: /dev/stdout
@@ -246,17 +246,17 @@ spec:
           backendHost: "%UPSTREAM_HOST%"
           backendCluster: "%UPSTREAM_CLUSTER%"
 {%- endif %}
-{%- if gateway_class_name == "gloo-gateway" %}
+{%- if ingress_gateway_class == "gloo-gateway" %}
 ---
 apiVersion: gateway.gloo.solo.io/v1alpha1
 kind: GatewayParameters
 metadata:
-  name: {{name }}-gw-params
-  namespace: {{ namespace }}
+  name: {{ ingress_gateway }}-gw-params
+  namespace: {{ ingress_namespace }}
 spec:
   kube:
     deployment:
-      replicas: {{ size }}
+      replicas: {{ ingress_size }}
 {%-   if aws_enabled %}
     service:
       extraAnnotations:

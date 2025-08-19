@@ -10,7 +10,7 @@ spec:
     kind: HTTPRoute
     namespace: {{ gateway_namespace }}
   to:
-{% if multicluster %}
+{% if multicluster_enabled %}
   - kind: Hostname
     group: networking.istio.io
 {% else %}

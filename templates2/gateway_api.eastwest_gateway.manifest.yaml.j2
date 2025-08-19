@@ -5,13 +5,13 @@ metadata:
   labels:
     istio.io/expose-istiod: "15012"
     topology.istio.io/network: {{ network }}
-{% if revision %}
-    istio.io/rev: {{ revision }}
-{% endif %}
-  name: {{ name }}
-  namespace: {{ namespace }}
+{%- if istio_revision %}
+    istio.io/rev: {{ istio_revision }}
+{%- endif %}
+  name: {{ eastwest_gateway }}
+  namespace: {{ eastwest_namespace }}
 spec:
-  gatewayClassName: {{ gateway_class_name }}
+  gatewayClassName: {{ eastwest_gateway_class }}
   listeners:
   - name: cross-network
     port: 15008
@@ -23,33 +23,33 @@ spec:
     protocol: TLS
     tls:
       mode: Passthrough
-{% if istio_126 %}
+{%- if istio_126_enabled %}
   infrastructure:
 ##    annotations:
 ##      some-key: some-value
     labels:
-      app: {{ name }}
+      app: {{ eastwest_gateway }}
     parametersRef:
       group: ""
       kind: ConfigMap
-      name: {{ name }}-options
-{% endif %}
-{% if istio_126 %}
+      name: {{ eastwest_gateway }}-options
+{%- endif %}
+{%- if istio_126_enabled %}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ name }}-options
-  namespace: {{ namespace }}
+  name: {{ eastwest_gateway }}-options
+  namespace: {{ eastwest_namespace }}
 data:
   horizontalPodAutoscaler: |
     spec:
-      minReplicas: {{ size }}
-      maxReplicas: {{ size }}
+      minReplicas: {{ eastwest_size }}
+      maxReplicas: {{ eastwest_size }}
 
   deployment: |
     spec:
-      replicas: {{ size }}
+      replicas: {{ eastwest_size }}
       template:
         spec:
           containers:
@@ -71,19 +71,19 @@ data:
 ##      ports:
 ##      - "\$patch": delete
 ##        port: 15021
-{% else %}
+{%- else %}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ name }}
-  namespace: {{ namespace }}
+  name: {{ eastwest_gateway }}
+  namespace: {{ eastwest_namespace }}
 spec:
-  maxReplicas: {{ size }}
-  minReplicas: {{ size }}
+  maxReplicas: {{ eastwest_size }}
+  minReplicas: {{ eastwest_size }}
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ name }}
-{% endif %}
+    name: {{ eastwest_gateway }}
+{%- endif %}
 ...
