@@ -4,31 +4,20 @@
 # 
 # Env vars and functions for setting global state of the k8s clusters
 ###############################################################################
+export J2_GLOBALS UTAG
 #-------------------------------------------------------------------------------
-# Global versions of Helm Repos, Istio Repos, and Istio settings
+# Directories
 #-------------------------------------------------------------------------------
-export TEMPLATES CERTS UTAG MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS
+export TEMPLATES CERTS MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS
 TEMPLATES="$(dirname "$0")"/templates
 CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
 CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
-export J2_GLOBALS
 
-export REVISION GME_SECRET GME_SECRET_TOKEN TLDN MESH_ID
-export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
-export HTTPS_FLAG
-export GSI_MODE GSI_CLUSTER GSI_CONTEXT GSI_NETWORK
-export GSI_REMOTE_CLUSTER GSI_REMOTE_CONTEXT GSI_REMOTE_NETWORK
-export GSI_MGMT_CLUSTER GSI_MGMT_CONTEXT GSI_MGMT_NETWORK
-
-# Jinja2 flags
-export GME_MGMT_AGENT_FLAG KGATEWAY_FLAG
-export SIDECAR_FLAG AMBIENT_FLAG CERT_MANAGER_FLAG INGRESS_ENABLED EXTAUTH_FLAG
-export INGRESS_GATEWAY_CLASS SPIRE_FLAG MC_FLAG
-export RATELIMITER_FLAG DOCKER_FLAG GCP_FLAG
-
-# Testing and generating reproducible plans
-export DRY_RUN="${DRY_RUN:-}"
+#-------------------------------------------------------------------------------
+# Namespaces
+#-------------------------------------------------------------------------------
+export KUBE_SYSTEM_NAMESPACE=kube-system
 
 ###############################################################################
 # K8s Providers
@@ -63,13 +52,6 @@ export AWS_FLAG COGNITO_ISSUER_FQDN
 #-------------------------------------------------------------------------------
 export AZURE_ENABLED=${AZURE_ENABLED:-false}
 export AZURE_FLAG
-
-# Namespaces
-export KGATEWAY_SYSTEM_NAMESPACE=kgateway-system
-export ISTIO_NAMESPACE=istio-system
-export KUBE_SYSTEM_NAMESPACE=kube-system
-export AMBIENT_NAMESPACE=$ISTIO_NAMESPACE
-export SIDECAR_NAMESPACE=$ISTIO_NAMESPACE
 
 ###############################################################################
 # Testing Apps
@@ -135,6 +117,7 @@ export CERT_MANAGER_VER="v1.18.2"
 export CERT_MANAGER_NAMESPACE="cert-manager"
 export CERT_MANAGER_INGRESS_SECRET="ingress-ca-key-pair"
 export CLUSTER_ISSUER="selfsigned-cluster-issuer"
+export CERT_MANAGER_FLAG
 
 #-------------------------------------------------------------------------------
 # Spire
@@ -144,6 +127,7 @@ export SPIRE_NAMESPACE=spire-server
 export SPIRE_CRDS_VER=0.5.0
 export SPIRE_SERVER_VER=0.26.0
 export SPIRE_SECRET=spiffe-upstream-ca
+export SPIRE_FLAG
 
 ###############################################################################
 # Ingress, Egress, and Eastwest Gateways
@@ -157,10 +141,14 @@ export GATEWAY_API_ENABLED=${GATEWAY_API_ENABLED:-false}
 #-------------------------------------------------------------------------------
 # Ingress Gateway Settings
 #-------------------------------------------------------------------------------
+export INGRESS_ENABLED=${INGRESS_ENABLED:-false}
 export INGRESS_NAMESPACE=ingress-gateways
-export HTTP_INGRESS_PORT=80
-export HTTPS_INGRESS_PORT=443
-export INGRESS_GATEWAY_NAME=ingress-gateway
+export INGRESS_GATEWAY=ingress-gateway
+export INGRESS_HTTP_PORT=80
+export INGRESS_HTTPS_PORT=443
+export DEFAULT_TLDN=example.com
+export TLDN=${TLDN:-$DEFAULT_TLDN}
+export HTTP_FLAG HTTPS_FLAG INGRESS_GATEWAY_CLASS
 
 #-------------------------------------------------------------------------------
 # Eastwest Gateway Settings
@@ -170,32 +158,38 @@ export EASTWEST_NAMESPACE=eastwest-gateways
 export EASTWEST_GATEWAY=eastwest-gateway
 export MULTICLUSTER_NAMESPACE=$EASTWEST_NAMESPACE
 export EASTWEST_SIZE=1
-export EASTWEST_GATEWAY_CLASS
+export EASTWEST_GATEWAY_CLASS MC_FLAG
 
 #-------------------------------------------------------------------------------
-# Ingress Istio Gateway (OSS)
+# Ingress as Istio Gateway (OSS)
 #-------------------------------------------------------------------------------
 export ISTIO_GATEWAY_ENABLED=${ISTIO_GATEWAY_ENABLED:-false}
 export TLS_TERMINATION_ENABLED=${TLS_TERMINATION_ENABLED:-false}
 export TLS_TERMINATION_FLAG
 
-# KGateway
-export KGATEWAY_ENABLED="${KGATEWAY_ENABLED:-false}"
-export KGATEWAY_NAMESPACE=$KGATEWAY_SYSTEM_NAMESPACE
+#-------------------------------------------------------------------------------
+# Ingress as KGateway
+#-------------------------------------------------------------------------------
+export KGATEWAY_ENABLED=${KGATEWAY_ENABLED:-false}
+export KGATEWAY_NAMESPACE=kgateway-system
 export KGATEWAY_VER=v1.2.1
 export KGATEWAY_EXPERIMENTAL_VER=v1.3.0
 export KGATEWAY_CRDS_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgateway-crds
 export KGATEWAY_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
 export KGATEWAY_HELM_VER=v2.0.3
+export KGATEWAY_FLAG
 
 #-------------------------------------------------------------------------------
-#Gloo Gateway, v1 or v2
+# Ingress as Gloo Gateway, v1 or v2
 #-------------------------------------------------------------------------------
 export GLOO_GATEWAY_ENABLED=${GLOO_GATEWAY_ENABLED:-false}
 export GLOO_GATEWAY_NAMESPACE GLOO_GATEWAY_VER GLOO_GATEWAY_FLAG
+export EXTAUTH_ENABLED=${EXTAUTH_ENABLED:-false}
+export RATELIMITER_ENABLED=${RATELIMITER_ENABLED:-false}
+export RATELIMITER_FLAG EXTAUTH_FLAG
 
 #-------------------------------------------------------------------------------
-# Gloo Gateway (V1) (Edge or Gateway API)
+# Ingress as Gloo Gateway (V1) (Edge or Gateway API)
 #-------------------------------------------------------------------------------
 export GLOO_GATEWAY_V1_ENABLED=${GLOO_GATEWAY_V1_ENABLED:-false}
 export GLOO_GATEWAY_V1_NAMESPACE=gloo-system
@@ -203,16 +197,15 @@ export GLOO_GATEWAY_V1_VER=1.19.7
 export GLOO_GATEWAY_V1_FLAG
 
 #-------------------------------------------------------------------------------
-# Gloo Gateway V2 (Gateway API)
+# Ingress as Gloo Gateway V2 (Gateway API)
 #-------------------------------------------------------------------------------
 export GLOO_GATEWAY_V2_ENABLED=${GLOO_GATEWAY_V2_ENABLED:-false}
 export GLOO_GATEWAY_V2_NAMESPACE=gloo-system
 export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway-crds
 export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway
 export GLOO_GATEWAY_V2_VER=2.0.0-alpha.4
-export GLOO_GATEWAY_V2_FLAG
-
 export TRAFFIC_POLICY=oauth-authorization-code
+export GLOO_GATEWAY_V2_FLAG
 
 #-------------------------------------------------------------------------------
 # Keycloak
@@ -223,11 +216,16 @@ export KEYCLOAK_VER=26.3
 export KEYCLOAK_ENDPOINT KEYCLOAK_HOST KEYCLOAK_PORT KEYCLOAK_URL
 export KEYCLOAK_TOKEN KEYCLOAK_CLIENT KEYCLOAK_SECRET KEYCLOAK_ID
 
-# Gloo System
-export EXTAUTH_ENABLED=${EXTAUTH_ENABLED:-false}
-export RATELIMITER_ENABLED=${RATELIMITER_ENABLED:-false}
-
-# Istio repo versions
+###############################################################################
+# All things Istio
+###############################################################################
+#-------------------------------------------------------------------------------
+# Istio Versions
+#-------------------------------------------------------------------------------
+export ISTIO_ENABLED=${ISTIO_ENABLED:-false}
+export ISTIO_NAMESPACE=istio-system
+export AMBIENT_NAMESPACE=$ISTIO_NAMESPACE
+export SIDECAR_NAMESPACE=$ISTIO_NAMESPACE
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
 export ISTIO_REPO_123=us-docker.pkg.dev/gloo-mesh/istio-207627c16668
 export ISTIO_VER_123=1.23.4
@@ -244,19 +242,26 @@ export HELM_REPO_127=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_127=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_127=1.27.0
 export ISTIO_SECRET=cacerts
+export DEFAULT_MESH_ID="mesh"
+export DEFAULT_TRUST_DOMAIN="cluster.local"
+export TRUST_DOMAIN=${TRUST_DOMAIN:-$DEFAULT_TRUST_DOMAIN}
+export MESH_ID=${MESH_ID:-$DEFAULT_MESH_ID}
+export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
+export REVISION
 
-# Dataplane Modes
-export AMBIENT_ENABLED="${AMBIENT_ENABLED:-false}"
-export SIDECAR_ENABLED="${SIDECAR_ENABLED:-false}"
+#-------------------------------------------------------------------------------
+# Istio Dataplane Modes
+#-------------------------------------------------------------------------------
+export AMBIENT_ENABLED=${AMBIENT_ENABLED:-false}
+export SIDECAR_ENABLED=${SIDECAR_ENABLED:-false}
+export SIDECAR_FLAG AMBIENT_FLAG
 
-# Gloo Edge (Gloo Gateway)
-export GLOO_EDGE_ENABLED="${GLOO_EDGE_ENABLED:-false}"
-export GLOO_EDGE_NAMESPACE=gloo-system
-
-# GME
-export GME_ENABLED="${GME_ENABLED:-false}"
+#-------------------------------------------------------------------------------
+# Gloo Mesh Enterprise (GME)
+#-------------------------------------------------------------------------------
+export GME_ENABLED=${GME_ENABLED:-false}
 export GME_NAMESPACE="gloo-mesh"
-export GME_MGMT_AGENT_ENABLED="${GME_MGMT_AGENT_ENABLED:-false}"
+export GME_MGMT_AGENT_ENABLED=${GME_MGMT_AGENT_ENABLED:-false}
 export GME_VER_26="2.6.13"
 export GME_VER_27="2.7.3"
 export GME_VER_28="2.8.1"
@@ -265,24 +270,29 @@ export GME_VER_210="2.10.0"
 export GME_GATEWAYS_WORKSPACE=gateways
 export GME_APPLICATIONS_WORKSPACE=applications
 export GME_VERBOSE=${GME_VERBOSE:-false}
-export GME_FLAG
-
 export DEFAULT_GME="2.10"
 export DEFAULT_GME_SECRET="relay-token"
 export DEFAULT_GME_SECRET_TOKEN="my-lucky-secret-token"
-export DEFAULT_MESH_ID="mesh"
-export DEFAULT_TLDN=example.com
-export DEFAULT_TRUST_DOMAIN="cluster.local"
-
-export DEFAULT_GSI_MODE=create # create | delete
-
-export GME_SECRET_TOKEN=${GME_SECRET_TOKEN:-$DEFAULT_GME_SECRET_TOKEN}
 export GME_SECRET=${GME_SECRET:-$DEFAULT_GME_SECRET}
-export TLDN=${TLDN:-$DEFAULT_TLDN}
-export TRUST_DOMAIN=${TRUST_DOMAIN:-$DEFAULT_TRUST_DOMAIN}
-export MESH_ID=${MESH_ID:-$DEFAULT_MESH_ID}
+export GME_SECRET_TOKEN=${GME_SECRET_TOKEN:-$DEFAULT_GME_SECRET_TOKEN}
+export GME_FLAG GME_MGMT_AGENT_FLAG
 
+###############################################################################
+# Gloo Solo Istio (GSI)
+###############################################################################
+#-------------------------------------------------------------------------------
+# Current cluster identifiers
+#-------------------------------------------------------------------------------
+export GSI_MODE GSI_CLUSTER GSI_CONTEXT GSI_NETWORK
+export GSI_REMOTE_CLUSTER GSI_REMOTE_CONTEXT GSI_REMOTE_NETWORK
+export GSI_MGMT_CLUSTER GSI_MGMT_CONTEXT GSI_MGMT_NETWORK
+
+#-------------------------------------------------------------------------------
+# GSI runtime flags
+#-------------------------------------------------------------------------------
+export DEFAULT_GSI_MODE=create # create | apply | delete
 export GSI_MODE=${GSI_MODE:-$DEFAULT_GSI_MODE}
+export DRY_RUN=${DRY_RUN:-} # Testing and generating reproducible plans
 
 function set_gsi_mode {
   export GSI_MODE=${1:-$DEFAULT_GSI_MODE}
@@ -369,7 +379,7 @@ function gsi_init {
   fi
 
   # cloud / k8s providers
-  $DOCKER_DESKTOP_ENABLED   && DOCKER_FLAG=enabled   && echo '#' Docker Desktop is enabled
+  $DOCKER_DESKTOP_ENABLED   && DOCKER_DESKTOP_FLAG=enabled   && echo '#' Docker Desktop is enabled
   $AWS_ENABLED   && AWS_FLAG=enabled   && echo '#' AWS is enabled
   $AZURE_ENABLED && AZURE_FLAG=enabled && echo '#' AZURE is enabled
   $GCP_ENABLED && GCP_FLAG=enabled && echo '#' AZURE is enabled
@@ -599,8 +609,8 @@ function _jinja2_values {
          -D https_enabled="$HTTPS_FLAG"                                       \
          -D ingress_gateway_class="$INGRESS_GATEWAY_CLASS"                    \
          -D ingress_gateway="$INGRESS_GATEWAY"                                \
-         -D ingress_http_port="$HTTP_INGRESS_PORT"                            \
-         -D ingress_https_port="$HTTPS_INGRESS_PORT"                          \
+         -D ingress_http_port="$INGRESS_HTTP_PORT"                            \
+         -D ingress_https_port="$INGRESS_HTTPS_PORT"                          \
          -D ingress_namespace="$INGRESS_NAMESPACE"                            \
          -D ingress_size="$INGRESS_SIZE"                                      \
          -D istio_126_enabled="$ISTIO_126_FLAG"                               \

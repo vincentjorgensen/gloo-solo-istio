@@ -7,8 +7,10 @@ function app_init_helloworld {
     if $MULTICLUSTER_ENABLED; then
       HW_SVC_VER=$((HW_SVC_VER+1))
       gsi_cluster_swap
+      _jinja2_values # swaps region/zone to remote
       exec_helloworld
       gsi_cluster_swap
+      _jinja2_values # swaps region/zone to local
     fi
 
     if $EXTAUTH_ENABLED; then
