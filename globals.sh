@@ -8,11 +8,12 @@ export J2_GLOBALS UTAG
 #-------------------------------------------------------------------------------
 # Directories
 #-------------------------------------------------------------------------------
-export TEMPLATES CERTS MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS
+export TEMPLATES CERTS MANIFESTS CERT_MANAGER_CERTS SPIRE_CERTS REPLAYS
 TEMPLATES="$(dirname "$0")"/templates
 CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
 CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
+REPLAYS="$(dirname "$0")"/replays
 
 #-------------------------------------------------------------------------------
 # Namespaces
