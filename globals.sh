@@ -81,7 +81,7 @@ export HTTPBIN_SIZE=1
 # Curl App
 #-------------------------------------------------------------------------------
 export CURL_ENABLED=${CURL_ENABLED:-false}
-export CURL_NAMESPACE=curl
+export CURL_NAMESPACE=tools
 
 #-------------------------------------------------------------------------------
 # Utils App 
@@ -271,7 +271,7 @@ export GME_VER_210="2.10.0"
 export GME_GATEWAYS_WORKSPACE=gateways
 export GME_APPLICATIONS_WORKSPACE=applications
 export GME_VERBOSE=${GME_VERBOSE:-false}
-export DEFAULT_GME="2.10"
+export DEFAULT_GME_VER="2.10"
 export DEFAULT_GME_SECRET="relay-token"
 export DEFAULT_GME_SECRET_TOKEN="my-lucky-secret-token"
 export GME_SECRET=${GME_SECRET:-$DEFAULT_GME_SECRET}
@@ -291,7 +291,7 @@ export GSI_MGMT_CLUSTER GSI_MGMT_CONTEXT GSI_MGMT_NETWORK
 #-------------------------------------------------------------------------------
 # GSI runtime flags
 #-------------------------------------------------------------------------------
-export DEFAULT_GSI_MODE=create # create | apply | delete
+export DEFAULT_GSI_MODE=apply # create | apply | delete
 export GSI_MODE=${GSI_MODE:-$DEFAULT_GSI_MODE}
 export DRY_RUN=${DRY_RUN:-} # Testing and generating reproducible plans
 
@@ -332,14 +332,16 @@ function set_istio {
 }
 
 function set_gme {
-  export GME_VER
-  GME_VER=$(eval echo \$GME_VER_"${1//.}")
+  local _gme_ver=${1:-$GME_VER}
+  if [[ -z $_gme_ver ]]; then
+    GME_VER=$(eval echo \$GME_VER_"${DEFAULT_GME_VER//.}")
+  fi
 }
 
 function gsi_set_defaults {
   set_revision main
   set_istio 1.26 solo distroless
-  set_gme $DEFAULT_GME
+  set_gme
 }
 
 function is_create_mode {
