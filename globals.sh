@@ -214,7 +214,7 @@ export GLOO_GATEWAY_V2_FLAG
 export KEYCLOAK_ENABLED=${KEYCLOAK_ENABLED:-false}
 export KEYCLOAK_NAMESPACE=keycloak
 export KEYCLOAK_VER=26.3
-export KEYCLOAK_ENDPOINT KEYCLOAK_HOST KEYCLOAK_PORT KEYCLOAK_URL
+export KEYCLOAK_ENDPOINT KEYCLOAK_HOST KEYCLOAK_PORT KEYCLOAK_URL KEYCLOAK_FLAG
 export KEYCLOAK_TOKEN KEYCLOAK_CLIENT KEYCLOAK_SECRET KEYCLOAK_ID
 
 ###############################################################################
@@ -357,15 +357,12 @@ function gsi_reset {
 # For reproducibilty and sharing, we save the manifests
 function set_utag {
   local _utag=${1:-$UTAG}
-  export UTAG=${_utag:-$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)}
+  UTAG=${_utag:-$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)}
   MANIFESTS="$(dirname "$0")"/manifests/$UTAG
 }
 
 function gsi_init {
-##  # For reproducibilty and sharing, we save the manifests
-##  UTAG=${UTAG:-$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)}
-##  MANIFESTS="$(dirname "$0")"/manifests/$UTAG
-  set_utag
+  set_utag "$1"
   mkdir -p "$MANIFESTS"
   echo "export MANIFESTS=$MANIFESTS"
 
@@ -378,18 +375,75 @@ function gsi_init {
       echo '#' GME MGMT Agent is enabled
     fi
   fi
+  #############################################################################
+  # Support infrastructure which affects later fields
+  #############################################################################
+  #----------------------------------------------------------------------------
+  # Spire
+  #----------------------------------------------------------------------------
+  if $SPIRE_ENABLED; then
+    SPIRE_FLAG=enabled
+    echo '#' SPIRE is enabled
+  fi
 
-  # cloud / k8s providers
-  $DOCKER_DESKTOP_ENABLED   && DOCKER_DESKTOP_FLAG=enabled   && echo '#' Docker Desktop is enabled
-  $AWS_ENABLED   && AWS_FLAG=enabled   && echo '#' AWS is enabled
-  $AZURE_ENABLED && AZURE_FLAG=enabled && echo '#' AZURE is enabled
-  $GCP_ENABLED && GCP_FLAG=enabled && echo '#' AZURE is enabled
+  #----------------------------------------------------------------------------
+  # Cert-manager
+  #----------------------------------------------------------------------------
+  if $CERT_MANAGER_ENABLED; then
+    CERT_MANAGER_FLAG=enabled 
+    HTTPS_FLAG=enabled
+    echo '#' Cert-manager is enabled
+  fi
 
+  #----------------------------------------------------------------------------
+  # Keycloak and ExtAuth
+  #----------------------------------------------------------------------------
+  if $KEYCLOAK_ENABLED; then
+    KEYCLOAK_FLAG=enabled
+    EXTAUTH_ENABLED=true
+    RATELIMITER_ENABLED=true
+    echo '#' Keycloak is enabled
+  fi
+
+  #############################################################################
+  # k8s providers
+  #############################################################################
+  if $DOCKER_DESKTOP_ENABLED; then
+    DOCKER_DESKTOP_FLAG=enabled
+    echo '#' Docker Desktop is enabled
+  fi
+  if $AWS_ENABLED; then
+    AWS_FLAG=enabled
+    # shellcheck disable=SC2299
+    COGNITO_ISSUER_FQDN="${${COGNITO_ISSUER_URL##*//}%%/*}"
+    echo '#' Amazon AWS is enabled
+  fi
+  if $AZURE_ENABLED; then
+    AZURE_FLAG=enabled
+    echo '#' Microsoft AZURE is enabled
+  fi
+  if $GCP_ENABLED; then
+    GCP_FLAG=enabled
+    echo '#' Google GCP is enabled
+  fi
+
+  #----------------------------------------------------------------------------
   # Istio mesh mode
-  $SIDECAR_ENABLED && SIDECAR_FLAG=enabled && echo '#' Istio Sidecar
-  $AMBIENT_ENABLED && AMBIENT_FLAG=enabled && echo '#' Istio Ambient
+  #----------------------------------------------------------------------------
+  if $SIDECAR_ENABLED; then
+    ISTIO_ENABLED=true
+    SIDECAR_FLAG=enabled
+    echo '#' Istio Sidecar dataplane is enabled
+  fi
+  if $AMBIENT_ENABLED; then
+    ISTIO_ENABLED=true
+    AMBIENT_FLAG=enabled
+    echo '#' Istio Ambient dataplane is enabled
+  fi
   
-  # Istio multicluster
+  #----------------------------------------------------------------------------
+  # Multicluster
+  #----------------------------------------------------------------------------
   if $MULTICLUSTER_ENABLED; then
     MC_FLAG=enabled
     echo '#' Multicluster is enabled 
@@ -400,61 +454,82 @@ function gsi_init {
   fi
 
   # TLS Termination for istio gateway EW
-  $TLS_TERMINATION_ENABLED && TLS_TERMINATION_FLAG=enabled
-  
+  if $TLS_TERMINATION_ENABLED; then
+    TLS_TERMINATION_FLAG=enabled
+    echo '#' TLS Termination is enabled
+  fi 
+
+  #############################################################################
+  # Gateways
+  #############################################################################
+  #----------------------------------------------------------------------------
   # Kgateway (OSS)
+  #----------------------------------------------------------------------------
   if $KGATEWAY_ENABLED; then
+    GATEWAY_API_ENABLED=true
     KGATEWAY_FLAG=enabled
     INGRESS_GATEWAY_CLASS=kgateway
     INGRESS_ENABLED=true
-    GATEWAY_API_ENABLED=true
-    echo '#' Kgateway is enabled  on "$GSI_CLUSTER"
+    echo '#' Kgateway is enabled
   fi
 
+  #----------------------------------------------------------------------------
+  # Gloo Gateway V1 (Edge or Gateway API)
+  #----------------------------------------------------------------------------
   if $GLOO_GATEWAY_V1_ENABLED; then
+    GLOO_GATEWAY_ENABLED=true
     GATEWAY_API_ENABLED=true
     GLOO_GATEWAY_V1_FLAG=enabled 
-    GLOO_GATEWAY_FLAG=enabled 
     GLOO_GATEWAY_NAMESPACE=$GLOO_GATEWAY_V1_NAMESPACE 
     INGRESS_GATEWAY_CLASS=gloo-gateway
+    GLOO_GATEWAY_FLAG=enabled 
     INGRESS_ENABLED=true
     echo '#' Gloo Gateway V1 is enabled 
   fi
 
+  #----------------------------------------------------------------------------
   # Gloo Gateway V2 (aka kgateway Enterprise)
+  #----------------------------------------------------------------------------
   if $GLOO_GATEWAY_V2_ENABLED; then
+    GLOO_GATEWAY_ENABLED=true
     GATEWAY_API_ENABLED=true
     EXPERIMENTAL_GATEWAY_API_CRDS=true
     GLOO_GATEWAY_V2_FLAG=enabled 
-    GLOO_GATEWAY_FLAG=enabled 
     GLOO_GATEWAY_NAMESPACE=$GLOO_GATEWAY_V2_NAMESPACE 
     INGRESS_GATEWAY_CLASS=gloo-gateway-v2
+    GLOO_GATEWAY_FLAG=enabled 
     INGRESS_ENABLED=true
     echo '#' Gloo Gateway V2 is enabled 
   fi
 
-  # Spire
-  $SPIRE_ENABLED && SPIRE_FLAG=enabled && echo '#' SPIRE is enabled
-
-  # Cert-manager
-  if $CERT_MANAGER_ENABLED; then
-    CERT_MANAGER_FLAG=enabled 
-    HTTPS_FLAG=enabled
-    echo '#' Cert-manager is enabled
+  if $EXTAUTH_ENABLED; then
+    EXTAUTH_FLAG=enabled
+    echo '#' ExtAuth is enabled
+  fi
+  if $RATELIMITER_ENABLED; then
+    RATELIMITER_FLAG=enabled
+    echo '#' Rate-limiter is enabled
+  fi
+  #############################################################################
+  # Apps and Utilities
+  #############################################################################
+  if $HELLOWORLD_ENABLED; then
+    echo '#' Helloworld is enabled
+  fi
+  if $CURL_ENABLED; then
+    echo '#' Curl is enabled
+  fi
+  if $UTILS_ENABLED; then
+    echo '#' Utils is enabled
+  fi
+  if $NETSHOOT_ENABLED; then
+    echo '#' NetShoot is enabled
   fi
 
-  # Keycloak and ExtAuth
-  if $KEYCLOAK_ENABLED; then
-    echo '#' Keycloak is enabled
-    EXTAUTH_ENABLED=true && EXTAUTH_FLAG=enabled && echo '#' ExtAuth is enabled
-    RATELIMITER_ENABLED=true && RATELIMITER_FLAG=enabled && echo '#' Rate-limiter is enabled
-  fi
-
-  if $AWS_ENABLED; then
-    # shellcheck disable=SC2299
-    COGNITO_ISSUER_FQDN="${${COGNITO_ISSUER_URL##*//}%%/*}"
-  fi
-
+  #############################################################################
+  # Set defaults based on pre-config
+  # Generate the Global J2 parameters
+  #############################################################################
   gsi_set_defaults
   _jinja2_values
 }
@@ -615,6 +690,7 @@ function _jinja2_values {
          -D ingress_namespace="$INGRESS_NAMESPACE"                            \
          -D ingress_size="$INGRESS_SIZE"                                      \
          -D istio_126_enabled="$ISTIO_126_FLAG"                               \
+         -D istio_enabled="$ISTIO_ENABLED"                                    \
          -D istio_flavor="$ISTIO_FLAVOR"                                      \
          -D istio_namespace="$ISTIO_NAMESPACE"                                \
          -D istio_repo="$ISTIO_REPO"                                          \

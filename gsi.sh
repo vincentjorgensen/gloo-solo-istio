@@ -79,3 +79,8 @@ function zip_gsi {
   zip "$REPLAYS/${UTAG}.zip" "run_${UTAG}.sh" "$MANIFESTS"/*
   echo '# '"$REPLAYS/${UTAG}.zip"
 }
+
+function dry_run_e {
+  local _exec="$*"
+  DRY_RUN='echo' "$1"
+}
