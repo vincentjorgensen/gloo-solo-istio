@@ -17,18 +17,18 @@ spec:
         type: PathPrefix
         value: /
     backendRefs:
-{% if multicluster_enabled %}
+{%- if multicluster_enabled %}
     - kind: Hostname
       group: networking.istio.io
       name: {{ service }}.{{ service_namespace }}.mesh.internal # Will require ReferenceGrant in service_namespace if crosses NS boundary
       port: {{ service_port }}
-{% else %}
+{%- else %}
     - group: ""
       kind: Service
       name: {{ service }}
       namespace: {{ service_namespace }} # Will require ReferenceGrant in service_namespace if crosses NS boundary
       port: {{ service_port }}
-{% endif %}
+{%- endif %}
 {%- if extauth_enabled %}
     filters:
     - type: ExtensionRef
