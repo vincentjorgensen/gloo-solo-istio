@@ -9,7 +9,8 @@ function app_init_namespaces {
   fi
 
   if $GME_ENABLED; then
-    create_namespace "$GSI_MGMT_CONTEXT" "$GSI_NAMESPACE"
+    echo '#' "GME is enabled, creating namespace $GME__NAMESPACE on mgmt server $GSI_MGMT_CLUSTER"
+    create_namespace "$GSI_MGMT_CONTEXT" "$GME_NAMESPACE"
   fi
 }
 
@@ -31,6 +32,6 @@ function create_namespace {
   _context=$1
   _namespace=$2
 
-  $DRY_RUN kubectl "$GSI_MODE" namespace "$_namespace"                        \
+  $DRY_RUN kubectl "${GSI_MODE/apply/create}" namespace "$_namespace"          \
   --context "$_context"
 }
