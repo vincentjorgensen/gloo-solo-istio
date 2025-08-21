@@ -284,8 +284,9 @@ export GME_SECRET=${GME_SECRET:-$DEFAULT_GME_SECRET}
 export GME_SECRET_TOKEN=${GME_SECRET_TOKEN:-$DEFAULT_GME_SECRET_TOKEN}
 export GME_ANALYZER_ENABLED=true
 export GME_INSIGHTS_ENABLED=true
-export GME_GLOOUI_SERVICE_TYPE=${GME_GLOOUI_SERVICE_TYPE:-ClusterIP}
+export GME_GLOOUI_SERVICE_TYPE=${GME_GLOOUI_SERVICE_TYPE:-LoadBalancer}
 export GME_MGMT_SERVICE_TYPE=${GME_GLOOUI_SERVICE_TYPE:-ClusterIP}
+export GME_TELEMETRY_SERVICE_TYPE=${GME_TELEMETRY_SERVICE_TYPE:-ClusterIP}
 export GME_FLAG GME_MGMT_AGENT_FLAG
 
 ###############################################################################
@@ -388,6 +389,7 @@ function gsi_init {
     fi
     if $MULTICLUSTER_ENABLED; then
       GME_MGMT_SERVICE_TYPE=LoadBalancer
+      GME_TELEMETRY_SERVICE_TYPE=LoadBalancer
       echo '#' GME MGMT Multicluster is enabled
     fi
   fi
@@ -725,6 +727,7 @@ function _jinja2_values {
          -D gme_secret_token="$GME_SECRET_TOKEN"                               \
          -D gme_secret="$GME_SECRET"                                           \
          -D gme_verbose="$GME_VERBOSE"                                         \
+         -D gme_telemetry_service_type="$GME_TELEMETRY_SERVICE_TYPE"           \
          -D helloworld_container_port="$HELLOWORLD_CONTAINER_PORT"             \
          -D helloworld_namespace="$HELLOWORLD_NAMESPACE"                       \
          -D helloworld_service_name="$HELLOWORLD_SERVICE_NAME"                 \

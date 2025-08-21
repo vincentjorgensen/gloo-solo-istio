@@ -12,6 +12,8 @@ function app_init_gme {
       exec_gme_secrets
       exec_gloo_platform_crds
       exec_gloo_agent
+    else
+      create_gloo_k8s_cluster -x "$GSI_MGMT_CONTEXT" -c "$GSI_MGMT_CLUSTER"
     fi
 
     if $MULTICLUSTER_ENABLED; then
@@ -132,7 +134,8 @@ function exec_gloo_mgmt_server {
     --namespace="$GME_NAMESPACE"        
   fi
 
-  _wait_for_pods "$GSI_MGMT_CONTEXT" "$GME_NAMESPACE" gme
+  _wait_for_pods "$GSI_MGMT_CONTEXT" "$GME_NAMESPACE" gloo-mesh-mgmt-server
+  _wait_for_pods "$GSI_MGMT_CONTEXT" "$GME_NAMESPACE" gloo-mesh-ui
 }
 
 function exec_gloo_k8s_cluster {
@@ -145,6 +148,32 @@ function exec_gloo_k8s_cluster {
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_MGMT_CONTEXT"                                               \
+  -f "$_manifest"
+}
+
+function create_gloo_k8s_cluster {
+  local _cluster _context
+  while getopts "c:x:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      c)
+        _cluster=$OPTARG ;;
+      x)
+        _context=$OPTARG ;;
+    esac
+  done
+
+  local _manifest="$MANIFESTS/gloo.k8s_cluster.${_cluster}.yaml"
+  local _template="$TEMPLATES"/gloo.k8s_cluster.manifest.yaml.j2
+
+  jinja2                                                                       \
+         -D cluster="$_cluster"                                                \
+         "$_template"                                                          \
+         "$J2_GLOBALS"                                                         \
+  > "$_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                 \
+  --context "$GSI_MGMT_CONTEXT"                                                \
   -f "$_manifest"
 }
 
