@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 function app_init_gme {
   if $GME_ENABLED; then
-    exec_gme_secrets -x "$GSI_MGMT_CONTEXT" -c "$GSI_MGMT_CLUSTER"
+    create_gme_secrets -x "$GSI_MGMT_CONTEXT" -c "$GSI_MGMT_CLUSTER"
     exec_gloo_platform_crds -x "$GSI_MGMT_CONTEXT"
     exec_gloo_mgmt_server
     exec_istio_base -x "$GSI_MGMT_CONTEXT" -c "$GSI_MGMT_CLUSTER"
 
-    # First Workload cluster
-    exec_gloo_k8s_cluster 
-    exec_gme_secrets
-    exec_gloo_platform_crds
-    exec_gloo_agent
+    if [[ $GSI_MGMT_CLUSTER != "$GSI_CLUSTER" ]]; then
+      # First Workload cluster
+      exec_gloo_k8s_cluster 
+      exec_gme_secrets
+      exec_gloo_platform_crds
+      exec_gloo_agent
+    fi
 
     if $MULTICLUSTER_ENABLED; then
       # Second Workload cluster
@@ -52,7 +54,7 @@ function app_init_gme_workspaces {
   fi
 }
 
-function exec_gme_secrets {
+function create_gme_secrets {
   local _context=$GSI_CONTEXT
   local _cluster=$GSI_CLUSTER
 
@@ -67,15 +69,15 @@ function exec_gme_secrets {
   done
 
   local _manifest="$MANIFESTS/gme.secret.relay-token.${_cluster}.yaml"
+  local _template="$TEMPLATES"/gme.secret.relay-token.manifest.yaml.j2
 
-  jinja2 -D gme_secret="${GME_SECRET:-relay-token}"                           \
-         -D gme_secret_token="${GME_SECRET_TOKEN:-secret-token}"              \
-         -D gme_namespace="$GME_NAMESPACE"                                    \
-         "$TEMPLATES"/gme.secret.relay-token.manifest.yaml.j2                 \
-    > "$_manifest"
+  jinja2                                                                       \
+         "$_template"                                                          \
+         "$J2_GLOBALS"                                                         \
+  > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$_context"                                                       \
+  $DRY_RUN kubectl "$GSI_MODE"                                                 \
+  --context "$_context"                                                        \
   -f "$_manifest"
 }
 
@@ -107,6 +109,7 @@ function exec_gloo_platform_crds {
 
 function exec_gloo_mgmt_server {
   local _manifest="$MANIFESTS/helm.gloo-mgmt-server.${GSI_MGMT_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.gloo-mgmt-server.yaml.j2
 
   if is_create_mode; then
     jinja2                                                                     \

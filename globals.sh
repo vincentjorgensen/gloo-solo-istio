@@ -284,6 +284,8 @@ export GME_SECRET=${GME_SECRET:-$DEFAULT_GME_SECRET}
 export GME_SECRET_TOKEN=${GME_SECRET_TOKEN:-$DEFAULT_GME_SECRET_TOKEN}
 export GME_ANALYZER_ENABLED=true
 export GME_INSIGHTS_ENABLED=true
+export GME_GLOOUI_SERVICE_TYPE=${GME_GLOOUI_SERVICE_TYPE:-ClusterIP}
+export GME_MGMT_SERVICE_TYPE=${GME_GLOOUI_SERVICE_TYPE:-ClusterIP}
 export GME_FLAG GME_MGMT_AGENT_FLAG
 
 ###############################################################################
@@ -383,6 +385,10 @@ function gsi_init {
     if $GME_MGMT_AGENT_ENABLED; then
       GME_MGMT_AGENT_FLAG=enabled 
       echo '#' GME MGMT Agent is enabled
+    fi
+    if $MULTICLUSTER_ENABLED; then
+      GME_MGMT_SERVICE_TYPE=LoadBalancer
+      echo '#' GME MGMT Multicluster is enabled
     fi
   fi
   #----------------------------------------------------------------------------
@@ -688,7 +694,6 @@ function _jinja2_values {
          -D ambient_enabled="$AMBIENT_FLAG"                                    \
          -D aws_enabled="$AWS_FLAG"                                            \
          -D azure_enabled="$AZURE_FLAG"                                        \
-         -D gcp_enabled="$GCP_FLAG"                                            \
          -D cert_manager_enabled="$CERT_MANAGER_FLAG"                          \
          -D cert_manager_ingress_secret="$CERT_MANAGER_INGRESS_SECRET"         \
          -D cert_manager_namespace="$CERT_MANAGER_NAMESPACE"                   \
@@ -704,18 +709,22 @@ function _jinja2_values {
          -D eastwest_namespace="$EASTWEST_NAMESPACE"                           \
          -D eastwest_size="$EASTWEST_SIZE"                                     \
          -D extauth_enabled="$EXTAUTH_FLAG"                                    \
+         -D gcp_enabled="$GCP_FLAG"                                            \
          -D gloo_edge_enabled="$GLOO_EDGE_FLAG"                                \
          -D gloo_gateway_enabled="$GLOO_GATEWAY_FLAG"                          \
          -D gloo_gateway_namespace="$GLOO_GATEWAY_NAMESPACE"                   \
          -D gloo_gateway_v1_enabled="$GLOO_GATEWAY_V1_FLAG"                    \
          -D gloo_gateway_v2_enabled="$GLOO_GATEWAY_V2_FLAG"                    \
-         -D gme_namespace="$GME_NAMESPACE"                                     \
-         -D gme_mgmt_agent_enabled="$GME_MGMT_AGENT_FLAG"                      \
-         -D gme_verbose="$GME_VERBOSE"                                         \
-         -D gme_mgmt_cluster="$GSI_MGMT_CLUSTER"                               \
          -D gme_analyzer_enabled="$GME_ANALYZER_ENABLED"                       \
+         -D gme_glooui_service_type="$GME_GLOOUI_SERVICE_TYPE"                 \
          -D gme_insights_enabled="$GME_ANALYZER_ENABLED"                       \
+         -D gme_mgmt_agent_enabled="$GME_MGMT_AGENT_FLAG"                      \
+         -D gme_mgmt_cluster="$GSI_MGMT_CLUSTER"                               \
+         -D gme_mgmt_service_type="$GME_MGMT_SERVICE_TYPE"                     \
+         -D gme_namespace="$GME_NAMESPACE"                                     \
+         -D gme_secret_token="$GME_SECRET_TOKEN"                               \
          -D gme_secret="$GME_SECRET"                                           \
+         -D gme_verbose="$GME_VERBOSE"                                         \
          -D helloworld_container_port="$HELLOWORLD_CONTAINER_PORT"             \
          -D helloworld_namespace="$HELLOWORLD_NAMESPACE"                       \
          -D helloworld_service_name="$HELLOWORLD_SERVICE_NAME"                 \
