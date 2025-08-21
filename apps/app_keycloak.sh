@@ -19,7 +19,7 @@ function exec_keycloak {
   -f "$_manifest" 
 
   if is_create_mode; then
-    _wait_for_pods "$KEYCLOAK_NAMESPACE" keycloak
+    _wait_for_pods "$GSI_CONTEXT" "$KEYCLOAK_NAMESPACE" keycloak
   fi
 }
 
