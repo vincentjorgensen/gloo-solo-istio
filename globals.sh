@@ -166,7 +166,13 @@ export EASTWEST_GATEWAY_CLASS MC_FLAG
 #-------------------------------------------------------------------------------
 export ISTIO_GATEWAY_ENABLED=${ISTIO_GATEWAY_ENABLED:-false}
 export TLS_TERMINATION_ENABLED=${TLS_TERMINATION_ENABLED:-false}
-export TLS_TERMINATION_FLAG
+export TLS_TERMINATION_FLAG ISTIO_GATEWAY_FLAG
+
+#-------------------------------------------------------------------------------
+# Ingress as Gloo Edge
+#-------------------------------------------------------------------------------
+export GLOO_EDGE_ENABLED=${GLOO_EDGE_ENABLED:-false}
+export GLOO_EDGE_FLAG
 
 #-------------------------------------------------------------------------------
 # Ingress as KGateway
@@ -474,49 +480,76 @@ function gsi_init {
     INGRESS_ENABLED=true
     echo '#' Kgateway is enabled
   fi
-
   #----------------------------------------------------------------------------
   # Gloo Gateway V1 (Edge or Gateway API)
   #----------------------------------------------------------------------------
   if $GLOO_GATEWAY_V1_ENABLED; then
     GLOO_GATEWAY_ENABLED=true
-    GATEWAY_API_ENABLED=true
+    # GATEWAY_API_ENABLED=true # Not implicit, could be edge
     GLOO_GATEWAY_V1_FLAG=enabled 
     GLOO_GATEWAY_NAMESPACE=$GLOO_GATEWAY_V1_NAMESPACE 
     INGRESS_GATEWAY_CLASS=gloo-gateway
-    GLOO_GATEWAY_FLAG=enabled 
-    INGRESS_ENABLED=true
     echo '#' Gloo Gateway V1 is enabled 
   fi
-
   #----------------------------------------------------------------------------
-  # Gloo Gateway V2 (aka kgateway Enterprise)
+  # Gloo Gateway V2 (Gateway API)
   #----------------------------------------------------------------------------
   if $GLOO_GATEWAY_V2_ENABLED; then
     GLOO_GATEWAY_ENABLED=true
-    GATEWAY_API_ENABLED=true
-    EXPERIMENTAL_GATEWAY_API_CRDS=true
+    GATEWAY_API_ENABLED=true # Implicit in V2
     GLOO_GATEWAY_V2_FLAG=enabled 
     GLOO_GATEWAY_NAMESPACE=$GLOO_GATEWAY_V2_NAMESPACE 
     INGRESS_GATEWAY_CLASS=gloo-gateway-v2
-    GLOO_GATEWAY_FLAG=enabled 
-    INGRESS_ENABLED=true
     echo '#' Gloo Gateway V2 is enabled 
   fi
-
+  #----------------------------------------------------------------------------
+  # Ingress via Gloo Gateway
+  #----------------------------------------------------------------------------
+  if $GLOO_GATEWAY_ENABLED; then
+    GLOO_GATEWAY_FLAG=enabled 
+    INGRESS_ENABLED=true
+    echo '#' Gloo Gateway Ingress is enabled
+  fi
+  #----------------------------------------------------------------------------
+  # Gloo Edge API
+  #----------------------------------------------------------------------------
+  if $GLOO_EDGE_ENABLED; then
+      echo '#' Gloo Edge API CRDs are enabled
+  fi
+  #----------------------------------------------------------------------------
+  # Gateway API
+  #----------------------------------------------------------------------------
+  if $GATEWAY_API_ENABLED; then
+    if $GLOO_GATEWAY_V2_ENABLED; then
+      EXPERIMENTAL_GATEWAY_API_CRDS=true
+      echo '#' Experimental Gateway API CRDs are enabled
+    else
+      echo '#' Gateway API CRDs are enabled
+    fi
+  fi
+  #----------------------------------------------------------------------------
+  # Gateway ExtAuth
+  #----------------------------------------------------------------------------
   if $EXTAUTH_ENABLED; then
     EXTAUTH_FLAG=enabled
     echo '#' ExtAuth is enabled
   fi
+  #----------------------------------------------------------------------------
+  # Gateway Rate-Limit
+  #----------------------------------------------------------------------------
   if $RATELIMITER_ENABLED; then
     RATELIMITER_FLAG=enabled
     echo '#' Rate-limiter is enabled
   fi
+
   #############################################################################
   # Apps and Utilities
   #############################################################################
   if $HELLOWORLD_ENABLED; then
     echo '#' Helloworld is enabled
+  fi
+  if $HTTPBIN_ENABLED; then
+    echo '#' HTTPBIN is enabled
   fi
   if $CURL_ENABLED; then
     echo '#' Curl is enabled
@@ -669,6 +702,7 @@ function _jinja2_values {
          -D eastwest_namespace="$EASTWEST_NAMESPACE"                          \
          -D eastwest_size="$EASTWEST_SIZE"                                    \
          -D extauth_enabled="$EXTAUTH_FLAG"                                   \
+         -D gloo_edge_enabled="$GLOO_EDGE_FLAG"                               \
          -D gloo_gateway_enabled="$GLOO_GATEWAY_FLAG"                         \
          -D gloo_gateway_namespace="$GLOO_GATEWAY_NAMESPACE"                  \
          -D gloo_gateway_v1_enabled="$GLOO_GATEWAY_V1_FLAG"                   \
