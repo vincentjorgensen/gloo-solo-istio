@@ -109,40 +109,27 @@ function exec_gloo_mgmt_server {
   local _manifest="$MANIFESTS/helm.gloo-mgmt-server.${GSI_MGMT_CLUSTER}.yaml"
 
   if is_create_mode; then
-    jinja2 -D cluster_name="$GSI_MGMT_CLUSTER"                                \
-           -D verbose="$GME_VERBOSE"                                          \
-           -D azure_enabled="$AZURE_FLAG"                                     \
-           -D aws_enabled="$AWS_FLAG"                                         \
-           -D gcp_enabled="$GCP_FLAG"                                         \
-           -D analyzer_enabled="true"                                         \
-           -D insights_enabled="true"                                         \
-           -D gloo_agent="$GSI_MGMT_AGENT_FLAG"                               \
-           -D gloo_platform_license_key="$GLOO_PLATFORM_LICENSE_KEY"          \
-           -D gme_secret="$GME_SECRET"                                        \
-           "$TEMPLATES"/helm.gloo-mgmt-server.yaml.j2                         \
-      > "$_manifest"
+    jinja2                                                                     \
+         "$_template"                                                          \
+         "$J2_GLOBALS"                                                         \
+    > "$_manifest"
 
-    $DRY_RUN helm upgrade -i gloo-platform-mgmt gloo-platform/gloo-platform   \
-    --version="$GME_VER"                                                      \
-    --kube-context="$GSI_MGMT_CONTEXT"                                        \
-    --namespace="$GME_NAMESPACE"                                              \
-    --values "$_manifest"                                                     \
+    $DRY_RUN helm upgrade -i gloo-platform-mgmt gloo-platform/gloo-platform    \
+    --version="$GME_VER"                                                       \
+    --kube-context="$GSI_MGMT_CONTEXT"                                         \
+    --namespace="$GME_NAMESPACE"                                               \
+    --values "$_manifest"                                                      \
     --wait
 
     echo '#'"GSI_MGMT_CONTEXT=$GSI_MGMT_CONTEXT"
     echo '#'"GSI_MGMT_CLUSTER=$GSI_MGMT_CLUSTER"
   else
-    $DRY_RUN helm uninstall gloo-platform-mgmt                                \
-    --kube-context="$GSI_MGMT_CONTEXT"                                        \
+    $DRY_RUN helm uninstall gloo-platform-mgmt                                 \
+    --kube-context="$GSI_MGMT_CONTEXT"                                         \
     --namespace="$GME_NAMESPACE"        
   fi
 
-  if is_create_mode; then
-    $DRY_RUN kubectl wait                                                     \
-    --context "$GSI_MGMT_CONTEXT"                                             \
-    --namespace "$GME_NAMESPACE"                                              \
-    --for=condition=Ready pods --all
-  fi
+  _wait_for_pods "$GSI_MGMT_CONTEXT" "$GME_NAMESPACE" gme
 }
 
 function exec_gloo_k8s_cluster {
@@ -305,6 +292,7 @@ function create_gloo_workspacesettings {
   done
 
   local _manifest="$MANIFESTS/gloo.workspacesettings.${_workspace_name}.${GSI_MGMT_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gloo.workspacesettings.manifest.yaml.j2
 
   echo "import_workspaces:" >> "$_ztemp"
   for ws in "${_import_workspaces[@]}"; do
@@ -319,7 +307,7 @@ function create_gloo_workspacesettings {
   cp "$_ztemp" "$_ztemp".yaml
 
   jinja2 -D name="$_workspace_name"                                           \
-         "$TEMPLATES"/gloo.workspacesettings.manifest.yaml.j2                 \
+         "$_template"                                                         \
          "$_ztemp".yaml                                                       \
     > "$_manifest"
 
