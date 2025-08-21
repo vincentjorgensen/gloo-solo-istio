@@ -33,7 +33,7 @@ function exec_utils {
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 
-  _wait_for_pods "$UTILS_NAMESPACE" utils
+  _wait_for_pods "$GSI_CONTEXT" "$UTILS_NAMESPACE" utils
 }
 
 function exec_netshoot {
@@ -51,7 +51,7 @@ function exec_netshoot {
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 
-  _wait_for_pods "$NETSHOOT_NAMESPACE" netshoot
+  _wait_for_pods "$GSI_CONTEXT" "$NETSHOOT_NAMESPACE" netshoot
 }
 
 
@@ -70,5 +70,5 @@ function exec_curl {
   --context "$GSI_CONTEXT"                                                    \
   -f "$_manifest"
 
-  _wait_for_pods "$CURL_NAMESPACE" curl
+  _wait_for_pods "$GSI_CONTEXT" "$CURL_NAMESPACE" curl
 }

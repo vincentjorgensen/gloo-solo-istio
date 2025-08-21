@@ -42,5 +42,5 @@ function exec_httpbin {
   --context "$GSI_CONTEXT"                                                     \
   -f "$_manifest"
 
-  _wait_for_pods "$HTTPBIN_NAMESPACE" httpbin
+  _wait_for_pods "$GSI_CONTEXT" "$HTTPBIN_NAMESPACE" httpbin
 }

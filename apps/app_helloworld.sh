@@ -60,5 +60,5 @@ function exec_helloworld {
   --context "$GSI_CONTEXT"                                                     \
   -f "$_manifest"
 
-  _wait_for_pods "$HELLOWORLD_NAMESPACE" helloworld
+  _wait_for_pods "$GSI_CONTEXT" "$HELLOWORLD_NAMESPACE" helloworld
 }

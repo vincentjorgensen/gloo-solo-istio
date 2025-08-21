@@ -282,6 +282,8 @@ export DEFAULT_GME_SECRET="relay-token"
 export DEFAULT_GME_SECRET_TOKEN="my-lucky-secret-token"
 export GME_SECRET=${GME_SECRET:-$DEFAULT_GME_SECRET}
 export GME_SECRET_TOKEN=${GME_SECRET_TOKEN:-$DEFAULT_GME_SECRET_TOKEN}
+export GME_ANALYZER_ENABLED=true
+export GME_INSIGHTS_ENABLED=true
 export GME_FLAG GME_MGMT_AGENT_FLAG
 
 ###############################################################################
@@ -303,14 +305,6 @@ export DRY_RUN=${DRY_RUN:-} # Testing and generating reproducible plans
 
 function set_gsi_mode {
   export GSI_MODE=${1:-$DEFAULT_GSI_MODE}
-}
-
-function enable_gme {
-  export GME_ENABLED=true 
-}
-
-function disable_gme {
-  export GME_ENABLED=false 
 }
 
 function set_revision {
@@ -374,18 +368,23 @@ function gsi_init {
   mkdir -p "$MANIFESTS"
   echo "export MANIFESTS=$MANIFESTS"
 
+  #############################################################################
+  # Support infrastructure which affects later fields
+  #############################################################################
+  #----------------------------------------------------------------------------
   # Gloo Mesh Enterprise (GME)
+  #----------------------------------------------------------------------------
   if $GME_ENABLED; then
     GME_FLAG=enabled  
     echo '#' GME is enabled
+    if [[ $GSI_MGMT_CLUSTER == "$GSI_CLUSTER" ]]; then
+      GME_MGMT_AGENT_ENABLED=true
+    fi
     if $GME_MGMT_AGENT_ENABLED; then
       GME_MGMT_AGENT_FLAG=enabled 
       echo '#' GME MGMT Agent is enabled
     fi
   fi
-  #############################################################################
-  # Support infrastructure which affects later fields
-  #############################################################################
   #----------------------------------------------------------------------------
   # Spire
   #----------------------------------------------------------------------------
@@ -630,12 +629,13 @@ function _f_debug {
 }
 
 function _wait_for_pods {
-  local _namespace=$1
-  local _app=$2
+  local _context=$1
+  local _namespace=$2
+  local _app=$3
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
-    --context "$GSI_CONTEXT"                                                  \
+    --context "$_context"                                                     \
     --namespace "$_namespace"                                                 \
     --for=condition=Ready pods -l app="$_app"     
   fi
@@ -684,74 +684,82 @@ function _jinja2_values {
     echo "- $zone" >> "$J2_GLOBALS"
   done <<< "$_zones"
 
-  jinja2                                                                      \
-         -D ambient_enabled="$AMBIENT_FLAG"                                   \
-         -D aws_enabled="$AWS_FLAG"                                           \
-         -D cert_manager_enabled="$CERT_MANAGER_FLAG"                         \
-         -D cert_manager_ingress_secret="$CERT_MANAGER_INGRESS_SECRET"        \
-         -D cert_manager_namespace="$CERT_MANAGER_NAMESPACE"                  \
-         -D cluster_issuer="$CLUSTER_ISSUER"                                  \
-         -D cognito_issuer_fqdn="$COGNITO_ISSUER_FQDN"                        \
-         -D cognito_issuer_url="$COGNITO_ISSUER"                              \
-         -D cognito_jwt_route_option_name="$COGNITO_JWT_ROUTE_OPTION"         \
-         -D cognito_keep_token_bool="$COGNITO_KEEP_TOKEN"                     \
-         -D curl_namespace="$CURL_NAMESPACE"                                  \
-         -D docker_desktop_enabled="$DOCKER_DESKTOP_ENABLED"                  \
-         -D eastwest_gateway_class="$EASTWEST_GATEWAY_CLASS"                  \
-         -D eastwest_gateway="$EASTWEST_GATEWAY"                              \
-         -D eastwest_namespace="$EASTWEST_NAMESPACE"                          \
-         -D eastwest_size="$EASTWEST_SIZE"                                    \
-         -D extauth_enabled="$EXTAUTH_FLAG"                                   \
-         -D gloo_edge_enabled="$GLOO_EDGE_FLAG"                               \
-         -D gloo_gateway_enabled="$GLOO_GATEWAY_FLAG"                         \
-         -D gloo_gateway_namespace="$GLOO_GATEWAY_NAMESPACE"                  \
-         -D gloo_gateway_v1_enabled="$GLOO_GATEWAY_V1_FLAG"                   \
-         -D gloo_gateway_v2_enabled="$GLOO_GATEWAY_V2_FLAG"                   \
-         -D gme_namespace="$GME_NAMESPACE"                                    \
-         -D helloworld_container_port="$HELLOWORLD_CONTAINER_PORT"            \
-         -D helloworld_namespace="$HELLOWORLD_NAMESPACE"                      \
-         -D helloworld_service_name="$HELLOWORLD_SERVICE_NAME"                \
-         -D helloworld_service_port="$HELLOWORLD_SERVICE_PORT"                \
-         -D helloworld_size="$HELLOWORLD_SIZE"                                \
-         -D httpbin_container_port="$HTTPBIN_CONTAINER_PORT"                  \
-         -D httpbin_namespace="$HTTPBIN_NAMESPACE"                            \
-         -D httpbin_service_name="$HTTPBIN_SERVICE_NAME"                      \
-         -D httpbin_service_port="$HTTPBIN_SERVICE_PORT"                      \
-         -D httpbin_size="$HTTPBIN_SIZE"                                      \
-         -D https_enabled="$HTTPS_FLAG"                                       \
-         -D ingress_gateway_class="$INGRESS_GATEWAY_CLASS"                    \
-         -D ingress_gateway="$INGRESS_GATEWAY"                                \
-         -D ingress_http_port="$INGRESS_HTTP_PORT"                            \
-         -D ingress_https_port="$INGRESS_HTTPS_PORT"                          \
-         -D ingress_namespace="$INGRESS_NAMESPACE"                            \
-         -D ingress_size="$INGRESS_SIZE"                                      \
-         -D istio_126_enabled="$ISTIO_126_FLAG"                               \
-         -D istio_enabled="$ISTIO_ENABLED"                                    \
-         -D istio_flavor="$ISTIO_FLAVOR"                                      \
-         -D istio_namespace="$ISTIO_NAMESPACE"                                \
-         -D istio_repo="$ISTIO_REPO"                                          \
-         -D istio_revision="$REVISION"                                        \
-         -D istio_secret="$ISTIO_SECRET"                                      \
-         -D istio_traffic_distribution="${TRAFFIC_DISTRIBUTION:-Any}"         \
-         -D istio_variant="$ISTIO_DISTRO"                                     \
-         -D istio_ver="$ISTIO_VER"                                            \
-         -D keycloak_namespace="$KEYCLOAK_NAMESPACE"                          \
-         -D keycloak_ver="$KEYCLOAK_VER"                                      \
-         -D kube_system_namespace="$KUBE_SYSTEM_NAMESPACE"                    \
-         -D license_key="$GLOO_MESH_LICENSE_KEY"                              \
-         -D mesh_id="$MESH_ID"                                                \
-         -D multicluster_enabled="$MC_FLAG"                                   \
-         -D netshoot_namespace="$NETSHOOT_NAMESPACE"                          \
-         -D ratelimiter_enabled="$RATELIMITER_FLAG"                           \
-         -D region="$_region"                                                 \
-         -D sidecar_enabled="$SIDECAR_FLAG"                                   \
-         -D spire_enabled="$SPIRE_FLAG"                                       \
-         -D spire_namespace="$SPIRE_NAMESPACE"                                \
-         -D spire_secret="$SPIRE_SECRET"                                      \
-         -D tldn="$TLDN"                                                      \
-         -D traffic_policy="$TRAFFIC_POLICY"                                  \
-         -D utils_namespace="$UTILS_NAMESPACE"                                \
-         "$TEMPLATES"/jinja2_globals.yaml.j2                                  \
+  jinja2                                                                       \
+         -D ambient_enabled="$AMBIENT_FLAG"                                    \
+         -D aws_enabled="$AWS_FLAG"                                            \
+         -D azure_enabled="$AZURE_FLAG"                                        \
+         -D gcp_enabled="$GCP_FLAG"                                            \
+         -D cert_manager_enabled="$CERT_MANAGER_FLAG"                          \
+         -D cert_manager_ingress_secret="$CERT_MANAGER_INGRESS_SECRET"         \
+         -D cert_manager_namespace="$CERT_MANAGER_NAMESPACE"                   \
+         -D cluster_issuer="$CLUSTER_ISSUER"                                   \
+         -D cognito_issuer_fqdn="$COGNITO_ISSUER_FQDN"                         \
+         -D cognito_issuer_url="$COGNITO_ISSUER"                               \
+         -D cognito_jwt_route_option_name="$COGNITO_JWT_ROUTE_OPTION"          \
+         -D cognito_keep_token_bool="$COGNITO_KEEP_TOKEN"                      \
+         -D curl_namespace="$CURL_NAMESPACE"                                   \
+         -D docker_desktop_enabled="$DOCKER_DESKTOP_ENABLED"                   \
+         -D eastwest_gateway_class="$EASTWEST_GATEWAY_CLASS"                   \
+         -D eastwest_gateway="$EASTWEST_GATEWAY"                               \
+         -D eastwest_namespace="$EASTWEST_NAMESPACE"                           \
+         -D eastwest_size="$EASTWEST_SIZE"                                     \
+         -D extauth_enabled="$EXTAUTH_FLAG"                                    \
+         -D gloo_edge_enabled="$GLOO_EDGE_FLAG"                                \
+         -D gloo_gateway_enabled="$GLOO_GATEWAY_FLAG"                          \
+         -D gloo_gateway_namespace="$GLOO_GATEWAY_NAMESPACE"                   \
+         -D gloo_gateway_v1_enabled="$GLOO_GATEWAY_V1_FLAG"                    \
+         -D gloo_gateway_v2_enabled="$GLOO_GATEWAY_V2_FLAG"                    \
+         -D gme_namespace="$GME_NAMESPACE"                                     \
+         -D gme_mgmt_agent_enabled="$GME_MGMT_AGENT_FLAG"                      \
+         -D gme_verbose="$GME_VERBOSE"                                         \
+         -D gme_mgmt_cluster="$GSI_MGMT_CLUSTER"                               \
+         -D gme_analyzer_enabled="$GME_ANALYZER_ENABLED"                       \
+         -D gme_insights_enabled="$GME_ANALYZER_ENABLED"                       \
+         -D gme_secret="$GME_SECRET"                                           \
+         -D helloworld_container_port="$HELLOWORLD_CONTAINER_PORT"             \
+         -D helloworld_namespace="$HELLOWORLD_NAMESPACE"                       \
+         -D helloworld_service_name="$HELLOWORLD_SERVICE_NAME"                 \
+         -D helloworld_service_port="$HELLOWORLD_SERVICE_PORT"                 \
+         -D helloworld_size="$HELLOWORLD_SIZE"                                 \
+         -D httpbin_container_port="$HTTPBIN_CONTAINER_PORT"                   \
+         -D httpbin_namespace="$HTTPBIN_NAMESPACE"                             \
+         -D httpbin_service_name="$HTTPBIN_SERVICE_NAME"                       \
+         -D httpbin_service_port="$HTTPBIN_SERVICE_PORT"                       \
+         -D httpbin_size="$HTTPBIN_SIZE"                                       \
+         -D https_enabled="$HTTPS_FLAG"                                        \
+         -D ingress_gateway_class="$INGRESS_GATEWAY_CLASS"                     \
+         -D ingress_gateway="$INGRESS_GATEWAY"                                 \
+         -D ingress_http_port="$INGRESS_HTTP_PORT"                             \
+         -D ingress_https_port="$INGRESS_HTTPS_PORT"                           \
+         -D ingress_namespace="$INGRESS_NAMESPACE"                             \
+         -D ingress_size="$INGRESS_SIZE"                                       \
+         -D istio_126_enabled="$ISTIO_126_FLAG"                                \
+         -D istio_enabled="$ISTIO_ENABLED"                                     \
+         -D istio_flavor="$ISTIO_FLAVOR"                                       \
+         -D istio_namespace="$ISTIO_NAMESPACE"                                 \
+         -D istio_repo="$ISTIO_REPO"                                           \
+         -D istio_revision="$REVISION"                                         \
+         -D istio_secret="$ISTIO_SECRET"                                       \
+         -D istio_traffic_distribution="${TRAFFIC_DISTRIBUTION:-Any}"          \
+         -D istio_variant="$ISTIO_DISTRO"                                      \
+         -D istio_ver="$ISTIO_VER"                                             \
+         -D keycloak_namespace="$KEYCLOAK_NAMESPACE"                           \
+         -D keycloak_ver="$KEYCLOAK_VER"                                       \
+         -D kube_system_namespace="$KUBE_SYSTEM_NAMESPACE"                     \
+         -D license_key="$GLOO_MESH_LICENSE_KEY"                               \
+         -D mesh_id="$MESH_ID"                                                 \
+         -D multicluster_enabled="$MC_FLAG"                                    \
+         -D netshoot_namespace="$NETSHOOT_NAMESPACE"                           \
+         -D ratelimiter_enabled="$RATELIMITER_FLAG"                            \
+         -D region="$_region"                                                  \
+         -D sidecar_enabled="$SIDECAR_FLAG"                                    \
+         -D spire_enabled="$SPIRE_FLAG"                                        \
+         -D spire_namespace="$SPIRE_NAMESPACE"                                 \
+         -D spire_secret="$SPIRE_SECRET"                                       \
+         -D tldn="$TLDN"                                                       \
+         -D traffic_policy="$TRAFFIC_POLICY"                                   \
+         -D utils_namespace="$UTILS_NAMESPACE"                                 \
+         "$TEMPLATES"/jinja2_globals.yaml.j2                                   \
     >> "$J2_GLOBALS"
 }
 # END

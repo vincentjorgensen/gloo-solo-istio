@@ -144,7 +144,7 @@ function exec_eastwest_gateway_api {
   sleep 1.5
 
   if is_create_mode; then
-    _wait_for_pods "$EASTWEST_NAMESPACE" "$EASTWEST_GATEWAY_NAME"
+    _wait_for_pods "$GSI_CONTEXT" "$EASTWEST_NAMESPACE" "$EASTWEST_GATEWAY_NAME"
   fi
 }
 
