@@ -18,6 +18,7 @@ export INGRESS_SIZE=3
 
 export GME_ENABLED=true
 export GME_VER=2.9.2
+export GME_GLOOUI_SERVICE_TYPE=ClusterIP
 
 export TLDN=soloio.vincentjorgensen.com
 
