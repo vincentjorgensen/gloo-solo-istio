@@ -187,12 +187,14 @@ function exec_istio_ztunnel {
 }
 
 function exec_telemetry_defaults {
+  local _template="$MANIFESTS"/telemetry.istio-system."$GSI_CLUSTER".yaml
+
   cp "$TEMPLATES"/telemetry.istio-system.manifest.yaml                        \
      "$MANIFESTS"/telemetry.istio-system."$GSI_CLUSTER".yaml
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$MANIFESTS"/telemetry.istio-system."$GSI_CLUSTER".yaml
+  -f "$_template"
 }
 
 function exec_istio {
