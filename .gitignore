@@ -1,6 +1,7 @@
 .DS_Store
 *.pem
 *.csr
+*.bak
 certs/
 samples/
 manifests/
