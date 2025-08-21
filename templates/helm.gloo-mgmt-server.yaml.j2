@@ -1,8 +1,8 @@
 ---
 common:
-  cluster: {{ cluster_name }}
-  verbose: {{ verbose }}
-{%- if gloo_agent %}
+  cluster: {{ gme_mgmt_cluster }}
+  verbose: {{ gme_verbose | string | lower }}
+{%- if gme_mgmt_agent_enabled %}
 glooAgent:
   enabled: true
   relay:
@@ -15,15 +15,15 @@ glooAgent:
         secretKeyRef:
           key: token
           name: {{ gme_secret }}
-{% endif %}
+{%- endif %}
 glooAnalyzer:
-  enabled: {{ analyzer_enabled }}
+  enabled: {{ gme_analyzer_enabled | string | lower }}
   runAsSidecar: true
 glooInsightsEngine:
-  enabled: {{ insights_enabled }}
+  enabled: {{ gme_insights_enabled | string | lower }}
 glooMgmtServer:
   enabled: true
-  serviceType: LoadBalancer
+  serviceType: {{ gme_mgmt_service_type }}
   extraEnvs:
     RELAY_DISABLE_CLIENT_CERTIFICATE_AUTHENTICATION:
       value: "true"
@@ -34,24 +34,47 @@ glooMgmtServer:
           name: {{ gme_secret }}
   relay:
     disableTokenGeneration: true
-{%- if azure_enabled %}
+{%- if aws_enabled and gme_mgmt_service_type == "LoadBalancer" %}
+  serviceOverrides:
+    metadata:
+      annotations:
+        external-dns.alpha.kubernetes.io/hostname: "mgmt.{{ gme_mgmt_cluster }}.soloio.vincentjorgensen.com"
+        service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+        service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+        service.beta.kubernetes.io/aws-load-balancer-name: "mgmt-{{ gme_mgmt_cluster }}"
+        service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+        service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+        service.beta.kubernetes.io/aws-load-balancer-type: external
+{%- endif %}
+{%- if azure_enabled and gme_glooui_service_type == "LoadBalancer" %}
   serviceOverrides:
     metadata:
       annotations:
         service.beta.kubernetes.io/azure-load-balancer-internal: "true"
-{% endif %}
+{%- endif %}
 glooUi:
   enabled: true
-  service:
-  serviceType: LoadBalancer
-{%- if azure_enabled %}
+  serviceType: {{ gme_glooui_service_type }}
+{%- if aws_enabled and gme_glooui_service_type == "LoadBalancer" %}
+  serviceOverrides:
+    metadata:
+      annotations:
+        external-dns.alpha.kubernetes.io/hostname: "glooui.{{ gme_mgmt_cluster }}.soloio.vincentjorgensen.com"
+        service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+        service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+        service.beta.kubernetes.io/aws-load-balancer-name: "glooui-{{ gme_mgmt_cluster }}"
+        service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
+        service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+        service.beta.kubernetes.io/aws-load-balancer-type: external
+{%- endif %}
+{%- if azure_enabled and gme_glooui_service_type == "LoadBalancer" %}
   serviceOverrides:
     metadata:
       annotations:
         service.beta.kubernetes.io/azure-load-balancer-internal: "false"
-{% endif %}
+{%- endif %}
 licensing:
-  glooMeshLicenseKey: {{ gloo_platform_license_key }}
+  glooMeshLicenseKey: {{ license_key }}
 prometheus:
   enabled: true
 redis:
@@ -64,11 +87,23 @@ telemetryCollectorCustomization:
 telemetryGateway:
   enabled: true
   service:
-    type: LoadBalancer
+    type: {{ gme_telemetry_service_type }}
+{%- if aws_enabled and gme_telemetry_service_type == "LoadBalancer" %}
+  serviceOverrides:
+    metadata:
+      annotations:
+        external-dns.alpha.kubernetes.io/hostname: "telemetry.{{ gme_mgmt_cluster }}.soloio.vincentjorgensen.com"
+        service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+        service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+        service.beta.kubernetes.io/aws-load-balancer-name: "telemetry-{{ gme_mgmt_cluster }}"
+        service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+        service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+        service.beta.kubernetes.io/aws-load-balancer-type: external
+{%- endif %}
 {%- if azure_enabled %}
     annotations:
       service.beta.kubernetes.io/azure-load-balancer-internal: "true"
-{% endif %}
+{%- endif %}
 ######rateLimit:
 ######  enabled: true
 ######  deployment:
