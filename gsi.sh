@@ -82,5 +82,5 @@ function zip_gsi {
 
 function dry_run_e {
   local _exec="$*"
-  DRY_RUN='echo' "$1"
+  DRY_RUN='echo' eval "$*"
 }
