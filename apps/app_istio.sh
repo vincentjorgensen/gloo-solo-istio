@@ -44,7 +44,7 @@ function exec_istio_secrets {
   if is_create_mode; then
     $DRY_RUN kubectl "$GSI_MODE" secret generic "$ISTIO_SECRET"               \
     --context "$GSI_CONTEXT"                                                  \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
+    --namespace "$ISTIO_NAMESPACE"                                     \
     --from-file="$CERTS"/"$GSI_CLUSTER"/ca-cert.pem                           \
     --from-file="$CERTS"/"$GSI_CLUSTER"/ca-key.pem                            \
     --from-file="$CERTS"/"$GSI_CLUSTER"/root-cert.pem                         \
@@ -52,7 +52,7 @@ function exec_istio_secrets {
   else
     $DRY_RUN kubectl "$GSI_MODE" secret cacerts                               \
     --context "$GSI_CONTEXT"                                                  \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"
+    --namespace "$ISTIO_NAMESPACE"
   fi
 }
 
@@ -100,14 +100,14 @@ function exec_istio_base {
     $DRY_RUN helm upgrade --install istio-base "$HELM_REPO"/base              \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$_context"                                                \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
+    --namespace "$ISTIO_NAMESPACE"                                     \
     --create-namespace                                                        \
     --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall istio-base                                        \
     --kube-context="$_context"                                                \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"
+    --namespace "$ISTIO_NAMESPACE"
   fi
 }
 
@@ -128,13 +128,13 @@ function exec_istio_istiod {
     $DRY_RUN helm upgrade --install istiod "$HELM_REPO"/istiod                \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
+    --namespace "$ISTIO_NAMESPACE"                                     \
     --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall istiod                                            \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"
+    --namespace "$ISTIO_NAMESPACE"
   fi
 }
 
@@ -151,13 +151,13 @@ function exec_istio_cni {
     $DRY_RUN helm upgrade --install istio-cni "$HELM_REPO"/cni                \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
+    --namespace "$ISTIO_NAMESPACE"                                     \
     --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall istio-cni                                         \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"
+    --namespace "$ISTIO_NAMESPACE"
   fi
 }
 
@@ -176,13 +176,13 @@ function exec_istio_ztunnel {
     $DRY_RUN helm upgrade --install ztunnel "$HELM_REPO"/ztunnel              \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
+    --namespace "$ISTIO_NAMESPACE"                                     \
     --values "$_manifest"                                                     \
     --wait
   else
     $DRY_RUN helm uninstall ztunnel                                           \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"
+    --namespace "$ISTIO_NAMESPACE"
   fi
 }
 
@@ -205,7 +205,7 @@ function exec_istio {
   fi
 
   if $MULTICLUSTER_ENABLED; then
-    $DRY_RUN kubectl label namespace "$ISTIO_SYSTEM_NAMESPACE" "topology.istio.io/network${_k_label}"  \
+    $DRY_RUN kubectl label namespace "$ISTIO_NAMESPACE" "topology.istio.io/network${_k_label}"  \
     --context "$GSI_CONTEXT" --overwrite
   fi
 
@@ -217,7 +217,7 @@ function exec_istio {
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                     \
     --context "$GSI_CONTEXT"                                                  \
-    --namespace "$ISTIO_SYSTEM_NAMESPACE"                                     \
+    --namespace "$ISTIO_NAMESPACE"                                     \
     --for=condition=Ready pods --all
   fi
 }
