@@ -409,15 +409,15 @@ function create_aws_pca_issuer {
   export AWSPCA_ISSUER="aws-pca-issuer-${_component}"
   export AWSPCA_ISSUER_KIND="AWSPCAIssuer"
 
-  jinja2 -D name="$AWSPCA_ISSUER"                                             \
-         -D namespace="$_namespace"                                           \
-         -D ca_arn="$_ca_arn"                                                 \
-         -D ca_region="us-west-2"                                             \
-         "$TEMPLATES"/awspca_issuer.manifest.yaml.j2                          \
+  jinja2 -D name="$AWSPCA_ISSUER"                                              \
+         -D namespace="$_namespace"                                            \
+         -D ca_arn="$_ca_arn"                                                  \
+         -D ca_region="us-west-2"                                              \
+         "$TEMPLATES"/awspca_issuer.manifest.yaml.j2                           \
   > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
+  $DRY_RUN kubectl "$GSI_MODE"                                                 \
+  --context "$GSI_CONTEXT"                                                     \
   -f "$_manifest"
 }
 
