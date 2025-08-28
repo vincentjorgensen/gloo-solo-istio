@@ -790,6 +790,7 @@ function _jinja2_values {
          -D spire_namespace="$SPIRE_NAMESPACE"                                 \
          -D spire_secret="$SPIRE_SECRET"                                       \
          -D tldn="$TLDN"                                                       \
+         -D tls_termination_enabled="$TLS_TERMINATION_FLAG"                    \
          -D traffic_policy="$TRAFFIC_POLICY"                                   \
          -D utils_namespace="$UTILS_NAMESPACE"                                 \
          "$TEMPLATES"/jinja2_globals.yaml.j2                                   \

@@ -20,18 +20,10 @@ function app_init_istio_gateway {
 }
 function exec_istio_ingressgateway {
   local _manifest="$MANIFESTS/helm.istio-ingressgateway.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.istio-ingressgateway.yaml.j2
 
   if is_create_mode; then
-    jinja2 -D size="${INGRESS_SIZE:-1}"                                       \
-           -D network="$GSI_NETWORK"                                          \
-           -D revision="$REVISION"                                            \
-           -D istio_repo="$ISTIO_REPO"                                        \
-           -D istio_ver="$ISTIO_VER"                                          \
-           -D flavor="$ISTIO_FLAVOR"                                          \
-           -D azure="$AZURE_FLAG"                                             \
-           -D aws="$AWS_FLAG"                                                 \
-           "$TEMPLATES"/helm.istio-ingressgateway.yaml.j2                     \
-      > "$_manifest"
+    _make_manifest "$_template" > "$_manifest"
 
     $DRY_RUN helm upgrade -i istio-ingressgateway "$HELM_REPO"/gateway        \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
@@ -49,19 +41,10 @@ function exec_istio_ingressgateway {
 
 function exec_eastwest_istio_gateway {
   local _manifest="$MANIFESTS/helm.istio-eastwestgateway.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.istio-eastwestgateway.yaml.j2
 
   if is_create_mode; then
-    jinja2 -D size="${GSI_EW_SIZE:-1}"                                        \
-           -D network="$GSI_NETWORK"                                          \
-           -D revision="$REVISION"                                            \
-           -D istio_repo="$ISTIO_REPO"                                        \
-           -D istio_ver="$ISTIO_VER"                                          \
-           -D flavor="$ISTIO_FLAVOR"                                          \
-           -D azure="$AZURE_FLAG"                                             \
-           -D aws="$AWS_FLAG"                                                 \
-           -D tls_termination_enabled="$TLS_TERMINATION_FLAG"                 \
-           "$TEMPLATES"/helm.istio-eastwestgateway.yaml.j2                    \
-      > "$_manifest"
+    _make_manifest "$_template" > "$_manifest"
 
     $DRY_RUN helm upgrade -i istio-eastwestgateway "$HELM_REPO"/gateway       \
     --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
@@ -115,6 +98,7 @@ function check_remote_cluster_status {
 
 function exec_istio_vs_and_gateway {
   local _manifest="$MANIFESTS/istio.vs_and_gateway.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/istio.vs_and_gateway.manifest.yaml.j2
 
   jinja2 -D name="$GSI_APP_SERVICE_NAME"                                      \
          -D namespace="$GSI_APP_SERVICE_NAMESPACE"                            \
@@ -124,10 +108,8 @@ function exec_istio_vs_and_gateway {
          -D gme_enabled="$GME_FLAG"                                           \
          -D cert_manager_enabled="$CERT_MANAGER_FLAG"                         \
          -D secret_name="$GSI_APP_GATEWAY_SECRET"                             \
-       "$TEMPLATES"/istio.vs_and_gateway.manifest.yaml.j2                     \
+       "$_template"                                                           \
     > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest"
+  _apply_manifest "$_manifest"
 }
