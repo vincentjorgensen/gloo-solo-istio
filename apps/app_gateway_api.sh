@@ -196,6 +196,9 @@ function exec_ingress_gateway_api {
   local _in_template="$TEMPLATES"/gateway_api/ingress_gateway.gateway.manifest.yaml.j2
   local _pa_manifest="$MANIFESTS/gateway_api.parameters.${GSI_CLUSTER}.yaml"
   local _pa_template="$TEMPLATES"/gateway_api/parameters.gateway.manifest.yaml.j2
+  local _te_manifest="$MANIFESTS/gateway_api.telemetry.${GSI_CLUSTER}.yaml"
+  local _te_template="$TEMPLATES"/gateway_api/telemetry.gateway.manifest.yaml.j2
+
 
   jinja2                                                                       \
          -D network="$GSI_NETWORK"                                             \
@@ -209,6 +212,12 @@ function exec_ingress_gateway_api {
          "$J2_GLOBALS"                                                         \
   > "$_in_manifest"
 
+  jinja2                                                                       \
+         -D network="$GSI_NETWORK"                                             \
+         "$_te_template"                                                       \
+         "$J2_GLOBALS"                                                         \
+  > "$_te_manifest"
+
 ###  if $GLOO_GATEWAY_V2_ENABLED; then
 ###    patch_gloo_gateway_v2 "$INGRESS_NAMESPACE" "${INGRESS_GATEWAY}-ggw-params"
 ###  fi
@@ -220,6 +229,10 @@ function exec_ingress_gateway_api {
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
   -f "$_in_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_te_manifest"
 }
 
 function exec_gloo_gateway_v2_crds {
