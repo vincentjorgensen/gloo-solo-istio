@@ -102,6 +102,7 @@ export NETSHOOT_NAMESPACE=tools
 # External DNS
 #-------------------------------------------------------------------------------
 export EXTERNAL_DNS_ENABLED=${EXTERNAL_DNS_ENABLED:-false}
+export EXTERNAL_DNS_VER=1.18.0
 
 #-------------------------------------------------------------------------------
 # ArgoCD
@@ -190,17 +191,16 @@ export KGATEWAY_FLAG
 # Ingress as Gloo Gateway, v1 or v2
 #-------------------------------------------------------------------------------
 export GLOO_GATEWAY_ENABLED=${GLOO_GATEWAY_ENABLED:-false}
-export GLOO_GATEWAY_NAMESPACE GLOO_GATEWAY_VER GLOO_GATEWAY_FLAG
 export EXTAUTH_ENABLED=${EXTAUTH_ENABLED:-false}
 export RATELIMITER_ENABLED=${RATELIMITER_ENABLED:-false}
-export RATELIMITER_FLAG EXTAUTH_FLAG
+export RATELIMITER_FLAG EXTAUTH_FLAG GLOO_GATEWAY_FLAG GLOO_GATEWAY_NAMESPACE
 
 #-------------------------------------------------------------------------------
 # Ingress as Gloo Gateway (V1) (Edge or Gateway API)
 #-------------------------------------------------------------------------------
 export GLOO_GATEWAY_V1_ENABLED=${GLOO_GATEWAY_V1_ENABLED:-false}
 export GLOO_GATEWAY_V1_NAMESPACE=gloo-system
-export GLOO_GATEWAY_V1_VER=1.19.7
+export GLOO_GATEWAY_V1_VER=1.19.8
 export GLOO_GATEWAY_V1_FLAG
 
 #-------------------------------------------------------------------------------

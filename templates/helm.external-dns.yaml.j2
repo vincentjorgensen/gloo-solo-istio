@@ -1,0 +1,32 @@
+provider:
+  name: pihole
+serviceAccount:
+  create: true
+  name: external-dns
+rbac:
+  additionalPermissions:
+  - apiGroups:
+    - ""
+    resources:
+    - namespaces
+    verbs:
+    - get
+    - watch
+    - list
+  - apiGroups:
+    - gateway.networking.k8s.io
+    resources:
+    - gateways
+    - httproutes
+    verbs:
+    - get
+    - watch
+    - list
+sources:
+- service
+- ingress
+- gateway-httproute
+extraArgs:
+  registry: noop
+  pihole-api-version: 6
+  pihole-server: http://{{ pihole_server_address }}

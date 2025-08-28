@@ -31,6 +31,7 @@ GSI_DECK=(
   app_init_httpbin
 
   ###app_init_ingress_istio
+  app_init_gloo_gateway_v1
   app_init_eastwest_gateway_api
   app_init_ingress_gateway_api
 

@@ -202,7 +202,7 @@ function exec_ingress_gateway_api {
   > "$_manifest"
 
   if $GLOO_GATEWAY_V2_ENABLED; then
-    patch_gloo_gateway_v2 "$INGRESS_NAMESPACE" "${INGRESS_GATEWAY_NAME}-ggw-params"
+    patch_gloo_gateway_v2 "$INGRESS_NAMESPACE" "${INGRESS_GATEWAY}-ggw-params"
   fi
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
@@ -213,14 +213,14 @@ function exec_ingress_gateway_api {
 function exec_gloo_gateway_v2_crds {
   if is_create_mode; then
     $DRY_RUN helm upgrade --install gloo-gateway-crds "$GLOO_GATEWAY_V2_CRDS_HELM_REPO" \
-    --version "$GLOO_GATEWAY_V2_HELM_VER"                                     \
+    --version "$GLOO_GATEWAY_V2_VER"                                          \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$GLOO_GATEWAY_V2_NAMESPACE"                                  \
+    --namespace "$GLOO_GATEWAY_NAMESPACE"                                     \
     --create-namespace
   else 
     $DRY_RUN helm uninstall gloo-gateway-crds                                 \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$GLOO_GATEWAY_V2_NAMESPACE"
+    --namespace "$GLOO_GATEWAY_NAMESPACE"
   fi
 }
 
@@ -240,17 +240,17 @@ function exec_gloo_gateway_v2 {
     $DRY_RUN helm upgrade --install gloo-gateway "$GLOO_GATEWAY_V2_HELM_REPO" \
     --version "$GLOO_GATEWAY_V2_HELM_VER"                                     \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$GLOO_GATEWAY_V2_NAMESPACE"
+    --namespace "$GLOO_GATEWAY_NAMESPACE"
   else 
     $DRY_RUN helm uninstall gloo-gateway                                      \
     --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$GLOO_GATEWAY_V2_NAMESPACE"
+    --namespace "$GLOO_GATEWAY_NAMESPACE"
   fi
 
   if is_create_mode; then
-    $DRY_RUN kubectl wait                                                     \
-    --context="$GSI_CONTEXT"                                                  \
-    --namespace "$GLOO_GATEWAY_V2_NAMESPACE"                                  \
+    $DRY_RUN kubectl wait                                                      \
+    --context="$GSI_CONTEXT"                                                   \
+    --namespace "$GLOO_GATEWAY_NAMESPACE"                                      \
     --for=condition=Ready pods --all
   fi
 }
@@ -409,7 +409,7 @@ function create_reference_grant {
 }
 
 function exec_gloo_gateway_v2_keycloak_secret {
-  create_keycloak_secret "$GLOO_GATEWAY_V2_NAMESPACE"
+  create_keycloak_secret "$GLOO_GATEWAY_NAMESPACE"
 }
 
 function exec_kgateway_keycloak_secret {
