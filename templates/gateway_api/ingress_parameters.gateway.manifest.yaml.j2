@@ -24,12 +24,12 @@ spec:
       type: LoadBalancer
 {%-   if aws_enabled %}
       extraAnnotations:
-        external-dns.alpha.kubernetes.io/hostname: "gateway.{{ network }}.{{ tldn }}"
+        external-dns.alpha.kubernetes.io/hostname: "ingress-gateway.{{ network }}.{{ tldn }}"
         service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
         ##service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/healthz/ready"
         ##service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15021"
         ##service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: http
-        service.beta.kubernetes.io/aws-load-balancer-name: "gateway-{{ network }}"
+        service.beta.kubernetes.io/aws-load-balancer-name: "ingress-gateway-{{ network }}"
         service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
         service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
 {%-     if https_enabled %}
@@ -112,7 +112,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{name }}-gw-params
+  name: {{ ingress_gateway }}-gw-params
   namespace: {{ ingress_namespace }}
 data:
   horizontalPodAutoscaler: |
@@ -141,7 +141,15 @@ data:
 ##      annotations:
 ##        additional-annotation: some-value
 
-##  service: |
+  service: |
+{%-   if aws_enabled %}
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: "ingress-gateway.{{ network }}.{{ tldn }}"
+      service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+      service.beta.kubernetes.io/aws-load-balancer-name: "ingress-gateway-{{ network }}"
+      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
+      service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+{%-   endif %}
 ##    spec:
 ##      ports:
 ##      - "\$patch": delete

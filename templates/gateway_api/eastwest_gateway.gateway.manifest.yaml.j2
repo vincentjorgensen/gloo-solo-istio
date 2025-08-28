@@ -1,0 +1,35 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  labels:
+    istio.io/expose-istiod: "15012"
+    topology.istio.io/network: {{ network }}
+{%- if istio_revision %}
+    istio.io/rev: {{ istio_revision }}
+{%- endif %}
+  name: {{ eastwest_gateway }}
+  namespace: {{ eastwest_namespace }}
+spec:
+  gatewayClassName: {{ eastwest_gateway_class }}
+  listeners:
+  - name: cross-network
+    port: 15008
+    protocol: HBONE
+    tls:
+      mode: Passthrough
+  - name: xds-tls
+    port: 15012
+    protocol: TLS
+    tls:
+      mode: Passthrough
+{%- if istio_126_enabled %}
+  infrastructure:
+    labels:
+      app: {{ eastwest_gateway }}
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: {{ eastwest_gateway }}-gw-params
+{%- endif %}
+...

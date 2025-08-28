@@ -681,6 +681,17 @@ function _label_ns_for_istio {
   fi
 }
 
+function _make_manifest {
+  local _template=$1
+
+  jinja2                                                                       \
+       -D cluster="$GSI_CLUSTER"                                               \
+       -D network="$GSI_NETWORK"                                               \
+       -D trust_domain="$TRUST_DOMAIN"                                         \
+       "$_template"                                                            \
+       "$J2_GLOBALS"
+}
+
 function _jinja2_values {
   J2_GLOBALS="$MANIFESTS"/jinja2_globals.yaml
 
