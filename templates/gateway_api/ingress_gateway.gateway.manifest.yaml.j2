@@ -1,0 +1,88 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+{%- if ingress_gateway_class == "gloo-gateway" or cert_manager_enabled %}
+  annotations:
+{%-   if ingress_gateway_class == "gloo-gateway" %}
+    gateway.gloo.solo.io/gateway-parameters-name: "{{ ingress_gateway }}-gw-params"
+{%-   endif %}
+{%-   if cert_manager_enabled %}
+###    cert-manager.io/issuer: {{ ingress_gateway }}-ca-issuer
+    cert-manager.io/issuer: ingress-gateway-ca-issuer
+{%-   endif %}
+{%- endif %}
+  name: {{ ingress_gateway }}
+  namespace: {{ ingress_namespace }}
+  labels:
+    app: {{ ingress_gateway }}
+{%- if ingress_gateway_class == "istio" %}
+{%   if istio_revision %}
+    istio.io/rev: {{ istio_revision }}
+{%   endif %}
+{% endif %}
+spec:
+  gatewayClassName: {{ ingress_gateway_class }}
+  listeners:
+  - name: http
+    hostname: "*.{{ tldn }}"
+    port: {{ ingress_http_port }}
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: All # Same
+{%- if https_enabled %}
+  - name: https
+    hostname: "*.{{ tldn }}"
+    port: {{ ingress_https_port }}
+{%-   if aws_enabled %}
+    protocol: HTTP
+{%- else %}
+    protocol: HTTPS
+{%-   endif %}
+    allowedRoutes:
+      namespaces:
+        from: All
+{%-   if cert_manager_enabled %}
+    tls:
+      mode: Terminate
+      certificateRefs:
+        - name: {{ cert_manager_ingress_secret }}
+          kind: Secret
+###      options:
+{%-   endif %}
+{%- endif %}
+{%- if ingress_gateway_class == "gloo-gateway" %}
+  - name: readiness
+    port: 9091
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: All # Same
+{%- endif %}
+{%- if ingress_gateway_class == "istio" 
+    or ingress_gateway_class == "kgateway" 
+    or ingress_gateway_class == "gloo-gateway"
+    or ingress_gateway_class == "gloo-gateway-v2" %}
+  infrastructure:
+    parametersRef:
+      name: {{ ingress_gateway }}-gw-params
+{%-   if ingress_gateway_class == "kgateway" %}
+      group: gateway.kgateway.dev
+      kind: GatewayParameters  
+{%-   elif ingress_gateway_class == "gloo-gateway" %}
+      group: gateway.gloo.solo.io
+      kind: GatewayParameters
+{%-   elif ingress_gateway_class == "gloo-gateway-v2" %}
+      group: gloo.solo.io
+      kind: GlooGatewayParameters  
+{%-   else %}
+      group: ""
+      kind: ConfigMap
+{%-   endif %}
+##    annotations:
+##      some-key: some-value
+##    labels:
+##      key: value
+{%- endif %}
+...

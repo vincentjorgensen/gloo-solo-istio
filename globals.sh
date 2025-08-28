@@ -148,6 +148,7 @@ export INGRESS_NAMESPACE=ingress-gateways
 export INGRESS_GATEWAY=ingress-gateway
 export INGRESS_HTTP_PORT=80
 export INGRESS_HTTPS_PORT=443
+export INGRESS_SIZE=1
 export DEFAULT_TLDN=example.com
 export TLDN=${TLDN:-$DEFAULT_TLDN}
 export HTTP_FLAG HTTPS_FLAG INGRESS_GATEWAY_CLASS

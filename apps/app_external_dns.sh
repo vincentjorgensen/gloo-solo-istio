@@ -2,12 +2,12 @@
 function app_init_external_dns {
   if $EXTERNAL_DNS_ENABLED; then
     exec_gateway_api_crds
-    exec_external_dns_for_pihole
+    exec_external_dns_for_pihole_via_helm
 
     if $MULTICLUSTER_ENABLED; then
       gsi_cluster_swap
       exec_gateway_api_crds
-      exec_external_dns_for_pihole
+      exec_external_dns_for_pihole_via_helm
       gsi_cluster_swap
     fi
   fi

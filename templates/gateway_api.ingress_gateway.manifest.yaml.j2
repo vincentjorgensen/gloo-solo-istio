@@ -44,18 +44,18 @@ spec:
       type: LoadBalancer
     deployment:
       replicas: {{ ingress_size }}
-  sharedExtensions:
-    extauth:
+###  sharedExtensions:
+###    extauth:
 {%-   if extauth_enabled %}
-      enabled: true
+###      enabled: true
 {%-   else %}
-      enabled: false
+###      enabled: false
 {%-   endif %}
-    ratelimiter:
+###    ratelimiter:
 {%-   if ratelimiter_enabled %}
-      enabled: true
+###      enabled: true
 {%-   else %}
-      enabled: false
+###      enabled: false
 {%-   endif %}
 {%- endif %}
 {%- if ingress_gateway_class == "kgateway" or ingress_gateway_class == "gloo-gateway-v2" or  ingress_gateway_class == "gloo-gateway" %}
@@ -167,10 +167,14 @@ spec:
   - name: https
     hostname: "*.{{ tldn }}"
     port: {{ ingress_https_port }}
+{%-   if aws_enabled %}
+    protocol: HTTP
+{%- else %}
     protocol: HTTPS
+{%-   endif %}
     allowedRoutes:
       namespaces:
-        from: Same # All
+        from: All
 {%-   if cert_manager_enabled %}
     tls:
       mode: Terminate
@@ -195,12 +199,12 @@ spec:
       group: gateway.kgateway.dev
       kind: GatewayParameters  
 {%- endif %}
-{%- if ingress_gateway_class == "gloo-gateway-v2" %} # Moved to Patch
-###  infrastructure:
-###    parametersRef:
-###      name: {{ ingress_gateway }}-ggw-params
-###      group: gloo.solo.io
-###      kind: GlooGatewayParameters  
+{%- if ingress_gateway_class == "gloo-gateway-v2" %}
+  infrastructure:
+    parametersRef:
+      name: {{ ingress_gateway }}-ggw-params
+      group: gloo.solo.io
+      kind: GlooGatewayParameters  
 {%- endif %}
 {%- if ingress_gateway_class == "istio" %}
   infrastructure:
@@ -261,7 +265,7 @@ spec:
     service:
       extraAnnotations:
         external-dns.alpha.kubernetes.io/hostname: "gateway.{{ network }}.soloio.vincentjorgensen.com"
-        service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+        service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
 #        service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/ready"
 #        service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "9091"
 #        service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: http
@@ -270,9 +274,8 @@ spec:
         service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
         service.beta.kubernetes.io/aws-load-balancer-type: "external"
         service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-west-2:103739863673:certificate/64893fb2-f334-4c85-8f05-c0c42a637e19
-##        service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "{{ https_port }}"
-##        service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
-        service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS-1-2-2017-01"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "{{ https_port }}"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
 ##      extraLabels:
 ##        target-workload: private-gateway
 {%-   endif %}

@@ -1,0 +1,151 @@
+{%- if ingress_gateway_class == "kgateway" 
+    or ingress_gateway_class == "gloo-gateway"
+    or ingress_gateway_class == "gloo-gateway-v2" %}
+---
+{%-   if ingress_gateway_class == "kgateway" %}
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: GatewayParameters
+{%-   elif ingress_gateway_class == "gloo-gateway" %}
+apiVersion: gateway.gloo.solo.io/v1alpha1
+kind: GatewayParameters
+{%-   else %}
+apiVersion: gloo.solo.io/v1alpha1
+kind: GlooGatewayParameters
+{%-   endif %}
+metadata:
+  name: {{ ingress_gateway }}-gw-params
+  namespace: {{ ingress_namespace }}
+spec:
+  kube: 
+    envoyContainer:
+      bootstrap:
+        logLevel: debug
+    service:
+      type: LoadBalancer
+{%-   if aws_enabled %}
+      extraAnnotations:
+        external-dns.alpha.kubernetes.io/hostname: "gateway.{{ network }}.{{ tldn }}"
+        service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+        ##service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/healthz/ready"
+        ##service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15021"
+        ##service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: http
+        service.beta.kubernetes.io/aws-load-balancer-name: "gateway-{{ network }}"
+        service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
+        service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+{%-     if https_enabled %}
+        service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-west-2:103739863673:certificate/64893fb2-f334-4c85-8f05-c0c42a637e19
+        service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "{{ https_port }}"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
+{%-     endif %}
+      extralabels:
+        target-workload: gateway
+{%-   endif %}
+    deployment:
+      replicas: {{ ingress_size }}
+{%- endif %}
+{%- if ingress_gateway_class == "gloo-gateway-v2" %}
+---
+apiVersion: gloo.solo.io/v1alpha1
+kind: GlooGatewayParameters
+metadata:
+  name: {{ ingress_gateway }}-ggw-params
+  namespace: {{ ingress_namespace }}
+spec:
+  kube: 
+    envoyContainer:
+      bootstrap:
+        logLevel: debug
+    service:
+      type: LoadBalancer
+    deployment:
+      replicas: {{ ingress_size }}
+###  sharedExtensions:
+###    extauth:
+{%-   if extauth_enabled %}
+###      enabled: true
+{%-   else %}
+###      enabled: false
+{%-   endif %}
+###    ratelimiter:
+{%-   if ratelimiter_enabled %}
+###      enabled: true
+{%-   else %}
+###      enabled: false
+{%-   endif %}
+{%- endif %}
+{%- if docker_desktop_enabled %}
+    envoyContainer:
+      resources:
+        limits:
+          cpu: 50m
+          memory: 256Mi
+        requests:
+          cpu: 2m
+          memory: 64m
+{%- endif %}
+{%- if ingress_gateway_class == "kgateway" 
+    or ingress_gateway_class == "gloo-gateway-v2"
+    or ingress_gateway_class == "gloo-gateway" 
+    or ( ingress_gateway_class == "istio" and not istio_126_enabled) %}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ ingress_gateway }}
+  namespace: {{ ingress_namespace }}
+spec:
+  maxReplicas: {{ ingress_size }}
+  minReplicas: {{ ingress_size }}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+{%-   if ingress_gateway_class == "gloo-gateway" %}
+    name: gloo-proxy-{{ ingress_gateway }}
+{%-   elif ingress_gateway_class == "istio" %}
+    name: {{ ingress_gateway }}-{{ ingress_gateway_class }}
+{%-   else %}
+    name: {{ ingress_gateway }}
+{%-   endif %}
+{%- endif %}
+{%- if ingress_gateway_class == "istio" and istio_126_enabled %}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{name }}-gw-params
+  namespace: {{ ingress_namespace }}
+data:
+  horizontalPodAutoscaler: |
+    spec:
+      minReplicas: {{ ingress_size }}
+      maxReplicas: {{ ingress_size }}
+
+  deployment: |
+    spec:
+      replicas: {{ ingress_size }}
+{%-     if docker_desktop_enabled %}
+      template:
+        spec:
+          containers:
+          - name: istio-proxy
+            resources:
+              limits:
+                cpu: 50m
+                memory: 256Mi
+              requests:
+                cpu: 2m
+                memory: 64m
+{%-     endif %}
+
+##    metadata:
+##      annotations:
+##        additional-annotation: some-value
+
+##  service: |
+##    spec:
+##      ports:
+##      - "\$patch": delete
+##        port: 15021
+
+{%- endif %}
+...

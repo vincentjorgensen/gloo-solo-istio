@@ -192,22 +192,34 @@ function exec_eastwest_link_gateway_api {
 }
 
 function exec_ingress_gateway_api {
-  local _manifest="$MANIFESTS/gateway_api.ingress_gateway.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/gateway_api.ingress_gateway.manifest.yaml.j2
+  local _in_manifest="$MANIFESTS/gateway_api.ingress_gateway.${GSI_CLUSTER}.yaml"
+  local _in_template="$TEMPLATES"/gateway_api/ingress_gateway.gateway.manifest.yaml.j2
+  local _pa_manifest="$MANIFESTS/gateway_api.parameters.${GSI_CLUSTER}.yaml"
+  local _pa_template="$TEMPLATES"/gateway_api/parameters.gateway.manifest.yaml.j2
 
-  jinja2                                                                      \
-         -D network="$GSI_NETWORK"                                            \
-         "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
-  > "$_manifest"
+  jinja2                                                                       \
+         -D network="$GSI_NETWORK"                                             \
+         "$_pa_template"                                                       \
+         "$J2_GLOBALS"                                                         \
+  > "$_pa_manifest"
 
-  if $GLOO_GATEWAY_V2_ENABLED; then
-    patch_gloo_gateway_v2 "$INGRESS_NAMESPACE" "${INGRESS_GATEWAY}-ggw-params"
-  fi
+  jinja2                                                                       \
+         -D network="$GSI_NETWORK"                                             \
+         "$_in_template"                                                       \
+         "$J2_GLOBALS"                                                         \
+  > "$_in_manifest"
+
+###  if $GLOO_GATEWAY_V2_ENABLED; then
+###    patch_gloo_gateway_v2 "$INGRESS_NAMESPACE" "${INGRESS_GATEWAY}-ggw-params"
+###  fi
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest"
+  -f "$_pa_manifest"
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                \
+  --context "$GSI_CONTEXT"                                                    \
+  -f "$_in_manifest"
 }
 
 function exec_gloo_gateway_v2_crds {
