@@ -73,10 +73,7 @@ function create_gme_secrets {
   local _manifest="$MANIFESTS/gme.secret.relay-token.${_cluster}.yaml"
   local _template="$TEMPLATES"/gme.secret.relay-token.manifest.yaml.j2
 
-  jinja2                                                                       \
-         "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
-  > "$_manifest"
+  _make_manifest "$_template" > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                 \
   --context "$_context"                                                        \
@@ -114,10 +111,7 @@ function exec_gloo_mgmt_server {
   local _template="$TEMPLATES"/helm.gloo-mgmt-server.yaml.j2
 
   if is_create_mode; then
-    jinja2                                                                     \
-         "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
-    > "$_manifest"
+    _make_manifest "$_template" > "$_manifest"
 
     $DRY_RUN helm upgrade -i gloo-platform-mgmt gloo-platform/gloo-platform    \
     --version="$GME_VER"                                                       \
@@ -140,15 +134,10 @@ function exec_gloo_mgmt_server {
 
 function exec_gloo_k8s_cluster {
   local _manifest="$MANIFESTS/gloo.k8s_cluster.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gloo.k8s_cluster.manifest.yaml.j2
 
-  jinja2 -D cluster="$GSI_CLUSTER"                                            \
-         -D gme_namespace="$GME_NAMESPACE"                                    \
-         "$TEMPLATES"/gloo.k8s_cluster.manifest.yaml.j2                       \
-    > "$_manifest"
-
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_MGMT_CONTEXT"                                               \
-  -f "$_manifest"
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
 }
 
 function create_gloo_k8s_cluster {

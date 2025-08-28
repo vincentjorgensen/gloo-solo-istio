@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 function app_init_utils {
   if $UTILS_ENABLED; then
     exec_utils
@@ -24,15 +23,8 @@ function exec_utils {
 
   _label_ns_for_istio "$UTILS_NAMESPACE"
 
-  jinja2                                                                      \
-         "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
-    > "$_manifest"
-
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest"
-
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
   _wait_for_pods "$GSI_CONTEXT" "$UTILS_NAMESPACE" utils
 }
 
@@ -41,16 +33,8 @@ function exec_netshoot {
   local _template="$TEMPLATES"/netshoot.manifest.yaml.j2
 
   _label_ns_for_istio "$NETSHOOT_NAMESPACE"
-
-  jinja2                                                                      \
-         "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
-    > "$_manifest"
-
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest"
-
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
   _wait_for_pods "$GSI_CONTEXT" "$NETSHOOT_NAMESPACE" netshoot
 }
 
@@ -60,15 +44,7 @@ function exec_curl {
   local _template="$TEMPLATES"/curl.manifest.yaml.j2
 
   _label_ns_for_istio "$CURL_NAMESPACE"
-
-  jinja2                                                                      \
-         "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
-    > "$_manifest"
-
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest"
-
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
   _wait_for_pods "$GSI_CONTEXT" "$CURL_NAMESPACE" curl
 }

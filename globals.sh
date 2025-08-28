@@ -692,6 +692,14 @@ function _make_manifest {
        "$J2_GLOBALS"
 }
 
+function _apply_manifest {
+  local _manifest=$1
+
+  $DRY_RUN kubectl "$GSI_MODE"                                                 \
+  --context "$GSI_CONTEXT"                                                     \
+  -f "$_manifest"
+}
+
 function _jinja2_values {
   J2_GLOBALS="$MANIFESTS"/jinja2_globals.yaml
 

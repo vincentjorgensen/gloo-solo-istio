@@ -56,9 +56,6 @@ function exec_helloworld {
          "$J2_GLOBALS"                                                         \
     > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_CONTEXT"                                                     \
-  -f "$_manifest"
-
+  _apply_manifest "$_manifest"
   _wait_for_pods "$GSI_CONTEXT" "$HELLOWORLD_NAMESPACE" helloworld
 }
