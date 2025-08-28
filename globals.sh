@@ -688,6 +688,7 @@ function _make_manifest {
        -D cluster="$GSI_CLUSTER"                                               \
        -D network="$GSI_NETWORK"                                               \
        -D trust_domain="$TRUST_DOMAIN"                                         \
+       -D remote_trust_domain="$REMOTE_TRUST_DOMAIN"                           \
        "$_template"                                                            \
        "$J2_GLOBALS"
 }
