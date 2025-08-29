@@ -70,31 +70,22 @@ function exec_spire_server {
   local _post_renderer=""
 
   if is_create_mode; then
-    jinja2                                                                    \
-           -D trust_domain="$TRUST_DOMAIN"                                    \
-           -D cluster="$GSI_CLUSTER"                                          \
-           -D remote_cluster="$GSI_REMOTE_CLUSTER"                            \
-         "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
-    > "$_manifest"
+    _make_manifest "$_template" > "$_manifest"
 
     if $MULTICLUSTER_ENABLED; then
       [[ ! -e $(dirname "$_kustomize_renderer") ]] && mkdir "$(dirname "$_kustomize_renderer")"
 
-      jinja2 -D trust_domain="$TRUST_DOMAIN"                                  \
-             -D remote_trust_domain="$REMOTE_TRUST_DOMAIN"                    \
-             -D cluster="$GSI_CLUSTER"                                        \
-             -D remote_cluster="$GSI_REMOTE_CLUSTER"                          \
-             -D ca_country="US"                                               \
-             -D ca_ou="Customer Success"                                      \
-         "$_cm_template"                                                      \
-         "$J2_GLOBALS"                                                        \
+      jinja2 -D trust_domain="$TRUST_DOMAIN"                                   \
+             -D remote_trust_domain="$REMOTE_TRUST_DOMAIN"                     \
+             -D cluster="$GSI_CLUSTER"                                         \
+             -D remote_cluster="$GSI_REMOTE_CLUSTER"                           \
+             -D ca_country="US"                                                \
+             -D ca_ou="Customer Success"                                       \
+         "$_cm_template"                                                       \
+         "$J2_GLOBALS"                                                         \
       > "$_cm_manifest"
 
-      jinja2                                                                  \
-         "$_kustomize_template"                                               \
-         "$J2_GLOBALS"                                                        \
-      > "$_kustomize"
+    _make_manifest "$_kustomize_template" > "$_kustomize"
 
 ##      jinja2 -D spire_namespace="$SPIRE_NAMESPACE"                            \
 ##             "$TEMPLATES"/spire-federation-patch.yaml.j2                      \
