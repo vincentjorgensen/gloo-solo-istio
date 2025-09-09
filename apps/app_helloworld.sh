@@ -54,6 +54,13 @@ function exec_helloworld_routing {
     fi
 
     if $GLOO_EDGE_ENABLED; then
+      create_gloo_edge_virtual_service                                         \
+      -s "$HELLOWORLD_SERVICE_NAME"                                            \
+      -n "$HELLOWORLD_NAMESPACE"                                               \
+      -p "$HELLOWORLD_SERVICE_PORT"
+    fi
+
+    if $GME_ENABLED; then
       create_gloo_route_table                                                  \
         -w "$GME_APPLICATIONS_WORKSPACE"                                       \
         -s "$HELLOWORLD_SERVICE_NAME"
