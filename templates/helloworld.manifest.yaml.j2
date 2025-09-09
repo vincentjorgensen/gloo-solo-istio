@@ -27,7 +27,7 @@ kind: ServiceAccount
 metadata:
   name: helloworld
   namespace: {{ helloworld_namespace }}
-{%- for zone in zones -%}
+{%- for zone in zones %}
 ---
 apiVersion: apps/v1
 kind: Deployment

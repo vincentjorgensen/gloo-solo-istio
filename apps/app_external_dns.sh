@@ -81,7 +81,7 @@ function exec_external_dns_for_pihole_via_helm {
     --kube-context="$GSI_CONTEXT"                                              \
     --namespace "$KUBE_SYSTEM_NAMESPACE"                                       \
     --values "$_manifest"                                                      \
-    --post-render "$_kustomize_renderer"                                       \
+    --post-renderer "$_kustomize_renderer"                                     \
     --wait
   fi
 }

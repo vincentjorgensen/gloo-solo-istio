@@ -1,0 +1,21 @@
+---
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: {{ service }}-vd
+  namespace: {{ gloo_edge_namespace }}
+  labels:
+    gateway-type: ingress-gateway
+spec:
+  virtualHost:
+    domains:
+      - '{{ service }}.{{ tldn }}'
+    routes:
+      - matchers:
+         - prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: {{ service_namespace }}-{{ service }}-{{ service_port }}
+              namespace: {{ gloo_edge_namespace }}
+...

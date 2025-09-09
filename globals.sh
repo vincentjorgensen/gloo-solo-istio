@@ -174,10 +174,12 @@ export TLS_TERMINATION_FLAG ISTIO_GATEWAY_FLAG
 # Ingress as Gloo Edge
 #-------------------------------------------------------------------------------
 export GLOO_EDGE_ENABLED=${GLOO_EDGE_ENABLED:-false}
+export GLOO_EDGE_NAMESPACE=gloo-system
+export GLOO_EDGE_VER=1.19.8
 export GLOO_EDGE_FLAG
 
 #-------------------------------------------------------------------------------
-# Ingress as KGateway
+# Ingress as KGateway (OSS)
 #-------------------------------------------------------------------------------
 export KGATEWAY_ENABLED=${KGATEWAY_ENABLED:-false}
 export KGATEWAY_NAMESPACE=kgateway-system
@@ -191,13 +193,12 @@ export KGATEWAY_FLAG
 #-------------------------------------------------------------------------------
 # Ingress as Gloo Gateway, v1 or v2
 #-------------------------------------------------------------------------------
-export GLOO_GATEWAY_ENABLED=${GLOO_GATEWAY_ENABLED:-false}
 export EXTAUTH_ENABLED=${EXTAUTH_ENABLED:-false}
 export RATELIMITER_ENABLED=${RATELIMITER_ENABLED:-false}
-export RATELIMITER_FLAG EXTAUTH_FLAG GLOO_GATEWAY_FLAG GLOO_GATEWAY_NAMESPACE
+export RATELIMITER_FLAG EXTAUTH_FLAG GLOO_GATEWAY_NAMESPACE
 
 #-------------------------------------------------------------------------------
-# Ingress as Gloo Gateway (V1) (Edge or Gateway API)
+# Ingress as Gloo Gateway V1 (Gateway API with Edge underneath)
 #-------------------------------------------------------------------------------
 export GLOO_GATEWAY_V1_ENABLED=${GLOO_GATEWAY_V1_ENABLED:-false}
 export GLOO_GATEWAY_V1_NAMESPACE=gloo-system
@@ -209,9 +210,9 @@ export GLOO_GATEWAY_V1_FLAG
 #-------------------------------------------------------------------------------
 export GLOO_GATEWAY_V2_ENABLED=${GLOO_GATEWAY_V2_ENABLED:-false}
 export GLOO_GATEWAY_V2_NAMESPACE=gloo-system
-export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway-crds
-export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod/charts/gloo-gateway
-export GLOO_GATEWAY_V2_VER=2.0.0-alpha.4
+export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/solo-public/gloo-gateway/charts/gloo-gateway-crds
+export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/solo-public/gloo-gateway/charts/gloo-gateway
+export GLOO_GATEWAY_V2_VER=2.0.0-beta.3
 export TRAFFIC_POLICY=oauth-authorization-code
 export GLOO_GATEWAY_V2_FLAG
 
@@ -245,7 +246,7 @@ export ISTIO_REPO_125=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_125=1.25.3
 export HELM_REPO_126=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_126=1.26.3
+export ISTIO_VER_126=1.26.4
 export HELM_REPO_127=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_127=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_127=1.27.0
@@ -489,51 +490,37 @@ function gsi_init {
     echo '#' Kgateway is enabled
   fi
   #----------------------------------------------------------------------------
-  # Gloo Gateway V1 (Edge or Gateway API)
+  # Gloo Gateway V1 (Gateway API)
   #----------------------------------------------------------------------------
   if $GLOO_GATEWAY_V1_ENABLED; then
-    GLOO_GATEWAY_ENABLED=true
-    # GATEWAY_API_ENABLED=true # Not implicit, could be edge
+    GATEWAY_API_ENABLED=true # Use GLOO_EDGE_ENABLED for Edge API
     GLOO_GATEWAY_V1_FLAG=enabled 
     GLOO_GATEWAY_NAMESPACE=$GLOO_GATEWAY_V1_NAMESPACE 
     INGRESS_GATEWAY_CLASS=gloo-gateway
-    echo '#' Gloo Gateway V1 is enabled 
+    INGRESS_ENABLED=true
+    echo '#' Gateway API CRDs are enabled
+    echo '#' Gloo Gateway V1 is enabled "(Gateway API)"
   fi
   #----------------------------------------------------------------------------
   # Gloo Gateway V2 (Gateway API)
   #----------------------------------------------------------------------------
   if $GLOO_GATEWAY_V2_ENABLED; then
-    GLOO_GATEWAY_ENABLED=true
     GATEWAY_API_ENABLED=true # Implicit in V2
     GLOO_GATEWAY_V2_FLAG=enabled 
     GLOO_GATEWAY_NAMESPACE=$GLOO_GATEWAY_V2_NAMESPACE 
     INGRESS_GATEWAY_CLASS=gloo-gateway-v2
-    echo '#' Gloo Gateway V2 is enabled 
-  fi
-  #----------------------------------------------------------------------------
-  # Ingress via Gloo Gateway
-  #----------------------------------------------------------------------------
-  if $GLOO_GATEWAY_ENABLED; then
-    GLOO_GATEWAY_FLAG=enabled 
     INGRESS_ENABLED=true
-    echo '#' Gloo Gateway Ingress is enabled
+    EXPERIMENTAL_GATEWAY_API_CRDS=true
+    echo '#' Experimental Gateway API CRDs are enabled
+    echo '#' Gloo Gateway V2 is enabled "(Gateway API)"
   fi
   #----------------------------------------------------------------------------
-  # Gloo Edge API
+  # Gloo Edge API (Gloo Gateway V1)
   #----------------------------------------------------------------------------
   if $GLOO_EDGE_ENABLED; then
-      echo '#' Gloo Edge API CRDs are enabled
-  fi
-  #----------------------------------------------------------------------------
-  # Gateway API
-  #----------------------------------------------------------------------------
-  if $GATEWAY_API_ENABLED; then
-    if $GLOO_GATEWAY_V2_ENABLED; then
-      EXPERIMENTAL_GATEWAY_API_CRDS=true
-      echo '#' Experimental Gateway API CRDs are enabled
-    else
-      echo '#' Gateway API CRDs are enabled
-    fi
+    GLOO_EDGE_FLAG=enabled
+    INGRESS_ENABLED=true
+    echo '#' Gloo Edge is enabled "(Gloo Gateway V1 with Edge API)"
   fi
   #----------------------------------------------------------------------------
   # Gateway ExtAuth
@@ -735,7 +722,6 @@ function _jinja2_values {
          -D extauth_enabled="$EXTAUTH_FLAG"                                    \
          -D gcp_enabled="$GCP_FLAG"                                            \
          -D gloo_edge_enabled="$GLOO_EDGE_FLAG"                                \
-         -D gloo_gateway_enabled="$GLOO_GATEWAY_FLAG"                          \
          -D gloo_gateway_namespace="$GLOO_GATEWAY_NAMESPACE"                   \
          -D gloo_gateway_v1_enabled="$GLOO_GATEWAY_V1_FLAG"                    \
          -D gloo_gateway_v2_enabled="$GLOO_GATEWAY_V2_FLAG"                    \
@@ -794,6 +780,7 @@ function _jinja2_values {
          -D tls_termination_enabled="$TLS_TERMINATION_FLAG"                    \
          -D traffic_policy="$TRAFFIC_POLICY"                                   \
          -D utils_namespace="$UTILS_NAMESPACE"                                 \
+         -D gloo_edge_namespace="$GLOO_EDGE_NAMESPACE"                         \
          "$TEMPLATES"/jinja2_globals.yaml.j2                                   \
     >> "$J2_GLOBALS"
 }

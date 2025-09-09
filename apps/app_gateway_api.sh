@@ -238,6 +238,9 @@ function exec_gloo_gateway_v2_crds {
 }
 
 function exec_gloo_gateway_v2 {
+  local _manifest="$MANIFESTS/helm.gloo_gateway_v2.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.gloo_gateway_v2.yaml.j2
+
   local _k_label="=ambient"
 
   if ! is_create_mode; then
@@ -248,12 +251,15 @@ function exec_gloo_gateway_v2 {
     $DRY_RUN kubectl label namespace "$INGRESS_NAMESPACE" "istio.io/dataplane-mode${_k_label}"  \
     --context "$GSI_CONTEXT" --overwrite
   fi
+I
+  _make_manifest "$_template" > "$_manifest"
 
   if is_create_mode; then
     $DRY_RUN helm upgrade --install gloo-gateway "$GLOO_GATEWAY_V2_HELM_REPO"  \
-    --version "$GLOO_GATEWAY_V2_HELM_VER"                                      \
+    --version "$GLOO_GATEWAY_V2_VER"                                           \
     --kube-context="$GSI_CONTEXT"                                              \
-    --namespace "$GLOO_GATEWAY_NAMESPACE"
+    --namespace "$GLOO_GATEWAY_NAMESPACE"                                      \
+    --values "$_manifest"
   else 
     $DRY_RUN helm uninstall gloo-gateway                                       \
     --kube-context="$GSI_CONTEXT"                                              \

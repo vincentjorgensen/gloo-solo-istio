@@ -10,31 +10,39 @@ GSI_DECK=(
 
   app_init_namespaces
 
+  # Cloud infrastructure
   app_init_aws
 
+  # Infrastructure apps
   app_init_external_dns
-
   app_init_spire
   app_init_cert_manager
   app_init_keycloak
   app_init_gme
   app_init_istio
 
+  # Infrastructure
   app_init_istio_gateway
   app_init_gateway_api
   app_init_gme_workspaces
 
+  # Test applications
   app_init_helloworld
   app_init_curl
   app_init_utils
   app_init_netshoot
   app_init_httpbin
 
+  # Gateway Choices
   ###app_init_ingress_istio
+  app_init_gloo_edge
   app_init_gloo_gateway_v1
   app_init_eastwest_gateway_api
   app_init_ingress_gateway_api
 
+  # App Routing
+  exec_helloworld_routing
+  exec_httpbin_routing
 )
 
 function play_gsi {

@@ -2,12 +2,65 @@
 license_key: {{ license_key }}
 gloo:
   discovery:
-    enabled: false
+    enabled: true
+  gateway:
+    readGatewaysFromAllNamespaces: true 
   gatewayProxies:
     gatewayProxy:
       disabled: true
+{%- if gloo_edge_enabled %}
+    {{ ingress_gateway }}:
+      disabled: false
+      namespace: {{ ingress_namespace }}
+###      namespace: {{ gloo_edge_namespace }}
+      kind:
+        deployment:
+          replicas: {{ ingress_size }}
+      tcpKeepaliveTimeSeconds: 5 # send keep-alive probes after 5s to keep connection up
+      service:
+        type: LoadBalancer
+        httpPort: {{ ingress_http_port }}
+{%-   if https_enabled %}
+        httpsFirst: true
+        httpsPort: {{ ingress_https_port }}
+{%-   endif %}
+      gatewaySettings:
+        accessLoggingService:
+          accessLog:
+          - fileSink:
+              jsonFormat:
+                clientDuration: '%DURATION%'
+                filterState: '%FILTER_STATE(io.solo.modsecurity.audit_log)%'
+                httpMethod: '%REQ(:METHOD)%'
+                modifiedPath: '%REQ(:PATH)%'
+                path: '%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%'
+                protocol: '%PROTOCOL%'
+                remoteAddress: '%DOWNSTREAM_REMOTE_ADDRESS%'
+                requestId: '%REQ(X-REQUEST-ID)%'
+                responseCode: '%RESPONSE_CODE%'
+                responseFlags: '%RESPONSE_FLAGS%'
+                systemTime: '%START_TIME%'
+                targetDuration: '%RESPONSE_DURATION%'
+                upstreamName: '%UPSTREAM_CLUSTER%'
+                xForwardedFor: '%REQ(X-FORWARDED-FOR)%'
+              path: /dev/stdout
+        customHttpGateway:
+          virtualServiceSelector:
+            gateway-type: ingress-gateway
+{%-   if https_enabled %}
+        customHttpsGateway: # using the default HTTPS Gateway
+          virtualServiceSelector:
+            gateway-type: ingress-ssl-gateway # label set on the VirtualService
+{%-   else %}
+        disableHttpsGateway: true # disable the default HTTPS Gateway
+{%-   endif %}
+{%- endif %}
   kubeGateway:
+{%- if gloo_gateway_v1_enabled %}
     enabled: true
+{%- else %}
+    enabled: false
+{%- endif %}
   gloo:
     disableLeaderElection: true
 gloo-fed:
@@ -27,4 +80,14 @@ global:
       requestTimeout: 3s
       deployment:
         logLevel: debug
+    rateLimit:
+      enabled: true
+      deployment:
+        logLevel: debug
+settings:
+{%- if gloo_gateway_v1_enabled %}
+  writeNamespace: {{ gloo_gateway_v1_namespace }}
+{%- else %}
+  writeNamespace: {{ gloo_edge_namespace }}
+{%- endif %}
 ...

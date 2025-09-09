@@ -13,31 +13,6 @@ function app_init_helloworld {
       _jinja2_values # swaps region/zone to local
     fi
 
-    if $EXTAUTH_ENABLED; then
-      create_keycloak_extauth_auth_config -m "$HELLOWORLD_SERVICE_NAME"        \
-                                          -s "$HELLOWORLD_NAMESPACE"           \
-                                          -h "$HELLOWORLD_NAMESPACE"           \
-                                          -n "$HELLOWORLD_NAMESPACE"           \
-                                          -p "$HELLOWORLD_SERVICE_PORT"
-
-    fi
-
-    if $GATEWAY_API_ENABLED; then
-      create_httproute -m "$HELLOWORLD_SERVICE_NAME"                           \
-                       -n "$HELLOWORLD_NAMESPACE"                              \
-                       -s "$HELLOWORLD_NAMESPACE"                              \
-                       -p "$HELLOWORLD_SERVICE_PORT"
-    fi
-
-    if $GLOO_EDGE_ENABLED; then
-      create_gloo_route_table                                                  \
-        -w "$GME_APPLICATIONS_WORKSPACE"                                       \
-        -s "$HELLOWORLD_SERVICE_NAME"
-      create_gloo_virtual_destination                                          \
-        -w "$GME_APPLICATIONS_WORKSPACE"                                       \
-        -s "$HELLOWORLD_SERVICE_NAME"                                          \
-        -p "$HELLOWORLD_SERVICE_PORT"
-    fi
   fi
 }
 
@@ -58,4 +33,35 @@ function exec_helloworld {
 
   _apply_manifest "$_manifest"
   _wait_for_pods "$GSI_CONTEXT" "$HELLOWORLD_NAMESPACE" helloworld
+}
+
+function exec_helloworld_routing {
+  if $HELLOWORLD_ENABLED; then
+    if $EXTAUTH_ENABLED; then
+      create_keycloak_extauth_auth_config -m "$HELLOWORLD_SERVICE_NAME"        \
+                                          -s "$HELLOWORLD_NAMESPACE"           \
+                                          -h "$HELLOWORLD_NAMESPACE"           \
+                                          -n "$HELLOWORLD_NAMESPACE"           \
+                                          -p "$HELLOWORLD_SERVICE_PORT"
+
+    fi
+
+    if $GATEWAY_API_ENABLED; then
+      create_httproute -m "$HELLOWORLD_SERVICE_NAME"                           \
+                       -n "$HELLOWORLD_NAMESPACE"                              \
+                       -s "$HELLOWORLD_NAMESPACE"                              \
+                       -p "$HELLOWORLD_SERVICE_PORT"
+    fi
+
+    if $GLOO_EDGE_ENABLED; then
+      create_gloo_route_table                                                  \
+        -w "$GME_APPLICATIONS_WORKSPACE"                                       \
+        -s "$HELLOWORLD_SERVICE_NAME"
+
+      create_gloo_virtual_destination                                          \
+        -w "$GME_APPLICATIONS_WORKSPACE"                                       \
+        -s "$HELLOWORLD_SERVICE_NAME"                                          \
+        -p "$HELLOWORLD_SERVICE_PORT"
+    fi
+  fi
 }

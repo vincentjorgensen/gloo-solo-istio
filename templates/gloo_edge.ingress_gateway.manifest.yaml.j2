@@ -1,0 +1,38 @@
+apiVersion: gateway.solo.io/v1
+kind: Gateway
+metadata:
+  name: {{ ingress_gateway }}
+  namespace: {{ ingress_namespace }}
+spec:
+  bindAddress: "::"
+  bindPort: {{ ingress_http_port }}
+  httpGateway:
+    virtualServiceSelector:
+      gateway-type: ingress-gateway
+  options:
+    accessLoggingService:
+      accessLog:
+        - fileSink:
+            jsonFormat:
+              authority: "%REQ(:AUTHORITY)%"
+              clientDuration: "%DURATION%"
+              filterState: "%FILTER_STATE(io.solo.modsecurity.audit_log)%"
+              httpMethod: "%REQ(:METHOD)%"
+              modifiedPath: "%REQ(:PATH)%"
+              path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+              protocol: "%PROTOCOL%"
+              remoteAddress: "%DOWNSTREAM_REMOTE_ADDRESS%"
+              remoteAddressWOPort: "%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%"
+              requestId: "%REQ(X-REQUEST-ID)%"
+              responseCode: "%RESPONSE_CODE%"
+              responseCodeDetails: "%RESPONSE_CODE_DETAILS%"
+              responseFlags: "%RESPONSE_FLAGS%"
+              systemTime: "%START_TIME%"
+              targetDuration: "%RESPONSE_DURATION%"
+              upstreamName: "%UPSTREAM_CLUSTER%"
+              upstreamProtocol: "%UPSTREAM_PROTOCOL%"
+              xForwardedFor: "%REQ(X-FORWARDED-FOR)%"
+            path: /dev/stdout
+  proxyNames:
+    - {{ ingress_gateway }}
+  useProxyProto: false
