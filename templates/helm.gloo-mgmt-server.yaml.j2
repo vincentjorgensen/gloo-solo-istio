@@ -34,6 +34,9 @@ glooMgmtServer:
           name: {{ gme_secret }}
   relay:
     disableTokenGeneration: true
+{%- if gloo_mesh_gateway_enabled %}
+  createGlobalWorkspace: true
+{%- endif %}
 {%- if aws_enabled and gme_mgmt_service_type == "LoadBalancer" %}
   serviceOverrides:
     metadata:
@@ -74,7 +77,10 @@ glooUi:
         service.beta.kubernetes.io/azure-load-balancer-internal: "false"
 {%- endif %}
 licensing:
-  glooMeshLicenseKey: {{ license_key }}
+  glooMeshLicenseKey: {{ gloo_mesh_license_key }}
+{%- if gloo_mesh_gateway_enabled %}
+  glooGatewayLicenseKey: {{ gloo_gateway_license_key }}
+{%- endif %}
 prometheus:
   enabled: true
 redis:

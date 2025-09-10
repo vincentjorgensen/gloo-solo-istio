@@ -135,12 +135,6 @@ export SPIRE_FLAG
 # Ingress, Egress, and Eastwest Gateways
 ###############################################################################
 #-------------------------------------------------------------------------------
-# Gateway API
-#-------------------------------------------------------------------------------
-export EXPERIMENTAL_GATEWAY_API_CRDS=${EXPERIMENTAL_GATEWAY_API_CRDS:-false}
-export GATEWAY_API_ENABLED=${GATEWAY_API_ENABLED:-false}
-
-#-------------------------------------------------------------------------------
 # Ingress Gateway Settings
 #-------------------------------------------------------------------------------
 export INGRESS_ENABLED=${INGRESS_ENABLED:-false}
@@ -152,6 +146,19 @@ export INGRESS_SIZE=1
 export DEFAULT_TLDN=example.com
 export TLDN=${TLDN:-$DEFAULT_TLDN}
 export HTTP_FLAG HTTPS_FLAG INGRESS_GATEWAY_CLASS
+
+#-------------------------------------------------------------------------------
+# Gloo Mesh Gateway (GMG)
+#-------------------------------------------------------------------------------
+export GLOO_MESH_GATEWAY_ENABLED=${GLOO_MESH_GATEWAY_ENABLED:-false}
+export GLOO_MESH_GATEWAY_VER=2.10.0
+export GLOO_MESH_GATEWAY_FLAG
+
+#-------------------------------------------------------------------------------
+# Gateway API
+#-------------------------------------------------------------------------------
+export EXPERIMENTAL_GATEWAY_API_CRDS=${EXPERIMENTAL_GATEWAY_API_CRDS:-false}
+export GATEWAY_API_ENABLED=${GATEWAY_API_ENABLED:-false}
 
 #-------------------------------------------------------------------------------
 # Eastwest Gateway Settings
@@ -480,6 +487,14 @@ function gsi_init {
   # Gateways
   #############################################################################
   #----------------------------------------------------------------------------
+  # Gloo Mesh Gateway (GMG)
+  #----------------------------------------------------------------------------
+  if $GLOO_MESH_GATEWAY_ENABLED; then
+    INGRESS_ENABLED=true
+    GLOO_MESH_GATEWAY_FLAG=enabled
+    echo '# '"Gloo Mesh Gateway (GMG) is enabled"
+  fi
+  #----------------------------------------------------------------------------
   # Kgateway (OSS)
   #----------------------------------------------------------------------------
   if $KGATEWAY_ENABLED; then
@@ -722,9 +737,11 @@ function _jinja2_values {
          -D extauth_enabled="$EXTAUTH_FLAG"                                    \
          -D gcp_enabled="$GCP_FLAG"                                            \
          -D gloo_edge_enabled="$GLOO_EDGE_FLAG"                                \
+         -D gloo_edge_namespace="$GLOO_EDGE_NAMESPACE"                         \
          -D gloo_gateway_namespace="$GLOO_GATEWAY_NAMESPACE"                   \
          -D gloo_gateway_v1_enabled="$GLOO_GATEWAY_V1_FLAG"                    \
          -D gloo_gateway_v2_enabled="$GLOO_GATEWAY_V2_FLAG"                    \
+         -D gloo_mesh_gateway_enabled="$GLOO_MESH_GATEWAY_FLAG"                \
          -D gme_analyzer_enabled="$GME_ANALYZER_ENABLED"                       \
          -D gme_glooui_service_type="$GME_GLOOUI_SERVICE_TYPE"                 \
          -D gme_insights_enabled="$GME_ANALYZER_ENABLED"                       \
@@ -734,8 +751,8 @@ function _jinja2_values {
          -D gme_namespace="$GME_NAMESPACE"                                     \
          -D gme_secret_token="$GME_SECRET_TOKEN"                               \
          -D gme_secret="$GME_SECRET"                                           \
-         -D gme_verbose="$GME_VERBOSE"                                         \
          -D gme_telemetry_service_type="$GME_TELEMETRY_SERVICE_TYPE"           \
+         -D gme_verbose="$GME_VERBOSE"                                         \
          -D helloworld_container_port="$HELLOWORLD_CONTAINER_PORT"             \
          -D helloworld_namespace="$HELLOWORLD_NAMESPACE"                       \
          -D helloworld_service_name="$HELLOWORLD_SERVICE_NAME"                 \
@@ -766,7 +783,8 @@ function _jinja2_values {
          -D keycloak_namespace="$KEYCLOAK_NAMESPACE"                           \
          -D keycloak_ver="$KEYCLOAK_VER"                                       \
          -D kube_system_namespace="$KUBE_SYSTEM_NAMESPACE"                     \
-         -D license_key="$GLOO_MESH_LICENSE_KEY"                               \
+         -D gloo_mesh_license_key="$GLOO_MESH_LICENSE_KEY"                     \
+         -D gloo_gateway_license_key="$GLOO_GATEWAY_LICENSE_KEY"               \
          -D mesh_id="$MESH_ID"                                                 \
          -D multicluster_enabled="$MC_FLAG"                                    \
          -D netshoot_namespace="$NETSHOOT_NAMESPACE"                           \
@@ -780,7 +798,6 @@ function _jinja2_values {
          -D tls_termination_enabled="$TLS_TERMINATION_FLAG"                    \
          -D traffic_policy="$TRAFFIC_POLICY"                                   \
          -D utils_namespace="$UTILS_NAMESPACE"                                 \
-         -D gloo_edge_namespace="$GLOO_EDGE_NAMESPACE"                         \
          "$TEMPLATES"/jinja2_globals.yaml.j2                                   \
     >> "$J2_GLOBALS"
 }
