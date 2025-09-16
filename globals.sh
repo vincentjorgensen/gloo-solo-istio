@@ -580,24 +580,24 @@ function gsi_init {
 }
 
 function _get_k8s_region {
-  local _context
+  local _context _region
   _context=$1
 
-  _region=$(kubectl get nodes                                                 \
-    --context "$_context"                                                     \
+  _region=$(kubectl get nodes                                                  \
+    --context "$_context"                                                      \
     -o jsonpath='{.items[0].metadata.labels.topology\.kubernetes\.io/region}')
 
   echo "$_region"
 }
 
 function _get_k8s_zones {
-  local _context
+  local _context _zones
   _context=$1
 
-  _zones=$(kubectl get nodes                                                  \
-           --context "$_context"                                              \
-           -o yaml                                                            |
-           yq '.items[].metadata.labels."topology.kubernetes.io/zone"'        |
+  _zones=$(kubectl get nodes                                                   \
+           --context "$_context"                                               \
+           -o yaml                                                            |\
+           yq '.items[].metadata.labels."topology.kubernetes.io/zone"'        |\
            sort|uniq)
 
   echo "$_zones"
@@ -645,9 +645,9 @@ function _wait_for_pods {
   local _app=$3
 
   if is_create_mode; then
-    $DRY_RUN kubectl wait                                                     \
-    --context "$_context"                                                     \
-    --namespace "$_namespace"                                                 \
+    $DRY_RUN kubectl wait                                                      \
+    --context "$_context"                                                      \
+    --namespace "$_namespace"                                                  \
     --for=condition=Ready pods -l app="$_app"     
   fi
 }
@@ -662,7 +662,9 @@ function _label_ns_for_istio {
     if ! is_create_mode; then
       _k_label="-"
     fi
-    $DRY_RUN kubectl label namespace "$_namespace" "istio.io/dataplane-mode${_k_label}"  \
+    $DRY_RUN kubectl label namespace                                           \
+    "$_namespace"                                                              \
+    "istio.io/dataplane-mode${_k_label}"                                       \
     --context "$GSI_CONTEXT" --overwrite
   fi
 
@@ -678,7 +680,7 @@ function _label_ns_for_istio {
     if ! is_create_mode; then
       _k_label="-"
     fi
-    $DRY_RUN kubectl label namespace "$_namespace" "${_k_key}${_k_label}"  \
+    $DRY_RUN kubectl label namespace "$_namespace" "${_k_key}${_k_label}"      \
     --context "$GSI_CONTEXT" --overwrite
   fi
 }
@@ -705,6 +707,7 @@ function _apply_manifest {
 }
 
 function _jinja2_values {
+  local _region _zones
   J2_GLOBALS="$MANIFESTS"/jinja2_globals.yaml
 
   _region=$(_get_k8s_region "$GSI_CONTEXT")
