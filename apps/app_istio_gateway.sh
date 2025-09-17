@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 function app_init_istio_gateway {
-  if $ISTIO_GATEWAY_ENABLED; then
+  if $ISTIO_GATEWAY_ENABLED || $GLOO_MESH_GATEWAY_ENABLED; then
     exec_istio_ingressgateway
 
     # EastWest linking via Istio Gateway

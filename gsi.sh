@@ -34,7 +34,7 @@ GSI_DECK=(
   app_init_httpbin
 
   # Gateway Choices
-  ###app_init_ingress_istio
+  app_init_istio_gateway
   app_init_gloo_edge
   app_init_gloo_gateway_v1
   app_init_eastwest_gateway_api
@@ -46,7 +46,7 @@ GSI_DECK=(
 )
 
 function play_gsi {
-  infra=$1
+  infra=${1:-$UTAG}
 
   # shellcheck source=/dev/null
   source "$(dirname "$0")/infras/infra_${infra}.sh"

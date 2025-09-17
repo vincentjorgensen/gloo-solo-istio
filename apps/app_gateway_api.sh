@@ -147,17 +147,17 @@ function exec_eastwest_gateway_api {
   sleep 1.5
 
   if is_create_mode; then
-    _wait_for_pods "$GSI_CONTEXT" "$EASTWEST_NAMESPACE" "$EASTWEST_GATEWAY_NAME"
+    _wait_for_pods "$GSI_CONTEXT" "$EASTWEST_NAMESPACE" "$EASTWEST_GATEWAY"
   fi
 }
 
 function exec_eastwest_link_gateway_api {
   local _manifest="$MANIFESTS/gateway_api.eastwest_remote_gateway.${GSI_REMOTE_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/gateway_api.eastwest_remote_gateway.manifest.yaml.j2
+  local _template="$TEMPLATES"/gateway_api/eastwest_remote_gateway.manifest.yaml.j2
   local _remote_address _address_type
 
   _remote_address=$(
-    kubectl get svc "$EASTWEST_GATEWAY_NAME"                                   \
+    $DRY_RUN kubectl get svc "$EASTWEST_GATEWAY"                               \
     --namespace "$EASTWEST_NAMESPACE"                                          \
     --context "$GSI_CONTEXT"                                                   \
     -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
@@ -165,7 +165,7 @@ function exec_eastwest_link_gateway_api {
   if is_create_mode; then
   while [[ -z $_remote_address ]]; do
       _remote_address=$(
-        $DRY_RUN kubectl get svc "$EASTWEST_GATEWAY_NAME"                      \
+        $DRY_RUN kubectl get svc "$EASTWEST_GATEWAY"                           \
         --namespace "$EASTWEST_NAMESPACE"                                      \
         --context "$GSI_CONTEXT"                                               \
         -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")

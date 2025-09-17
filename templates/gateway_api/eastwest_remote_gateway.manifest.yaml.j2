@@ -7,7 +7,7 @@ metadata:
     gateway.istio.io/trust-domain: {{ trust_domain }}
   labels:
     topology.istio.io/network: {{ network }}
-{%- if eastwest_gateway_class == "istio-remote" %}
+{%- if eastwest_remote_gateway_class == "istio-remote" %}
 {%-   if istio_revision %}
     istio.io/rev: {{ istio_revision }}
 {%-   endif %}
@@ -18,7 +18,7 @@ spec:
   addresses:
   - type: {{ address_type }}
     value: {{ remote_address }}
-  gatewayClassName: {{ eastwest_gateway_class }}
+  gatewayClassName: {{ eastwest_remote_gateway_class }}
   listeners:
   - name: cross-network
     port: 15008

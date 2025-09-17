@@ -278,6 +278,8 @@ function exec_gloo_virtual_gateway {
          "$TEMPLATES"/gloo.virtualgateway.manifest.yaml.j2                    \
     > "$_manifest"
 
+  create_namespace "$GSI_MGMT_CONTEXT" "$GME_GATEWAYS_WORKSPACE"-config
+
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_MGMT_CONTEXT"                                               \
   -f "$_manifest" 

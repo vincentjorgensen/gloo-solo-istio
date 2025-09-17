@@ -8,7 +8,8 @@ export GSI_CONTEXT=cluster1
 export GSI_NETWORK=cluster1
 
 # Infrastructure
-export GME_ENABLED=true
+export GME_ENABLED=true       # Required for Gloo-Mesh-Gateway
+export SIDECAR_ENABLED=true   # Required for Gloo-Mesh-Gateway, could also be ambient?
 
 # Testing Apps
 export HELLOWORLD_ENABLED=true

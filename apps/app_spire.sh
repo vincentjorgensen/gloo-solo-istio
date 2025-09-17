@@ -31,14 +31,14 @@ function exec_spire_secrets {
 ###    --from-file=tls.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/ca-cert.pem           \
 ###    --from-file=tls.key="$SPIRE_CERTS"/"${GSI_CLUSTER}"/ca-key.pem            \
 ###    --from-file=bundle.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/cert-chain.pem
-    $DRY_RUN kubectl "$GSI_MODE" secret generic "$SPIRE_SECRET"               \
-    --context "$GSI_CONTEXT"                                                  \
-    --namespace "$SPIRE_NAMESPACE"                                            \
-    --from-file=tls.crt="$SPIRE_CERTS"/root-cert.pem                          \
+    $DRY_RUN kubectl create secret generic "$SPIRE_SECRET"                     \
+    --context "$GSI_CONTEXT"                                                   \
+    --namespace "$SPIRE_NAMESPACE"                                             \
+    --from-file=tls.crt="$SPIRE_CERTS"/root-cert.pem                           \
     --from-file=tls.key="$SPIRE_CERTS"/root-key.pem
   else
-    $DRY_RUN kubectl "$GSI_MODE" secret "$SPIRE_SECRET"                       \
-    --context "$GSI_CONTEXT"                                                  \
+    $DRY_RUN kubectl "$GSI_MODE" secret "$SPIRE_SECRET"                        \
+    --context "$GSI_CONTEXT"                                                   \
     --namespace "$SPIRE_NAMESPACE"
   fi
 }

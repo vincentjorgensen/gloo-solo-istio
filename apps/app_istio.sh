@@ -42,16 +42,16 @@ function app_init_istio {
 
 function exec_istio_secrets {
   if is_create_mode; then
-    $DRY_RUN kubectl "$GSI_MODE" secret generic "$ISTIO_SECRET"               \
-    --context "$GSI_CONTEXT"                                                  \
-    --namespace "$ISTIO_NAMESPACE"                                     \
-    --from-file="$CERTS"/"$GSI_CLUSTER"/ca-cert.pem                           \
-    --from-file="$CERTS"/"$GSI_CLUSTER"/ca-key.pem                            \
-    --from-file="$CERTS"/"$GSI_CLUSTER"/root-cert.pem                         \
+    $DRY_RUN kubectl create secret generic "$ISTIO_SECRET"                     \
+    --context "$GSI_CONTEXT"                                                   \
+    --namespace "$ISTIO_NAMESPACE"                                             \
+    --from-file="$CERTS"/"$GSI_CLUSTER"/ca-cert.pem                            \
+    --from-file="$CERTS"/"$GSI_CLUSTER"/ca-key.pem                             \
+    --from-file="$CERTS"/"$GSI_CLUSTER"/root-cert.pem                          \
     --from-file="$CERTS"/"$GSI_CLUSTER"/cert-chain.pem
   else
-    $DRY_RUN kubectl "$GSI_MODE" secret cacerts                               \
-    --context "$GSI_CONTEXT"                                                  \
+    $DRY_RUN kubectl "$GSI_MODE" secret cacerts                                \
+    --context "$GSI_CONTEXT"                                                   \
     --namespace "$ISTIO_NAMESPACE"
   fi
 }
@@ -155,15 +155,15 @@ function exec_istio_ztunnel {
   if is_create_mode; then
     _make_manifest "$_template" > "$_manifest"
 
-    $DRY_RUN helm upgrade --install ztunnel "$HELM_REPO"/ztunnel              \
-    --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                   \
-    --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$ISTIO_NAMESPACE"                                     \
-    --values "$_manifest"                                                     \
+    $DRY_RUN helm upgrade --install ztunnel "$HELM_REPO"/ztunnel               \
+    --version "${ISTIO_VER}${ISTIO_FLAVOR}"                                    \
+    --kube-context="$GSI_CONTEXT"                                              \
+    --namespace "$ISTIO_NAMESPACE"                                             \
+    --values "$_manifest"                                                      \
     --wait
   else
-    $DRY_RUN helm uninstall ztunnel                                           \
-    --kube-context="$GSI_CONTEXT"                                             \
+    $DRY_RUN helm uninstall ztunnel                                            \
+    --kube-context="$GSI_CONTEXT"                                              \
     --namespace "$ISTIO_NAMESPACE"
   fi
 }
@@ -181,13 +181,12 @@ function exec_telemetry_defaults {
 function exec_istio {
   local _k_label="=$GSI_NETWORK"
 
-  if [[ $GSI_MODE == delete ]]; then
+  if ! is_create_mode; then
     _k_label="-"
   fi
 
   if $MULTICLUSTER_ENABLED; then
-    $DRY_RUN kubectl label namespace "$ISTIO_NAMESPACE" "topology.istio.io/network${_k_label}"  \
-    --context "$GSI_CONTEXT" --overwrite
+    _label_namespace "$ISTIO_NAMESPACE" "topology.istio.io/network" "$GSI_NETWORK"
   fi
 
   exec_istio_base
@@ -196,9 +195,9 @@ function exec_istio {
   "$AMBIENT_ENABLED" && exec_istio_ztunnel
 
   if is_create_mode; then
-    $DRY_RUN kubectl wait                                                     \
-    --context "$GSI_CONTEXT"                                                  \
-    --namespace "$ISTIO_NAMESPACE"                                     \
+    $DRY_RUN kubectl wait                                                      \
+    --context "$GSI_CONTEXT"                                                   \
+    --namespace "$ISTIO_NAMESPACE"                                             \
     --for=condition=Ready pods --all
   fi
 }

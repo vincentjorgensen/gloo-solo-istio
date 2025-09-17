@@ -42,23 +42,6 @@ spec:
 {%-   endif %}
     deployment:
       replicas: {{ ingress_size }}
-{%- endif %}
-{%- if ingress_gateway_class == "gloo-gateway-v2" %}
----
-apiVersion: gloo.solo.io/v1alpha1
-kind: GlooGatewayParameters
-metadata:
-  name: {{ ingress_gateway }}-ggw-params
-  namespace: {{ ingress_namespace }}
-spec:
-  kube: 
-    envoyContainer:
-      bootstrap:
-        logLevel: debug
-    service:
-      type: LoadBalancer
-    deployment:
-      replicas: {{ ingress_size }}
 ###  sharedExtensions:
 ###    extauth:
 {%-   if extauth_enabled %}
@@ -72,8 +55,7 @@ spec:
 {%-   else %}
 ###      enabled: false
 {%-   endif %}
-{%- endif %}
-{%- if docker_desktop_enabled %}
+{%-   if docker_desktop_enabled %}
     envoyContainer:
       resources:
         limits:
@@ -82,6 +64,7 @@ spec:
         requests:
           cpu: 2m
           memory: 64m
+{%-   endif %}
 {%- endif %}
 {%- if ingress_gateway_class == "kgateway" 
     or ingress_gateway_class == "gloo-gateway-v2"

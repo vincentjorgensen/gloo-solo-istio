@@ -14,6 +14,7 @@ CERTS="$(dirname "$0")"/certs
 SPIRE_CERTS="$(dirname "$0")"/spire-certs
 CERT_MANAGER_CERTS="$(dirname "$0")"/cert-manager/certs
 REPLAYS="$(dirname "$0")"/replays
+INFRAS="$(dirname "$0")"/infras
 
 #-------------------------------------------------------------------------------
 # Namespaces
@@ -168,7 +169,7 @@ export EASTWEST_NAMESPACE=eastwest-gateways
 export EASTWEST_GATEWAY=eastwest-gateway
 export MULTICLUSTER_NAMESPACE=$EASTWEST_NAMESPACE
 export EASTWEST_SIZE=1
-export EASTWEST_GATEWAY_CLASS MC_FLAG
+export EASTWEST_GATEWAY_CLASS MC_FLAG EASTWEST_REMOTE_GATEWAY_CLASS
 
 #-------------------------------------------------------------------------------
 # Ingress as Istio Gateway (OSS)
@@ -244,19 +245,19 @@ export AMBIENT_NAMESPACE=$ISTIO_NAMESPACE
 export SIDECAR_NAMESPACE=$ISTIO_NAMESPACE
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
 export ISTIO_REPO_123=us-docker.pkg.dev/gloo-mesh/istio-207627c16668
-export ISTIO_VER_123=1.23.4
+export ISTIO_VER_123=1.23.6-patch2
 export HELM_REPO_124=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-4d37697f9711
 export ISTIO_REPO_124=us-docker.pkg.dev/gloo-mesh/istio-4d37697f9711
-export ISTIO_VER_124=1.24.5
+export ISTIO_VER_124=1.24.6-patch0
 export HELM_REPO_125=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_125=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_125=1.25.3
+export ISTIO_VER_125=1.25.3-patch0
 export HELM_REPO_126=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_126=1.26.4
 export HELM_REPO_127=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_127=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_127=1.27.0
+export ISTIO_VER_127=1.27.1-patch0
 export ISTIO_SECRET=cacerts
 export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TRUST_DOMAIN="cluster.local"
@@ -338,9 +339,9 @@ function set_istio {
   if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
     ISTIO_126_FLAG="enabled"
   fi
-  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 27 ]]; then
-    ISTIO_126_FLAG="enabled"
-  fi
+##  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 27 ]]; then
+##    ISTIO_126_FLAG="enabled"
+##  fi
 }
 
 function set_gme {
@@ -352,7 +353,7 @@ function set_gme {
 
 function gsi_set_defaults {
   set_revision main
-  set_istio 1.26 solo distroless
+  set_istio 1.27 solo distroless
   set_gme
 }
 
@@ -379,6 +380,14 @@ function gsi_init {
   set_utag "$1"
   mkdir -p "$MANIFESTS"
   echo "export MANIFESTS=$MANIFESTS"
+
+  eval unset GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
+  eval unset GATEWAY_API_CRDS_APPLIED_"${GSI_REMOTE_CLUSTER//-/_}"
+
+  if [[ -e $INFRAS/infra_${UTAG}.sh ]]; then
+    # shellcheck disable=SC1090
+    source "$INFRAS/infra_${UTAG}.sh"
+  fi
 
   #############################################################################
   # Support infrastructure which affects later fields
@@ -473,6 +482,7 @@ function gsi_init {
     echo '#' Multicluster is enabled 
     if $AMBIENT_ENABLED; then
       EASTWEST_GATEWAY_CLASS=istio-eastwest
+      EASTWEST_REMOTE_GATEWAY_CLASS=istio-remote
       echo '#' Ambient Multicluster is enabled
     fi
   fi
@@ -652,6 +662,22 @@ function _wait_for_pods {
   fi
 }
 
+function _label_namespace {
+  local _namespace=$1
+  local _key=$2
+  local _value=$3
+  local _k_label="=${_value}"
+
+    if ! is_create_mode; then
+      _k_label="-"
+    fi
+
+  $DRY_RUN kubectl label namespace                                             \
+  "$_namespace"                                                                \
+  "${_key}${_k_label}"                                                         \
+  --context "$GSI_CONTEXT" --overwrite
+}
+
 function _label_ns_for_istio {
   local _namespace=$1
   local _k_label _k_key
@@ -734,6 +760,7 @@ function _jinja2_values {
          -D curl_namespace="$CURL_NAMESPACE"                                   \
          -D docker_desktop_enabled="$DOCKER_DESKTOP_ENABLED"                   \
          -D eastwest_gateway_class="$EASTWEST_GATEWAY_CLASS"                   \
+         -D eastwest_remote_gateway_class="$EASTWEST_REMOTE_GATEWAY_CLASS"     \
          -D eastwest_gateway="$EASTWEST_GATEWAY"                               \
          -D eastwest_namespace="$EASTWEST_NAMESPACE"                           \
          -D eastwest_size="$EASTWEST_SIZE"                                     \
@@ -741,10 +768,12 @@ function _jinja2_values {
          -D gcp_enabled="$GCP_FLAG"                                            \
          -D gloo_edge_enabled="$GLOO_EDGE_FLAG"                                \
          -D gloo_edge_namespace="$GLOO_EDGE_NAMESPACE"                         \
+         -D gloo_gateway_license_key="$GLOO_GATEWAY_LICENSE_KEY"               \
          -D gloo_gateway_namespace="$GLOO_GATEWAY_NAMESPACE"                   \
          -D gloo_gateway_v1_enabled="$GLOO_GATEWAY_V1_FLAG"                    \
          -D gloo_gateway_v2_enabled="$GLOO_GATEWAY_V2_FLAG"                    \
          -D gloo_mesh_gateway_enabled="$GLOO_MESH_GATEWAY_FLAG"                \
+         -D gloo_mesh_license_key="$GLOO_MESH_LICENSE_KEY"                     \
          -D gme_analyzer_enabled="$GME_ANALYZER_ENABLED"                       \
          -D gme_glooui_service_type="$GME_GLOOUI_SERVICE_TYPE"                 \
          -D gme_insights_enabled="$GME_ANALYZER_ENABLED"                       \
@@ -786,8 +815,6 @@ function _jinja2_values {
          -D keycloak_namespace="$KEYCLOAK_NAMESPACE"                           \
          -D keycloak_ver="$KEYCLOAK_VER"                                       \
          -D kube_system_namespace="$KUBE_SYSTEM_NAMESPACE"                     \
-         -D gloo_mesh_license_key="$GLOO_MESH_LICENSE_KEY"                     \
-         -D gloo_gateway_license_key="$GLOO_GATEWAY_LICENSE_KEY"               \
          -D mesh_id="$MESH_ID"                                                 \
          -D multicluster_enabled="$MC_FLAG"                                    \
          -D netshoot_namespace="$NETSHOOT_NAMESPACE"                           \

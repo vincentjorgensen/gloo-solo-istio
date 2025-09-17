@@ -32,6 +32,19 @@ function create_namespace {
   _context=$1
   _namespace=$2
 
-  $DRY_RUN kubectl "${GSI_MODE/apply/create}" namespace "$_namespace"          \
-  --context "$_context"
+  if ! _namespace_exists "$_context" "$_namespace"; then
+    $DRY_RUN kubectl "${GSI_MODE/apply/create}" namespace "$_namespace"          \
+    --context "$_context"
+  fi
+}
+
+function _namespace_exists {
+  local _context=$1
+  local _namespace=$2
+
+  if [[ -z $DRY_RUN ]]; then
+    kubectl get namespace "$_namespace" --context "$_context" > /dev/null 2>&1
+  else
+    return 0
+  fi
 }

@@ -16,14 +16,14 @@ function app_init_cert_manager {
 
 function exec_cert_manager_secrets {
   if is_create_mode; then
-    $DRY_RUN kubectl "$GSI_MODE" secret generic "$CERT_MANAGER_SECRET"        \
-    --context "$GSI_CONTEXT"                                                  \
-    --namespace "$CERT_MANAGER_NAMESPACE"                                     \
-    --from-file=tls.crt="$CERT_MANAGER_CERTS"/root-cert.pem                   \
+    $DRY_RUN kubectl create secret generic "$CERT_MANAGER_SECRET"              \
+    --context "$GSI_CONTEXT"                                                   \
+    --namespace "$CERT_MANAGER_NAMESPACE"                                      \
+    --from-file=tls.crt="$CERT_MANAGER_CERTS"/root-cert.pem                    \
     --from-file=tls.key="$CERT_MANAGER_CERTS"/root-key.pem
   else
-    $DRY_RUN kubectl "$GSI_MODE" secret "$CERT_MANAGER_SECRET"                \
-    --context "$GSI_CONTEXT"                                                  \
+    $DRY_RUN kubectl "$GSI_MODE" secret "$CERT_MANAGER_SECRET"                 \
+    --context "$GSI_CONTEXT"                                                   \
     --namespace "$CERT_MANAGER_NAMESPACE"
   fi
 }

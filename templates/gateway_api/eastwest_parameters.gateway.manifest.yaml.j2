@@ -1,4 +1,4 @@
-{%- ingress_gateway_class == "istio-eastwest" and not istio_126_enabled %}
+{%- if eastwest_gateway_class == "istio-eastwest" and not istio_126_enabled %}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -12,7 +12,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ eastwest_gateway }}-{{ eastwest_gateway_class }}
-{%- if eastwest_gateway_class == "istio" and istio_126_enabled %}
+{%- else %}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -28,7 +28,7 @@ data:
   deployment: |
     spec:
       replicas: {{ eastwest_size }}
-{%-     if docker_desktop_enabled %}
+{%-   if docker_desktop_enabled %}
       template:
         spec:
           containers:
@@ -40,10 +40,10 @@ data:
               requests:
                 cpu: 2m
                 memory: 64m
-{%-     endif %}
+{%-   endif %}
 
-  service: |
 {%-   if aws_enabled %}
+  service: |
     annotations:
       external-dns.alpha.kubernetes.io/hostname: "eastwest-gateway.{{ network }}.{{ tldn }}"
       service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
