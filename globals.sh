@@ -263,8 +263,10 @@ export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TRUST_DOMAIN="cluster.local"
 export TRUST_DOMAIN=${TRUST_DOMAIN:-$DEFAULT_TRUST_DOMAIN}
 export MESH_ID=${MESH_ID:-$DEFAULT_MESH_ID}
+export ISTIO_PEER_AUTH_MODE="STRICT" # STRICT, PERMISSIVE, UNSET, DISABLED (not allowed for ztunnel)
+# Traffic Distribution: PreferNetwork, PreferClose, PreferRegion, Any
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
-export REVISION
+export REVISION TRAFFIC_DISTRIBUTION
 
 #-------------------------------------------------------------------------------
 # Istio Dataplane Modes
@@ -353,7 +355,7 @@ function set_gme {
 
 function gsi_set_defaults {
   set_revision main
-  set_istio 1.27 solo distroless
+  set_istio 1.26 solo distroless
   set_gme
 }
 
@@ -806,6 +808,7 @@ function _jinja2_values {
          -D istio_enabled="$ISTIO_ENABLED"                                     \
          -D istio_flavor="$ISTIO_FLAVOR"                                       \
          -D istio_namespace="$ISTIO_NAMESPACE"                                 \
+         -D istio_peer_auth_mode="$ISTIO_PEER_AUTH_MODE"                       \
          -D istio_repo="$ISTIO_REPO"                                           \
          -D istio_revision="$REVISION"                                         \
          -D istio_secret="$ISTIO_SECRET"                                       \

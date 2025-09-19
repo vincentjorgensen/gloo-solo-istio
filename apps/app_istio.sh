@@ -11,11 +11,10 @@ function app_init_istio {
       exec_istio_awspca_secrets
     else
       if $MULTICLUSTER_ENABLED; then
-        if ! $SPIRE_ENABLED; then
-          exec_istio_secrets
-        fi
+        ! $SPIRE_ENABLED && exec_istio_secrets
       fi
     fi
+    $AMBIENT_ENABLED && exec_gateway_api_crds
     exec_istio
     exec_telemetry_defaults
 
@@ -200,4 +199,16 @@ function exec_istio {
     --namespace "$ISTIO_NAMESPACE"                                             \
     --for=condition=Ready pods --all
   fi
+}
+
+function exec_peer_authentication {
+  local _manifest="$MANIFESTS"/istio.peer_authentication."$GSI_CLUSTER".yaml
+  local _template="$TEMPLATES"/istio/peer_authentication.manifest.yaml.j2
+
+  if [[ $ISTIO_PEER_AUTH_MODE == STRICT ]]; then
+    _label_namespace "$ISTIO_NAMESPACE" "topology.istio.io/network" "$GSI_NETWORK"
+  fi
+
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
 }
