@@ -1,0 +1,9 @@
+- apiVersion: security.istio.io/v1
+  kind: PeerAuthentication
+  metadata:
+    annotations:
+    name: strict-peer-authentication
+    namespace: {{ istio_namespace }}
+  spec:
+    mtls:
+      mode: STRICT
