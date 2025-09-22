@@ -1,0 +1,39 @@
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: remote-helloworld-backend
+  namespace: {{ gloo_gateway_namespace }}
+spec:
+  type: Static
+  static:
+    hosts:
+      - host: 192.168.96.19
+        port: 8080
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: remote-tls-helloworld-backend
+  namespace: {{ gloo_gateway_namespace }}
+spec:
+  type: Static
+  static:
+    hosts:
+      - host: 192.168.96.19
+        port: 8443
+---
+kind: BackendConfigPolicy
+apiVersion: gateway.kgateway.dev/v1alpha1
+metadata:
+  name: remote-tls-helloworld-backend-policy
+  namespace: {{ gloo_gateway_namespace }}
+spec:
+  targetRefs:
+  - group: gateway.kgateway.dev
+    kind: Backend
+    name: remote-tls-helloworld-backend
+  tls:
+    secretRef:
+      name: remote-tls-helloworld
+...
