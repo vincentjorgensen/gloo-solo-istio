@@ -2,8 +2,8 @@
   kind: PeerAuthentication
   metadata:
     annotations:
-    name: strict-peer-authentication
+    name: {{ istio_peer_auth_mode | string | lower }}-peer-authentication
     namespace: {{ istio_namespace }}
   spec:
     mtls:
-      mode: STRICT
+      mode: {{ istio_peer_auth_mode | string | upper }}
