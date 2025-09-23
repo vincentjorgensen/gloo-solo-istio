@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-export GSI_CLUSTER=cluster1
-export GSI_CONTEXT=cluster1
-export GSI_NETWORK=cluster1
+export GSI_CLUSTER=cluster3
+export GSI_CONTEXT=cluster3
+export GSI_NETWORK=cluster3
 
-export AMBIENT_ENABLED=true
+#Infrastructure
+
+# Test Apps
 export HELLOWORLD_ENABLED=true
+export HTTPBIN_ENABLED=true
 export CURL_ENABLED=true
-export TOOLS_ENABLED=true
-export EXTERNAL_DNS_ENABLED=true
+export NETSHOOT_ENABLED=true
+
+# Gateway
 export GLOO_GATEWAY_V2_ENABLED=true
