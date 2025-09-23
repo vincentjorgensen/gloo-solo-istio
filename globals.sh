@@ -67,6 +67,7 @@ export HELLOWORLD_SERVICE_NAME=helloworld
 export HELLOWORLD_SERVICE_PORT=8001
 export HELLOWORLD_CONTAINER_PORT=8080
 export HELLOWORLD_SIZE=1
+export REMOTE_HELLOWORLD_ENABLED=${REMOTE_HELLOWORLD_ENABLED:-false}
 
 #-------------------------------------------------------------------------------
 # HTTPBIN App

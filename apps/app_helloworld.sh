@@ -12,7 +12,10 @@ function app_init_helloworld {
       gsi_cluster_swap
       _jinja2_values # swaps region/zone to local
     fi
+  fi
 
+  if $REMOTE_HELLOWORLD_ENABLED; then
+    exec_remote_helloworld
   fi
 }
 
@@ -33,6 +36,25 @@ function exec_helloworld {
 
   _apply_manifest "$_manifest"
   _wait_for_pods "$GSI_CONTEXT" "$HELLOWORLD_NAMESPACE" helloworld
+}
+
+function exec_remote_helloworld {
+  local _manifest="$MANIFESTS/remote-helloworld.backend.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/remote-hellowworld.backend.manifest.yaml.j2
+
+  _remote_helloworld_address=$(docker inspect helloworld | jq -r '.[].NetworkSettings.Networks."'"$DOCKER_NETWORK"'".IPAddress')
+  _remote_helloworld_port=$(docker inspect helloworld | jq -r '.[].Config.Env[]|select(contains("SERVER_PORT"))'|awk -F= '{print $2}')
+  _remote_helloworld_ssl_port=$(docker inspect helloworld | jq -r '.[].Config.Env[]|select(contains("SERVER_SSL_PORT"))'|awk -F= '{print $2}')
+
+  jinja2                                                                       \
+         -D remote_helloworld_address="${_remote_helloworld_address}"          \
+         -D remote_helloworld_port="${_remote_helloworld_port}"                \
+         -D remote_helloworld_ssl_port="${_remote_helloworld_ssl_port}"        \
+         "$_template"                                                          \
+         "$J2_GLOBALS"                                                         \
+    > "$_manifest"
+
+  _apply_manifest "$_manifest"
 }
 
 function exec_helloworld_routing {
@@ -69,6 +91,15 @@ function exec_helloworld_routing {
         -w "$GME_APPLICATIONS_WORKSPACE"                                       \
         -s "$HELLOWORLD_SERVICE_NAME"                                          \
         -p "$HELLOWORLD_SERVICE_PORT"
+    fi
+  fi
+  if $REMOTE_HELLOWORLD_ENABLED; then
+    if $GATEWAY_API_ENABLED; then
+      local _manifest="$MANIFESTS/httproute.remote-helloworld.${GSI_CLUSTER}.yaml"
+      local _template="$TEMPLATES"/httproute.remote-helloworld.manifest.yaml.j2
+      
+      _make_manifest "$_template" > "$_manifest"
+      _apply_manifest "$_manifest"
     fi
   fi
 }
