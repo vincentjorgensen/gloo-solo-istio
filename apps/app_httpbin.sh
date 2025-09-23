@@ -15,6 +15,8 @@ function exec_httpbin {
   local _manifest="$MANIFESTS/httpbin.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES/httpbin.manifest.yaml.j2"
 
+  _label_ns_for_istio "$HTTPBIN_NAMESPACE"
+
   _make_manifest "$_template" > "$_manifest"
   _apply_manifest "$_manifest"
   _wait_for_pods "$GSI_CONTEXT" "$HTTPBIN_NAMESPACE" httpbin
