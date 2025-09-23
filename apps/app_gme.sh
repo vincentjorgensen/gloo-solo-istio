@@ -9,7 +9,7 @@ function app_init_gme {
     if [[ $GSI_MGMT_CLUSTER != "$GSI_CLUSTER" ]]; then
       # First Workload cluster
       exec_gloo_k8s_cluster 
-      exec_gme_secrets
+      create_gme_secrets
       exec_gloo_platform_crds
       exec_gloo_agent
     else
@@ -20,7 +20,7 @@ function app_init_gme {
       # Second Workload cluster
       gsi_cluster_swap
       exec_gloo_k8s_cluster
-      exec_gme_secrets
+      create_gme_secrets
       exec_gloo_platform_crds
       exec_gloo_agent
       gsi_cluster_swap
