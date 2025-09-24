@@ -20,7 +20,7 @@ spec:
 {%- if multicluster_enabled %}
     - kind: Hostname
       group: networking.istio.io
-      name: {{ service }}.{{ service_namespace }}.mesh.internal # Will require ReferenceGrant in service_namespace if crosses NS boundary
+      name: {{ service }}.{{ service_namespace }}.{{ peering_discover_suffix }} # Will require ReferenceGrant in service_namespace if crosses NS boundary
       port: {{ service_port }}
 {%- else %}
     - group: ""

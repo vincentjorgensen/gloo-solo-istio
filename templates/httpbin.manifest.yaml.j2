@@ -17,7 +17,7 @@ spec:
   ports:
     - name: http
       port: {{ httpbin_service_port }}
-      targetPort: {{ httpbin_container_port }} ### http # named does not work for ambient mc mesh.internal
+      targetPort: {{ httpbin_container_port }} ### http # named does not work for ambient mc {{ peering_discover_suffix }}
   selector:
     app: httpbin
 ---

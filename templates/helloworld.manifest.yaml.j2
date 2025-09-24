@@ -18,7 +18,7 @@ spec:
   ports:
   - name: http
     port: {{ helloworld_service_port }}
-    targetPort: {{ helloworld_container_port }} ### http # named port does not work for ambient mc mesh.internal
+    targetPort: {{ helloworld_container_port }} ### http # named port does not work for ambient mc {{ peering_discover_suffix }}
   selector:
     app: helloworld
 ---

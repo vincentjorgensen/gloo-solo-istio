@@ -8,6 +8,6 @@ spec:
   type: Static
   static:
     hosts:
-    - host: {{ service_name }}.{{ service_namespace }}.mesh.internal
+    - host: {{ service_name }}.{{ service_namespace }}.{{ peering_discover_suffix }}
       port: {{ service_port }}
 ...

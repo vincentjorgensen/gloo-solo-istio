@@ -244,6 +244,7 @@ export ISTIO_ENABLED=${ISTIO_ENABLED:-false}
 export ISTIO_NAMESPACE=istio-system
 export AMBIENT_NAMESPACE=$ISTIO_NAMESPACE
 export SIDECAR_NAMESPACE=$ISTIO_NAMESPACE
+export PEERING_DISCOVERY_SUFFIX="mesh.internal"
 export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
 export ISTIO_REPO_123=us-docker.pkg.dev/gloo-mesh/istio-207627c16668
 export ISTIO_VER_123=1.23.6-patch2
@@ -822,6 +823,7 @@ function _jinja2_values {
          -D mesh_id="$MESH_ID"                                                 \
          -D multicluster_enabled="$MC_FLAG"                                    \
          -D netshoot_namespace="$NETSHOOT_NAMESPACE"                           \
+         -D peering_discover_suffix="$PEERING_DISCOVERY_SUFFIX"                \
          -D ratelimiter_enabled="$RATELIMITER_FLAG"                            \
          -D region="$_region"                                                  \
          -D sidecar_enabled="$SIDECAR_FLAG"                                    \
