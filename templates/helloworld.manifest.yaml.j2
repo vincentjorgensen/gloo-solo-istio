@@ -71,7 +71,7 @@ spec:
           value: {{ region }}
         - name: SERVER_PORT
           value: '{{ helloworld_container_port }}'
-        image: vincentjorgensen/node-helloworld:0.0.3
+        image: vincentjorgensen/node-helloworld:0.1.0
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: {{ helloworld_container_port }}
