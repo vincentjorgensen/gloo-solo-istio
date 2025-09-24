@@ -18,8 +18,8 @@ function app_init_curl {
 }
 
 function exec_utils {
-  local _manifest="$MANIFESTS/tools.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/utils.manifest.yaml.j2
+  local _manifest="$MANIFESTS/tools.utils.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/tools/utils.manifest.yaml.j2
 
   _label_ns_for_istio "$UTILS_NAMESPACE"
 
@@ -29,8 +29,8 @@ function exec_utils {
 }
 
 function exec_netshoot {
-  local _manifest="$MANIFESTS/netshoot.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/netshoot.manifest.yaml.j2
+  local _manifest="$MANIFESTS/tools.netshoot.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/tools/netshoot.manifest.yaml.j2
 
   _label_ns_for_istio "$NETSHOOT_NAMESPACE"
   _make_manifest "$_template" > "$_manifest"
@@ -40,8 +40,8 @@ function exec_netshoot {
 
 
 function exec_curl {
-  local _manifest="$MANIFESTS/curl.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/curl.manifest.yaml.j2
+  local _manifest="$MANIFESTS/tools.curl.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/tools/curl.manifest.yaml.j2
 
   _label_ns_for_istio "$CURL_NAMESPACE"
   _make_manifest "$_template" > "$_manifest"
