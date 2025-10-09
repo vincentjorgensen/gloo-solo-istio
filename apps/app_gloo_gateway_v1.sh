@@ -10,12 +10,10 @@ function exec_gloo_gateway_v1 {
   local _template="$TEMPLATES"/helm.gloo-gateway.yaml.j2
 
   jinja2                                                                       \
+          -D gloo_gateway_license_key="$GLOO_GATEWAY_LICENSE_KEY"              \
          "$_template"                                                          \
          "$J2_GLOBALS"                                                         \
   > "$_manifest"
-    jinja2 -D gloo_gateway_license_key="$GLOO_GATEWAY_LICENSE_KEY"             \
-           "$TEMPLATES"/helm.gloo-gateway.yaml.j2                              \
-      > "$_manifest"
 
   if is_create_mode; then
     $DRY_RUN helm upgrade -i gloo-gateway glooe/gloo-ee                        \

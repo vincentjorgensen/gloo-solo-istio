@@ -251,7 +251,7 @@ function exec_gloo_gateway_v2 {
     $DRY_RUN kubectl label namespace "$INGRESS_NAMESPACE" "istio.io/dataplane-mode${_k_label}"  \
     --context "$GSI_CONTEXT" --overwrite
   fi
-I
+ 
   _make_manifest "$_template" > "$_manifest"
 
   if is_create_mode; then

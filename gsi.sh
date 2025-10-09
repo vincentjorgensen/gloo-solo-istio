@@ -46,6 +46,7 @@ GSI_DECK=(
 )
 
 function play_gsi {
+  [[ -n $1 ]] && UTAG=$1
   infra=${1:-$UTAG}
 
   # shellcheck source=/dev/null

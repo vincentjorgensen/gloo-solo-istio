@@ -110,7 +110,7 @@ export EXTERNAL_DNS_VER=1.18.0
 # ArgoCD
 #-------------------------------------------------------------------------------
 export ARGOCD_ENABLED=${ARGOCD_ENABLED:-false}
-export ARGOCD_VER="8.2.5"
+export ARGOCD_VER="8.5.7" # "8.2.5"
 export ARGOCD_NAMESPACE=argocd
 
 #-------------------------------------------------------------------------------
@@ -147,7 +147,8 @@ export INGRESS_HTTPS_PORT=443
 export INGRESS_SIZE=1
 export DEFAULT_TLDN=example.com
 export TLDN=${TLDN:-$DEFAULT_TLDN}
-export HTTP_FLAG HTTPS_FLAG INGRESS_GATEWAY_CLASS
+export PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-false}
+export HTTP_FLAG HTTPS_FLAG INGRESS_GATEWAY_CLASS PROMETHEUS_FLAG
 
 #-------------------------------------------------------------------------------
 # Gloo Mesh Gateway (GMG)
@@ -184,7 +185,7 @@ export TLS_TERMINATION_FLAG ISTIO_GATEWAY_FLAG
 #-------------------------------------------------------------------------------
 export GLOO_EDGE_ENABLED=${GLOO_EDGE_ENABLED:-false}
 export GLOO_EDGE_NAMESPACE=gloo-system
-export GLOO_EDGE_VER=1.19.8
+export GLOO_EDGE_VER=1.19.10
 export GLOO_EDGE_FLAG
 
 #-------------------------------------------------------------------------------
@@ -211,7 +212,7 @@ export RATELIMITER_FLAG EXTAUTH_FLAG GLOO_GATEWAY_NAMESPACE
 #-------------------------------------------------------------------------------
 export GLOO_GATEWAY_V1_ENABLED=${GLOO_GATEWAY_V1_ENABLED:-false}
 export GLOO_GATEWAY_V1_NAMESPACE=gloo-system
-export GLOO_GATEWAY_V1_VER=1.19.8
+export GLOO_GATEWAY_V1_VER=1.20.1
 export GLOO_GATEWAY_V1_FLAG
 
 #-------------------------------------------------------------------------------
@@ -221,7 +222,7 @@ export GLOO_GATEWAY_V2_ENABLED=${GLOO_GATEWAY_V2_ENABLED:-false}
 export GLOO_GATEWAY_V2_NAMESPACE=gloo-system
 export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/solo-public/gloo-gateway/charts/gloo-gateway-crds
 export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/solo-public/gloo-gateway/charts/gloo-gateway
-export GLOO_GATEWAY_V2_VER=2.0.0-rc.1
+export GLOO_GATEWAY_V2_VER=2.0.0-rc.2
 export TRAFFIC_POLICY=oauth-authorization-code
 export GLOO_GATEWAY_V2_FLAG
 
@@ -266,9 +267,10 @@ export DEFAULT_TRUST_DOMAIN="cluster.local"
 export TRUST_DOMAIN=${TRUST_DOMAIN:-$DEFAULT_TRUST_DOMAIN}
 export MESH_ID=${MESH_ID:-$DEFAULT_MESH_ID}
 export ISTIO_PEER_AUTH_MODE="STRICT" # STRICT, PERMISSIVE, UNSET, DISABLED (not allowed for ztunnel)
+export SIDECAR_INJECTOR_WEBHOOKS_ENABLED=${SIDECAR_INJECTOR_WEBHOOKS_ENABLED:-false}
 # Traffic Distribution: PreferNetwork, PreferClose, PreferRegion, Any
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
-export REVISION TRAFFIC_DISTRIBUTION
+export REVISION TRAFFIC_DISTRIBUTION SIDECAR_INJECTOR_WEBHOOKS_FLAG
 
 #-------------------------------------------------------------------------------
 # Istio Dataplane Modes
@@ -467,6 +469,9 @@ function gsi_init {
   #----------------------------------------------------------------------------
   # Istio mesh mode
   #----------------------------------------------------------------------------
+  if $SIDECAR_INJECTOR_WEBHOOKS_ENABLED; then
+    SIDECAR_INJECTOR_WEBHOOKS_FLAG=enabled
+  fi
   if $SIDECAR_ENABLED; then
     ISTIO_ENABLED=true
     SIDECAR_FLAG=enabled
@@ -564,6 +569,13 @@ function gsi_init {
   if $RATELIMITER_ENABLED; then
     RATELIMITER_FLAG=enabled
     echo '#' Rate-limiter is enabled
+  fi
+  #----------------------------------------------------------------------------
+  # Solo Prometheus
+  #----------------------------------------------------------------------------
+  if $PROMETHEUS_ENABLED; then
+    PROMETHEUS_FLAG=enabled
+    echo '#' Solo Prometheus is enabled
   fi
 
   #############################################################################
@@ -824,9 +836,11 @@ function _jinja2_values {
          -D multicluster_enabled="$MC_FLAG"                                    \
          -D netshoot_namespace="$NETSHOOT_NAMESPACE"                           \
          -D peering_discover_suffix="$PEERING_DISCOVERY_SUFFIX"                \
+         -D prometheus_enabled="$PROMETHEUS_FLAG"                              \
          -D ratelimiter_enabled="$RATELIMITER_FLAG"                            \
          -D region="$_region"                                                  \
          -D sidecar_enabled="$SIDECAR_FLAG"                                    \
+         -D sidecar_injector_webhooks_enabled="$SIDECAR_INJECTOR_WEBHOOKS_FLAG" \
          -D spire_enabled="$SPIRE_FLAG"                                        \
          -D spire_namespace="$SPIRE_NAMESPACE"                                 \
          -D spire_secret="$SPIRE_SECRET"                                       \

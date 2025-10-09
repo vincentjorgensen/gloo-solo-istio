@@ -53,12 +53,12 @@ spec:
 {%-   endif %}
 {%- endif %}
 {%- if ingress_gateway_class == "gloo-gateway" %}
-  - name: readiness
-    port: 9091
-    protocol: HTTP
-    allowedRoutes:
-      namespaces:
-        from: All # Same
+###  - name: readiness
+###    port: 9091
+###    protocol: HTTP
+###    allowedRoutes:
+###      namespaces:
+###        from: All # Same
 {%- endif %}
 {%- if ingress_gateway_class == "istio" 
     or ingress_gateway_class == "kgateway" 

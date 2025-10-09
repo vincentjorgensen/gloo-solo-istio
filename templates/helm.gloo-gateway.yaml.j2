@@ -68,12 +68,30 @@ gloo-fed:
   glooFedApiserver:
     enable: false
 grafana:
+{%-  if prometheus_enabled %}
+  defaultInstallationEnabled: true
+  service:
+    type: LoadBalancer
+{%- else %}
   defaultInstallationEnabled: false
+{%- endif %}
 observability:
+{%-  if prometheus_enabled %}
+  enabled: true
+{%- else %}
   enabled: false
+{%- endif %}
 prometheus:
+{%- if prometheus_enabled %}
+  enabled: true
+{%- else %}
   enabled: false
+{%- endif %}
 global:
+{%- if prometheus_enabled %}
+  glooStats:
+   enabled: true
+{%- endif %}
   extensions:
     extAuth:
       enabled: true
@@ -86,7 +104,7 @@ global:
         logLevel: debug
 settings:
 {%- if gloo_gateway_v1_enabled %}
-  writeNamespace: {{ gloo_gateway_v1_namespace }}
+  writeNamespace: {{ gloo_gateway_namespace }}
 {%- else %}
   writeNamespace: {{ gloo_edge_namespace }}
 {%- endif %}

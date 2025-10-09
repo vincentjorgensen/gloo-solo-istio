@@ -64,18 +64,32 @@ resources:
     memory: 64Mi
 autoscaleMin: 1
 autoscaleMax: 1
+{%- if sidecar_injector_webhooks_enabled %}
+sidecarInjectorWebhook:
+  templates:
+    custom_ingress: |
+      spec:
+        containers:
+        - name: istio-proxy
+          ports:
+          - containerPort: 8080
+            hostPort: 80
+          - containerPort: 8443
+            hostPort: 443
+          - containerPort: 15021
+            hostPort: 15021
 
-##sidecarInjectorWebhook:
-##  templates:
-##    custom_ingress: |
-##      spec:
-##        containers:
-##        - name: istio-proxy
-##          ports:
-##          - containerPort: 8080
-##            hostPort: 80
-##          - containerPort: 8443
-##            hostPort: 443
-##          - containerPort: 15021
-##            hostPort: 15021
+    custom-router-gateway: |
+      spec:
+        containers:
+        - name: istio-proxy
+          args:
+          - proxy
+          - router
+          - '--domain'
+          - $(POD_NAMESPACE).svc.cluster.local
+          - '--proxyLogLevel=debug'
+          - '--proxyComponentLogLevel=misc:error'
+          - '--log_output_level=default:info'
+{%- endif %}
 ...
