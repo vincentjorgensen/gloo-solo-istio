@@ -224,7 +224,7 @@ export GLOO_GATEWAY_V2_ENABLED=${GLOO_GATEWAY_V2_ENABLED:-false}
 export GLOO_GATEWAY_V2_NAMESPACE=$GLOO_SYSTEM_NAMESPACE
 export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/solo-public/gloo-gateway/charts/gloo-gateway-crds
 export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/solo-public/gloo-gateway/charts/gloo-gateway
-export GLOO_GATEWAY_V2_VER=2.0.0-rc.2
+export GLOO_GATEWAY_V2_VER=2.0.0
 export TRAFFIC_POLICY=oauth-authorization-code
 export GLOO_GATEWAY_V2_FLAG
 
