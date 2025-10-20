@@ -20,6 +20,8 @@ INFRAS="$(dirname "$0")"/infras
 # Namespaces
 #-------------------------------------------------------------------------------
 export KUBE_SYSTEM_NAMESPACE=kube-system
+export GLOO_SYSTEM_NAMESPACE=gloo-system
+export GLOO_MESH_NAMESPACE=gloo-mesh
 
 ###############################################################################
 # K8s Providers
@@ -184,8 +186,8 @@ export TLS_TERMINATION_FLAG ISTIO_GATEWAY_FLAG
 # Ingress as Gloo Edge
 #-------------------------------------------------------------------------------
 export GLOO_EDGE_ENABLED=${GLOO_EDGE_ENABLED:-false}
-export GLOO_EDGE_NAMESPACE=gloo-system
-export GLOO_EDGE_VER=1.19.10
+export GLOO_EDGE_NAMESPACE=$GLOO_SYSTEM_NAMESPACE
+export GLOO_EDGE_VER=1.20.2
 export GLOO_EDGE_FLAG
 
 #-------------------------------------------------------------------------------
@@ -193,7 +195,7 @@ export GLOO_EDGE_FLAG
 #-------------------------------------------------------------------------------
 export KGATEWAY_ENABLED=${KGATEWAY_ENABLED:-false}
 export KGATEWAY_NAMESPACE=kgateway-system
-export KGATEWAY_VER=v1.2.1
+export KGATEWAY_VER=v1.4.0
 export KGATEWAY_EXPERIMENTAL_VER=v1.3.0
 export KGATEWAY_CRDS_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgateway-crds
 export KGATEWAY_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
@@ -211,15 +213,15 @@ export RATELIMITER_FLAG EXTAUTH_FLAG GLOO_GATEWAY_NAMESPACE
 # Ingress as Gloo Gateway V1 (Gateway API with Edge underneath)
 #-------------------------------------------------------------------------------
 export GLOO_GATEWAY_V1_ENABLED=${GLOO_GATEWAY_V1_ENABLED:-false}
-export GLOO_GATEWAY_V1_NAMESPACE=gloo-system
-export GLOO_GATEWAY_V1_VER=1.20.1
+export GLOO_GATEWAY_V1_NAMESPACE=$GLOO_SYSTEM_NAMESPACE
+export GLOO_GATEWAY_V1_VER=$GLOO_EDGE_VER
 export GLOO_GATEWAY_V1_FLAG
 
 #-------------------------------------------------------------------------------
 # Ingress as Gloo Gateway V2 (Gateway API)
 #-------------------------------------------------------------------------------
 export GLOO_GATEWAY_V2_ENABLED=${GLOO_GATEWAY_V2_ENABLED:-false}
-export GLOO_GATEWAY_V2_NAMESPACE=gloo-system
+export GLOO_GATEWAY_V2_NAMESPACE=$GLOO_SYSTEM_NAMESPACE
 export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/solo-public/gloo-gateway/charts/gloo-gateway-crds
 export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/solo-public/gloo-gateway/charts/gloo-gateway
 export GLOO_GATEWAY_V2_VER=2.0.0-rc.2
@@ -260,7 +262,7 @@ export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_126=1.26.4
 export HELM_REPO_127=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_127=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_127=1.27.1-patch1
+export ISTIO_VER_127=1.27.2
 export ISTIO_SECRET=cacerts
 export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TRUST_DOMAIN="cluster.local"
@@ -283,7 +285,7 @@ export SIDECAR_FLAG AMBIENT_FLAG
 # Gloo Mesh Enterprise (GME)
 #-------------------------------------------------------------------------------
 export GME_ENABLED=${GME_ENABLED:-false}
-export GME_NAMESPACE="gloo-mesh"
+export GME_NAMESPACE=$GLOO_MESH_NAMESPACE
 export GME_MGMT_AGENT_ENABLED=${GME_MGMT_AGENT_ENABLED:-false}
 export GME_VER_26="2.6.13"
 export GME_VER_27="2.7.6"
