@@ -273,6 +273,7 @@ export SIDECAR_INJECTOR_WEBHOOKS_ENABLED=${SIDECAR_INJECTOR_WEBHOOKS_ENABLED:-fa
 # Traffic Distribution: PreferNetwork, PreferClose, PreferRegion, Any
 export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
 export REVISION TRAFFIC_DISTRIBUTION SIDECAR_INJECTOR_WEBHOOKS_FLAG
+export ISTIO_127_FLAG
 
 #-------------------------------------------------------------------------------
 # Istio Dataplane Modes
@@ -346,6 +347,10 @@ function set_istio {
 
   if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
     ISTIO_126_FLAG="enabled"
+  fi
+
+  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 27 ]]; then
+    ISTIO_127_FLAG="enabled"
   fi
 ##  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 27 ]]; then
 ##    ISTIO_126_FLAG="enabled"
@@ -821,6 +826,7 @@ function _jinja2_values {
          -D ingress_namespace="$INGRESS_NAMESPACE"                             \
          -D ingress_size="$INGRESS_SIZE"                                       \
          -D istio_126_enabled="$ISTIO_126_FLAG"                                \
+         -D istio_127_enabled="$ISTIO_127_FLAG"                                \
          -D istio_enabled="$ISTIO_ENABLED"                                     \
          -D istio_flavor="$ISTIO_FLAVOR"                                       \
          -D istio_namespace="$ISTIO_NAMESPACE"                                 \
