@@ -34,7 +34,7 @@ env:
   PILOT_SKIP_VALIDATE_TRUST_DOMAIN: true
 ######  VERIFY_CERTIFICATE_AT_CLIENT: false
 {%- if ambient_enabled %}
-  PILOT_ENABLE_ALPHA_GATEWAY_API: true # Don't know what this does # For EW Gateway TLS
+  ### PILOT_ENABLE_ALPHA_GATEWAY_API: true # Don't know what this does # For EW Gateway TLS # Broken in 1.27.2
   PILOT_ENABLE_IP_AUTOALLOCATE: true
   PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
   PILOT_ENABLE_WORKLOAD_ENTRY_HEALTHCHECKS: true
@@ -55,6 +55,7 @@ meshConfig:
 ###  - "{{ remote_trust_domain }}"
 {%-   endif %}
 {%- endif %}
+{%- if docker_desktop_enabled %}
 resources:
   limits:
     cpu: 20m
@@ -64,6 +65,7 @@ resources:
     memory: 64Mi
 autoscaleMin: 1
 autoscaleMax: 1
+{%- endif %}
 {%- if sidecar_injector_webhooks_enabled %}
 sidecarInjectorWebhook:
   templates:

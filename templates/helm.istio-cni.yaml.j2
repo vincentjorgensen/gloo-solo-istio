@@ -1,3 +1,4 @@
+---
 profile: ambient
 {%- if istio_revision %}
 revision: {{ istio_revision }}
@@ -8,6 +9,7 @@ global:
   variant: {{ istio_variant }}
 ambient:
   dnsCapture: true
+{%- if docker_desktop_enabled %}
 resources:
   limits:
     cpu: 10m
@@ -15,3 +17,5 @@ resources:
   requests:
     cpu: 1m
     memory: 20Mi
+{%- endif %}
+...

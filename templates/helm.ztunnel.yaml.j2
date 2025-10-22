@@ -13,6 +13,7 @@ env:
   ISTIO_META_ENABLE_HBONE: true
   ISTIO_META_DNS_CAPTURE: true
   SKIP_VALIDATE_TRUST_DOMAIN: true
+{%- if docker_desktop_enabled %}
 resources:
   limits:
     cpu: 10m
@@ -20,6 +21,7 @@ resources:
   requests:
     cpu: 1m
     memory: 2Mi
+{%- endif %}
 {%- if spire_enabled %}
 spire:
   enabled: true
