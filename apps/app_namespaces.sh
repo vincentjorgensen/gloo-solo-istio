@@ -42,9 +42,9 @@ function _namespace_exists {
   local _context=$1
   local _namespace=$2
 
-  if [[ -z $DRY_RUN ]]; then
+#  if [[ -z $DRY_RUN ]]; then
     kubectl get namespace "$_namespace" --context "$_context" > /dev/null 2>&1
-  else
-    return 0
-  fi
+#  else
+#    return 0
+#  fi
 }

@@ -59,22 +59,35 @@ function app_init_eastwest_gateway_api {
 }
 
 function exec_gateway_api_crds {
-  local _ver="$KGATEWAY_VER"
-  local _standard=standard
-  $EXPERIMENTAL_GATEWAY_API_CRDS && _ver="$KGATEWAY_EXPERIMENTAL_VER" && _standard=experimental
-
   if [[ -z $(eval echo '$'GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
     $DRY_RUN kubectl "$GSI_MODE"                                               \
     --context "$GSI_CONTEXT"                                                   \
-    -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$_ver"/"${_standard}"-install.yaml
+    -f "GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
     [[ -z $DRY_RUN ]] && eval GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
   fi
 
   if ! is_create_mode; then
     $DRY_RUN kubectl "$GSI_MODE"                                               \
     --context "$GSI_CONTEXT"                                                   \
-    -f https://github.com/kubernetes-sigs/gateway-api/releases/download/"$_ver"/"${_standard}"-install.yaml
+    -f "GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
     [[ -z $DRY_RUN ]] && eval unset GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
+  fi
+  $GATEWAY_API_EXP_CRDS_ENABLED && exec_gateway_api_experimental_crds
+}
+
+function exec_gateway_api_experimental_crds {
+  if [[ -z $(eval echo '$'GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
+    $DRY_RUN kubectl "$GSI_MODE"                                               \
+    --context "$GSI_CONTEXT"                                                   \
+    -f "GATEWWAY_API_CRDS_URL"/"GATEWAY_API_EXP_VER"/experimental-install.yaml
+    [[ -z $DRY_RUN ]] && eval GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
+  fi
+
+  if ! is_create_mode; then
+    $DRY_RUN kubectl "$GSI_MODE"                                               \
+    --context "$GSI_CONTEXT"                                                   \
+    -f "GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_EXP_VER"/experimental-install.yaml
+    [[ -z $DRY_RUN ]] && eval unset GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
     
   fi
 }

@@ -103,6 +103,12 @@ export NETSHOOT_NAMESPACE=tools
 # Integration Tools
 ###############################################################################
 #-------------------------------------------------------------------------------
+# Cilium
+#-------------------------------------------------------------------------------
+export CILIUM_ENABLED=${CILIUM_ENABLED:-false}
+export CILIUM_VER=1.18.0
+
+#-------------------------------------------------------------------------------
 # External DNS
 #-------------------------------------------------------------------------------
 export EXTERNAL_DNS_ENABLED=${EXTERNAL_DNS_ENABLED:-false}
@@ -112,7 +118,7 @@ export EXTERNAL_DNS_VER=1.18.0
 # ArgoCD
 #-------------------------------------------------------------------------------
 export ARGOCD_ENABLED=${ARGOCD_ENABLED:-false}
-export ARGOCD_VER="8.5.7" # "8.2.5"
+export ARGOCD_VER="9.0.3" # "8.2.5"
 export ARGOCD_NAMESPACE=argocd
 
 #-------------------------------------------------------------------------------
@@ -162,8 +168,11 @@ export GLOO_MESH_GATEWAY_FLAG
 #-------------------------------------------------------------------------------
 # Gateway API
 #-------------------------------------------------------------------------------
-export EXPERIMENTAL_GATEWAY_API_CRDS=${EXPERIMENTAL_GATEWAY_API_CRDS:-false}
+export GATEWAY_API_EXP_CRDS_ENABLED=${GATEWAY_API_EXP_CRDS_ENABLED:-false}
 export GATEWAY_API_ENABLED=${GATEWAY_API_ENABLED:-false}
+export GATEWAY_API_VER=v1.4.0
+export GATEWAY_API_EXP_VER=v1.4.0
+export GATEWWAY_API_CRDS_URL=https://github.com/kubernetes-sigs/gateway-api/releases/download
 
 #-------------------------------------------------------------------------------
 # Eastwest Gateway Settings
@@ -187,7 +196,7 @@ export TLS_TERMINATION_FLAG ISTIO_GATEWAY_FLAG
 #-------------------------------------------------------------------------------
 export GLOO_EDGE_ENABLED=${GLOO_EDGE_ENABLED:-false}
 export GLOO_EDGE_NAMESPACE=$GLOO_SYSTEM_NAMESPACE
-export GLOO_EDGE_VER=1.20.2
+export GLOO_EDGE_VER=1.20.3
 export GLOO_EDGE_FLAG
 
 #-------------------------------------------------------------------------------
@@ -196,7 +205,7 @@ export GLOO_EDGE_FLAG
 export KGATEWAY_ENABLED=${KGATEWAY_ENABLED:-false}
 export KGATEWAY_NAMESPACE=kgateway-system
 export KGATEWAY_VER=v1.4.0
-export KGATEWAY_EXPERIMENTAL_VER=v1.3.0
+export KGATEWAY_EXPERIMENTAL_VER=v1.4.0
 export KGATEWAY_CRDS_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgateway-crds
 export KGATEWAY_HELM_REPO=oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
 export KGATEWAY_HELM_VER=v2.0.3
@@ -224,7 +233,7 @@ export GLOO_GATEWAY_V2_ENABLED=${GLOO_GATEWAY_V2_ENABLED:-false}
 export GLOO_GATEWAY_V2_NAMESPACE=$GLOO_SYSTEM_NAMESPACE
 export GLOO_GATEWAY_V2_CRDS_HELM_REPO=oci://us-docker.pkg.dev/solo-public/gloo-gateway/charts/gloo-gateway-crds
 export GLOO_GATEWAY_V2_HELM_REPO=oci://us-docker.pkg.dev/solo-public/gloo-gateway/charts/gloo-gateway
-export GLOO_GATEWAY_V2_VER=2.0.0
+export GLOO_GATEWAY_V2_VER=2.0.1
 export TRAFFIC_POLICY=oauth-authorization-code
 export GLOO_GATEWAY_V2_FLAG
 
@@ -259,10 +268,13 @@ export ISTIO_REPO_125=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_125=1.25.3-patch0
 export HELM_REPO_126=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_126=1.26.4
+export ISTIO_VER_126=1.26.6
 export HELM_REPO_127=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_127=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_127=1.27.2
+export HELM_REPO_128=oci://us-docker.pkg.dev/soloio-img/istio-helm
+export ISTIO_REPO_128=us-docker.pkg.dev/soloio-img/istio
+export ISTIO_VER_128=1.28.0-beta.1
 export ISTIO_SECRET=cacerts
 export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TRUST_DOMAIN="cluster.local"
@@ -551,7 +563,7 @@ function gsi_init {
     GLOO_GATEWAY_NAMESPACE=$GLOO_GATEWAY_V2_NAMESPACE 
     INGRESS_GATEWAY_CLASS=gloo-gateway-v2
     INGRESS_ENABLED=true
-    EXPERIMENTAL_GATEWAY_API_CRDS=true
+    GATEWAY_API_EXP_CRDS_ENABLED=true
     echo '#' Experimental Gateway API CRDs are enabled
     echo '#' Gloo Gateway V2 is enabled "(Gateway API)"
   fi
