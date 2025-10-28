@@ -807,6 +807,7 @@ function _jinja2_values {
          -D gloo_gateway_namespace="$GLOO_GATEWAY_NAMESPACE"                   \
          -D gloo_gateway_v1_enabled="$GLOO_GATEWAY_V1_FLAG"                    \
          -D gloo_gateway_v2_enabled="$GLOO_GATEWAY_V2_FLAG"                    \
+         -D gme_enabled="$GME_FLAG"                                            \
          -D gloo_mesh_gateway_enabled="$GLOO_MESH_GATEWAY_FLAG"                \
          -D gloo_mesh_license_key="$GLOO_MESH_LICENSE_KEY"                     \
          -D gme_analyzer_enabled="$GME_ANALYZER_ENABLED"                       \

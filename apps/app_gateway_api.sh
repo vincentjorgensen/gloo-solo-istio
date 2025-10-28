@@ -62,14 +62,14 @@ function exec_gateway_api_crds {
   if [[ -z $(eval echo '$'GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
     $DRY_RUN kubectl "$GSI_MODE"                                               \
     --context "$GSI_CONTEXT"                                                   \
-    -f "GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
+    -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
     [[ -z $DRY_RUN ]] && eval GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
   fi
 
   if ! is_create_mode; then
     $DRY_RUN kubectl "$GSI_MODE"                                               \
     --context "$GSI_CONTEXT"                                                   \
-    -f "GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
+    -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
     [[ -z $DRY_RUN ]] && eval unset GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
   fi
   $GATEWAY_API_EXP_CRDS_ENABLED && exec_gateway_api_experimental_crds
@@ -79,14 +79,14 @@ function exec_gateway_api_experimental_crds {
   if [[ -z $(eval echo '$'GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
     $DRY_RUN kubectl "$GSI_MODE"                                               \
     --context "$GSI_CONTEXT"                                                   \
-    -f "GATEWWAY_API_CRDS_URL"/"GATEWAY_API_EXP_VER"/experimental-install.yaml
+    -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_EXP_VER"/experimental-install.yaml
     [[ -z $DRY_RUN ]] && eval GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
   fi
 
   if ! is_create_mode; then
     $DRY_RUN kubectl "$GSI_MODE"                                               \
     --context "$GSI_CONTEXT"                                                   \
-    -f "GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_EXP_VER"/experimental-install.yaml
+    -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_EXP_VER"/experimental-install.yaml
     [[ -z $DRY_RUN ]] && eval unset GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
     
   fi
@@ -237,12 +237,17 @@ function exec_ingress_gateway_api {
 }
 
 function exec_gloo_gateway_v2_crds {
+  local _manifest="$MANIFESTS/helm.gloo-gateway-crds-v2.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.gloo-gateway-crds-v2.yaml.j2
+
   if is_create_mode; then
     $DRY_RUN helm upgrade --install gloo-gateway-crds "$GLOO_GATEWAY_V2_CRDS_HELM_REPO" \
     --version "$GLOO_GATEWAY_V2_VER"                                           \
     --kube-context="$GSI_CONTEXT"                                              \
     --namespace "$GLOO_GATEWAY_NAMESPACE"                                      \
-    --create-namespace
+    --create-namespace                                                         \
+    --values "$_manifest"                                                      \
+    --wait
   else 
     $DRY_RUN helm uninstall gloo-gateway-crds                                  \
     --kube-context="$GSI_CONTEXT"                                              \
@@ -251,8 +256,8 @@ function exec_gloo_gateway_v2_crds {
 }
 
 function exec_gloo_gateway_v2 {
-  local _manifest="$MANIFESTS/helm.gloo_gateway_v2.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.gloo_gateway_v2.yaml.j2
+  local _manifest="$MANIFESTS/helm.gloo-gateway-v2.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.gloo-gateway-v2.yaml.j2
 
   local _k_label="=ambient"
 
@@ -272,7 +277,8 @@ function exec_gloo_gateway_v2 {
     --version "$GLOO_GATEWAY_V2_VER"                                           \
     --kube-context="$GSI_CONTEXT"                                              \
     --namespace "$GLOO_GATEWAY_NAMESPACE"                                      \
-    --values "$_manifest"
+    --values "$_manifest"                                                      \
+    --wait
   else 
     $DRY_RUN helm uninstall gloo-gateway                                       \
     --kube-context="$GSI_CONTEXT"                                              \
