@@ -49,7 +49,7 @@ glooMgmtServer:
         service.beta.kubernetes.io/aws-load-balancer-scheme: internal
         service.beta.kubernetes.io/aws-load-balancer-type: external
 {%- endif %}
-{%- if azure_enabled and gme_glooui_service_type == "LoadBalancer" %}
+{%- if azure_enabled and glooui_service_type == "LoadBalancer" %}
   serviceOverrides:
     metadata:
       annotations:
@@ -57,8 +57,8 @@ glooMgmtServer:
 {%- endif %}
 glooUi:
   enabled: true
-  serviceType: {{ gme_glooui_service_type }}
-{%- if aws_enabled and gme_glooui_service_type == "LoadBalancer" %}
+  serviceType: {{ glooui_service_type }}
+{%- if aws_enabled and glooui_service_type == "LoadBalancer" %}
   serviceOverrides:
     metadata:
       annotations:
@@ -70,7 +70,7 @@ glooUi:
         service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
         service.beta.kubernetes.io/aws-load-balancer-type: external
 {%- endif %}
-{%- if azure_enabled and gme_glooui_service_type == "LoadBalancer" %}
+{%- if azure_enabled and glooui_service_type == "LoadBalancer" %}
   serviceOverrides:
     metadata:
       annotations:

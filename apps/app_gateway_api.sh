@@ -72,7 +72,7 @@ function exec_gateway_api_crds {
     -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
     [[ -z $DRY_RUN ]] && eval unset GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
   fi
-  $GATEWAY_API_EXP_CRDS_ENABLED && exec_gateway_api_experimental_crds
+  $GATEWAY_API_EXP_CRDS_ENABLED && exec_gateway_api_experimental_crds # Maybe don't need experimental?
 }
 
 function exec_gateway_api_experimental_crds {

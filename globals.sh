@@ -315,10 +315,11 @@ export GME_SECRET=${GME_SECRET:-$DEFAULT_GME_SECRET}
 export GME_SECRET_TOKEN=${GME_SECRET_TOKEN:-$DEFAULT_GME_SECRET_TOKEN}
 export GME_ANALYZER_ENABLED=true
 export GME_INSIGHTS_ENABLED=true
-export GME_GLOOUI_SERVICE_TYPE=${GME_GLOOUI_SERVICE_TYPE:-LoadBalancer}
 export GME_MGMT_SERVICE_TYPE=${GME_GLOOUI_SERVICE_TYPE:-ClusterIP}
 export GME_TELEMETRY_SERVICE_TYPE=${GME_TELEMETRY_SERVICE_TYPE:-ClusterIP}
-export GME_FLAG GME_MGMT_AGENT_FLAG
+export GLOOUI_ENABLED=${GLOOUI_ENABLED:-false}
+export GLOOUI_SERVICE_TYPE=${GLOOUI_SERVICE_TYPE:-LoadBalancer}
+export GME_FLAG GME_MGMT_AGENT_FLAG GLOOUI_FLAG
 
 ###############################################################################
 # Gloo Solo Istio (GSI)
@@ -435,6 +436,10 @@ function gsi_init {
       GME_TELEMETRY_SERVICE_TYPE=LoadBalancer
       echo '#' GME MGMT Multicluster is enabled
     fi
+  fi
+  if $GLOOUI_ENABLED; then
+    GLOOUI_FLAG=enabled  
+      echo '# GMC (GlooUi) Enabled'
   fi
   #----------------------------------------------------------------------------
   # Spire
@@ -808,11 +813,12 @@ function _jinja2_values {
          -D gloo_gateway_v1_enabled="$GLOO_GATEWAY_V1_FLAG"                    \
          -D gloo_gateway_v2_enabled="$GLOO_GATEWAY_V2_FLAG"                    \
          -D gme_enabled="$GME_FLAG"                                            \
+         -D glooui_enabled="$GLOOUI_FLAG"                                      \
          -D gloo_mesh_gateway_enabled="$GLOO_MESH_GATEWAY_FLAG"                \
          -D gloo_mesh_license_key="$GLOO_MESH_LICENSE_KEY"                     \
          -D gloo_system_namespace="$GLOO_SYSTEM_NAMESPACE"                     \
          -D gme_analyzer_enabled="$GME_ANALYZER_ENABLED"                       \
-         -D gme_glooui_service_type="$GME_GLOOUI_SERVICE_TYPE"                 \
+         -D glooui_service_type="$GLOOUI_SERVICE_TYPE"                         \
          -D gme_insights_enabled="$GME_ANALYZER_ENABLED"                       \
          -D gme_mgmt_agent_enabled="$GME_MGMT_AGENT_FLAG"                      \
          -D gme_mgmt_cluster="$GSI_MGMT_CLUSTER"                               \
