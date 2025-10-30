@@ -18,7 +18,7 @@ glooAgent:
 {%- endif %}
 glooAnalyzer:
   enabled: {{ gme_analyzer_enabled | string | lower }}
-  runAsSidecar: true
+###  runAsSidecar: true
 glooInsightsEngine:
   enabled: {{ gme_insights_enabled | string | lower }}
 glooMgmtServer:
@@ -78,7 +78,7 @@ glooUi:
 {%- endif %}
 licensing:
   glooMeshLicenseKey: {{ gloo_mesh_license_key }}
-{%- if gloo_mesh_gateway_enabled %}
+{%- if gloo_mesh_gateway_enabled or gloo_gateway_v2_enabled %}
   glooGatewayLicenseKey: {{ gloo_gateway_license_key }}
 {%- endif %}
 prometheus:
@@ -88,8 +88,22 @@ redis:
     enabled: true
 telemetryCollector:
   enabled: true
+{%- if gloo_gateway_v2_enabled %}
+  mode: deployment
+  replicaCount: 1
+{%- endif %}
 telemetryCollectorCustomization:
   skipVerify: true
+{%- if gloo_gateway_v2_enabled %}
+  extraPipelines:
+    metrics/ggv2:
+      processors:
+        - filter/ggv2-control-plane
+      receivers:
+        - prometheus
+      exporters:
+        - prometheus
+{%- endif %}
 telemetryGateway:
   enabled: true
   service:

@@ -240,6 +240,8 @@ function exec_gloo_gateway_v2_crds {
   local _manifest="$MANIFESTS/helm.gloo-gateway-crds-v2.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/helm.gloo-gateway-crds-v2.yaml.j2
 
+  _make_manifest "$_template" > "$_manifest"
+
   if is_create_mode; then
     $DRY_RUN helm upgrade --install gloo-gateway-crds "$GLOO_GATEWAY_V2_CRDS_HELM_REPO" \
     --version "$GLOO_GATEWAY_V2_VER"                                           \

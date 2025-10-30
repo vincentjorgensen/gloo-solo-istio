@@ -304,7 +304,7 @@ export GME_VER_26="2.6.13"
 export GME_VER_27="2.7.6"
 export GME_VER_28="2.8.3"
 export GME_VER_29="2.9.2"
-export GME_VER_210="2.10.1"
+export GME_VER_210="2.10.2"
 export GME_GATEWAYS_WORKSPACE=gateways
 export GME_APPLICATIONS_WORKSPACE=applications
 export GME_VERBOSE=${GME_VERBOSE:-false}
@@ -810,6 +810,7 @@ function _jinja2_values {
          -D gme_enabled="$GME_FLAG"                                            \
          -D gloo_mesh_gateway_enabled="$GLOO_MESH_GATEWAY_FLAG"                \
          -D gloo_mesh_license_key="$GLOO_MESH_LICENSE_KEY"                     \
+         -D gloo_system_namespace="$GLOO_SYSTEM_NAMESPACE"                     \
          -D gme_analyzer_enabled="$GME_ANALYZER_ENABLED"                       \
          -D gme_glooui_service_type="$GME_GLOOUI_SERVICE_TYPE"                 \
          -D gme_insights_enabled="$GME_ANALYZER_ENABLED"                       \

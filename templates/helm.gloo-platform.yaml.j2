@@ -1,0 +1,29 @@
+common:
+  adminNamespace: {{ gloo_system_namespace }}
+  cluster: {{ cluster }}
+glooInsightsEngine:
+  enabled: true
+glooAnalyzer:
+  enabled: true
+glooUi:
+  enabled: true
+  serviceType: LoadBalancer
+  verbose: debug
+licensing:
+  glooMeshLicenseKey: {{ gloo_mesh_license_key }}
+  glooGatewayLicenseKey: {{ gloo_gateway_license_key }}
+prometheus:
+  enabled: true
+telemetryCollector:
+  enabled: true
+  mode: deployment
+  replicaCount: 1
+telemetryCollectorCustomization:
+  extraPipelines:
+    metrics/ggv2:
+      processors:
+      - filter/ggv2-control-plane
+      receivers:
+      - prometheus
+      exporters:
+      - prometheus
