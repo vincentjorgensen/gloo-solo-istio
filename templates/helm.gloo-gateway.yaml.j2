@@ -63,6 +63,10 @@ gloo:
 {%- endif %}
   gloo:
     disableLeaderElection: true
+    deployment:
+      stats:
+        enabled: true
+        podMonitorEnabled: true
 gloo-fed:
   enabled: false
   glooFedApiserver:
