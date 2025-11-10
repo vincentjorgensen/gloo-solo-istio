@@ -12,7 +12,6 @@ gloo:
     {{ ingress_gateway }}:
       disabled: false
       namespace: {{ ingress_namespace }}
-###      namespace: {{ gloo_edge_namespace }}
       kind:
         deployment:
           replicas: {{ ingress_size }}
@@ -72,7 +71,7 @@ gloo-fed:
   glooFedApiserver:
     enable: false
 grafana:
-{%-  if prometheus_enabled %}
+{%- if prometheus_enabled %}
   defaultInstallationEnabled: true
   service:
     type: LoadBalancer

@@ -10,7 +10,7 @@ function app_init_gloo_edge {
 
 function exec_gloo_edge {
   local _manifest="$MANIFESTS/helm.gloo-edge.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.gloo-gateway.yaml.j2
+  local _template="$TEMPLATES"/helm.gloo-gateway-v1.yaml.j2
 
   jinja2                                                                       \
          "$_template"                                                          \
@@ -30,20 +30,6 @@ function exec_gloo_edge {
     --namespace="$GLOO_EDGE_NAMESPACE"
   fi
 }
-
-###function exec_gloo_edge_gateway {
-###  local _manifest="$MANIFESTS/gloo_edge.ingress_gateway.${GSI_CLUSTER}.yaml"
-###  local _template="$TEMPLATES/gloo_edge.ingress_gateway.manifest.yaml.j2"
-###
-###  jinja2                                                                       \
-###         "$_template"                                                          \
-###         "$J2_GLOBALS"                                                         \
-###  > "$_manifest"
-###
-###  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-###  --context "$GSI_CONTEXT"                                                     \
-###  -f "$_manifest"
-###}
 
 function create_gloo_edge_virtual_service {
   local _service _service_namespace _service_port

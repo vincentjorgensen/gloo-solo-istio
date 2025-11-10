@@ -10,6 +10,9 @@ GSI_DECK=(
 
   app_init_namespaces
 
+  # CRDs
+  app_init_gateway_api
+
   # Cloud infrastructure
   app_init_aws
 
@@ -24,8 +27,9 @@ GSI_DECK=(
 
   # Gateway controllers
   app_init_istio_gateway
-  app_init_gateway_api
   app_init_gloo_gateway_v1
+  app_init_gloo_gateway_v2
+  app_init_kgateway
   app_init_gme_workspaces
 
   # Test applications
