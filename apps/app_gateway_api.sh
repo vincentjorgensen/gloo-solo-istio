@@ -59,28 +59,36 @@ function app_init_eastwest_gateway_api {
 }
 
 function exec_gateway_api_crds {
-  if [[ -z $(eval echo '$'GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
-    $DRY_RUN kubectl "$GSI_MODE"                                               \
-    --context "$GSI_CONTEXT"                                                   \
-    -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
-    [[ -z $DRY_RUN ]] && eval GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
+  # Intall either experimental or standard
+  if $GATEWAY_API_EXP_CRDS_ENABLED; then
+    exec_gateway_api_experimental_crds
+  else 
+    if [[ -z $(eval echo '$'GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
+      $DRY_RUN kubectl "$GSI_MODE"                                               \
+      --context "$GSI_CONTEXT"                                                   \
+      -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
+      [[ -z $DRY_RUN ]] && eval GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
+    fi
+  
+    if ! is_create_mode; then
+      $DRY_RUN kubectl "$GSI_MODE"                                               \
+      --context "$GSI_CONTEXT"                                                   \
+      -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
+      [[ -z $DRY_RUN ]] && eval unset GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
+    fi
   fi
-
-  if ! is_create_mode; then
-    $DRY_RUN kubectl "$GSI_MODE"                                               \
-    --context "$GSI_CONTEXT"                                                   \
-    -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
-    [[ -z $DRY_RUN ]] && eval unset GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
-  fi
-  $GATEWAY_API_EXP_CRDS_ENABLED && exec_gateway_api_experimental_crds # Maybe don't need experimental?
+###  $GATEWAY_API_EXP_CRDS_ENABLED && exec_gateway_api_experimental_crds # Maybe don't need experimental?
 }
 
 function exec_gateway_api_experimental_crds {
   if [[ -z $(eval echo '$'GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
-    $DRY_RUN kubectl "$GSI_MODE"                                               \
-    --context "$GSI_CONTEXT"                                                   \
-    -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_EXP_VER"/experimental-install.yaml
-    [[ -z $DRY_RUN ]] && eval GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
+    if is_create_mode; then
+      $DRY_RUN kubectl apply                                                     \
+      --context "$GSI_CONTEXT"                                                   \
+      --server-side=true                                                         \
+      -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_EXP_VER"/experimental-install.yaml
+      [[ -z $DRY_RUN ]] && eval GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
+    fi
   fi
 
   if ! is_create_mode; then

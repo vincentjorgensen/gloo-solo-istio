@@ -17,9 +17,15 @@ metadata:
   namespace: {{ ingress_namespace }}
 spec:
   kube: 
-    envoyContainer:
-      bootstrap:
-        logLevel: debug
+    podTemplate:
+      readinessProbe:
+        failureThreshold: 2
+        httpGet:
+          path: /ready
+          port: 8082
+          scheme: HTTP
+        initialDelaySeconds: 5
+        periodSeconds: 5
     service:
       type: LoadBalancer
 {%-   if aws_enabled %}
@@ -55,8 +61,10 @@ spec:
 {%-   else %}
 ###      enabled: false
 {%-   endif %}
-{%-   if docker_desktop_enabled %}
     envoyContainer:
+      bootstrap:
+        logLevel: debug
+{%-   if docker_desktop_enabled %}
       resources:
         limits:
           cpu: 50m

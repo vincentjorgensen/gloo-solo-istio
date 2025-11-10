@@ -393,6 +393,8 @@ function is_create_mode {
 
 function gsi_reset {
   UTAG=""
+  unset "$(set | gr '^GATEWAY_API_EXP_CRDS_APPLIED_' | awk -F= '{print $1}')"
+  unset "$(set | gr '^GATEWAY_API_CRDS_APPLIED_' | awk -F= '{print $1}')"
 }
 
 # For reproducibilty and sharing, we save the manifests

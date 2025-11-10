@@ -6,8 +6,8 @@ function app_init_gloo_gateway_v1 {
 }
 
 function exec_gloo_gateway_v1 {
-  local _manifest="$MANIFESTS/helm.gloo-gateway.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.gloo-gateway.yaml.j2
+  local _manifest="$MANIFESTS/helm.gloo-gateway-v1.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/helm.gloo-gateway-v1.yaml.j2
 
   jinja2                                                                       \
           -D gloo_gateway_license_key="$GLOO_GATEWAY_LICENSE_KEY"              \
@@ -30,14 +30,12 @@ function exec_gloo_gateway_v1 {
 }
 
 function exec_gloo_gateway_v1_gateway {
-  local _manifest="$MANIFESTS/gloo_gateway.gateway.${GSI_CLUSTER}.yaml"
+  local _manifest="$MANIFESTS/gloo-gateway-v1.gateway.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gloo-gateway-v1.gateway.manifest.yaml.j2
 
-  jinja2 -D ingress_gateway_name="$INGRESS_GATEWAY_NAME"                       \
-         -D ingress_namespace="$INGRESS_NAMESPACE"                             \
-         -D gateway_class_name="$INGRESS_GATEWAY_CLASS"                        \
-         -D size="${INGRESS_SIZE:-1}"                                          \
-         -D tldn="$TLDN"                                                       \
-        "$TEMPLATES"/gloo_gateway.gateway.manifest.yaml.j2                     \
+  jinja2                                                                       \
+        "$_template"                                                           \
+         "$J2_GLOBALS"                                                         \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                 \

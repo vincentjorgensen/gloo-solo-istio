@@ -19,11 +19,13 @@ GSI_DECK=(
   app_init_cert_manager
   app_init_keycloak
   app_init_gme
+  app_init_glooui
   app_init_istio
 
-  # Infrastructure
+  # Gateway controllers
   app_init_istio_gateway
   app_init_gateway_api
+  app_init_gloo_gateway_v1
   app_init_gme_workspaces
 
   # Test applications
@@ -33,21 +35,20 @@ GSI_DECK=(
   app_init_netshoot
   app_init_httpbin
 
-  # Gateway Choices
+  # Ingresses and Egresses
   app_init_istio_gateway
   app_init_gloo_edge
-  app_init_gloo_gateway_v1
   app_init_eastwest_gateway_api
   app_init_ingress_gateway_api
 
-  # App Routing
+  # Routing
   exec_helloworld_routing
   exec_httpbin_routing
 )
 
 function play_gsi {
   [[ -n $1 ]] && UTAG=$1
-  infra=${1:-$UTAG}
+  local infra=${1:-$UTAG}
 
   # shellcheck source=/dev/null
   source "$(dirname "$0")/infras/infra_${infra}.sh"
@@ -72,7 +73,7 @@ function rew_gsi {
 }
 
 function dry_run_gsi {
-  infra=$1
+  local infra=$1
 
   # shellcheck source=/dev/null
   source "$(dirname "$0")/infras/infra_${infra}.sh"
@@ -85,7 +86,13 @@ function dry_run_gsi {
 }
 
 function zip_gsi {
-  dry_run_gsi "$1" | tee -a "run_${UTAG}.sh"
+  [[ -n $1 ]] && UTAG=$1
+  local infra=${1:-$UTAG}
+  MANIFESTS="$(dirname "$0")"/manifests/$UTAG
+
+  dry_run_gsi "$infra" | tee -a "run_${UTAG}.sh"
+  # Strip license keys
+  _strip_license_keys "$MANIFESTS"
   zip "$REPLAYS/${UTAG}.zip" "run_${UTAG}.sh" "$MANIFESTS"/*
   echo '# '"$REPLAYS/${UTAG}.zip"
 }
@@ -93,4 +100,16 @@ function zip_gsi {
 function dry_run_e {
   local _exec="$*"
   DRY_RUN='echo' eval "$*"
+}
+
+function _strip_license_keys {
+  local _manifests=$1
+  local _file
+  pushd "$_manifests" || return
+  for _file in $(ggrep -Isli 'license_*key' ./*); do
+    sed 's/\(^.*license_*key:\) .*/\1 REDACTED/I' "$_file" > "${_file}".redacted
+    rm "$_file"
+    mv "${_file}".redacted "$_file"
+  done
+  popd || return
 }

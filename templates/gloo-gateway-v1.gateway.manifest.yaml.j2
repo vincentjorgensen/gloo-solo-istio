@@ -1,0 +1,24 @@
+---
+kind: Gateway
+apiVersion: gateway.networking.k8s.io/v1
+metadata:
+  name: {{ ingress_gateway }}
+  namespace: {{ ingress_namespace }}
+spec:
+  gatewayClassName: {{ ingress_gateway_class }}
+  listeners:
+  - protocol: HTTP
+    port: {{ ingress_http_port }}
+    name: http
+    allowedRoutes:
+      namespaces:
+        from: All
+{%- if https_enabled %}
+  - protocol: HTTPS
+    port: {{ ingress_https_port }}
+    name: https
+    allowedRoutes:
+      namespaces:
+        from: All
+{% endif %}
+...

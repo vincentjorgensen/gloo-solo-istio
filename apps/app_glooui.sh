@@ -26,7 +26,7 @@ function exec_glooui_gloo_platform_crds {
 }
 
 function exec_glooui_gloo_platform {
-  local _manifest="$MANIFESTS/helm.gloo-platform.${GSI_MGMT_CLUSTER}.yaml"
+  local _manifest="$MANIFESTS/helm.gloo-platform.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/helm.gloo-platform.yaml.j2
 
   if is_create_mode; then

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+export GSI_CLUSTER=cluster2
+export GSI_CONTEXT=$GSI_CLUSTER
+export GSI_NETWORK=$GSI_CLUSTER
+
+export GSI_MGMT_CLUSTER=$GSI_CLUSTER
+export GSI_MGMT_CONTEXT=$GSI_CLUSTER
+export GSI_MGMT_NETWORK=$GSI_CLUSTER
+
+export SIDECAR_ENABLED=true
+export GME_ENABLED=true
+
+export HELLOWORLD_ENABLED=true
+export NETSHOOT_ENABLED=true
