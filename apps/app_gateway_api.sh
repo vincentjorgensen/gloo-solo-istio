@@ -13,10 +13,34 @@ function app_init_gateway_api {
 
 function exec_gateway_api_crds {
   # Intall either experimental or standard
-  if $GATEWAY_API_EXP_CRDS_ENABLED; then
+  if $GATEWAY_API_ENABLED && $GATEWAY_API_EXP_CRDS_ENABLED; then
     exec_gateway_api_experimental_crds
   else 
     exec_gateway_api_standard_crds
+  fi
+}
+
+function app_init_ingress_gateway_api {
+  if $GATEWAY_API_ENABLED; then 
+    if $KEYCLOAK_ENABLED; then
+      if $KGATEWAY_ENABLED; then
+        exec_kgateway_keycloak_secret
+      elif $GLOO_GATEWAY_V2_ENABLED; then
+        exec_gloo_gateway_v2_keycloak_secret
+      fi
+    fi
+    exec_ingress_gateway_api
+  fi
+}
+
+function app_init_eastwest_gateway_api {
+  if $GATEWAY_API_ENABLED && $MULTICLUSTER_ENABLED; then
+    exec_eastwest_gateway_api
+    gsi_cluster_swap
+    exec_eastwest_gateway_api
+    exec_eastwest_link_gateway_api
+    gsi_cluster_swap
+    exec_eastwest_link_gateway_api
   fi
 }
 

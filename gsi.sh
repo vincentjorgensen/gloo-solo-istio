@@ -27,6 +27,7 @@ GSI_DECK=(
 
   # Gateway controllers
   app_init_istio_gateway
+  app_init_gloo_edge
   app_init_gloo_gateway_v1
   app_init_gloo_gateway_v2
   app_init_kgateway
