@@ -1,0 +1,11 @@
+---
+eni:
+  enabled: true
+ipam:
+  mode: eni
+routingMode: native
+cni:
+  exclusive: false
+k8sServiceHost: {{ k8s_svc_host }}
+k8sServicePort: {{ k8s_svc_port }}
+...
