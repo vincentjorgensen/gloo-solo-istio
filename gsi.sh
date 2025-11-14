@@ -17,6 +17,7 @@ GSI_DECK=(
   app_init_aws
 
   # Infrastructure apps
+  app_init_vault
   app_init_external_dns
   app_init_spire
   app_init_cert_manager

@@ -141,6 +141,14 @@ export SPIRE_SERVER_VER=0.26.0
 export SPIRE_SECRET=spiffe-upstream-ca
 export SPIRE_FLAG
 
+#-------------------------------------------------------------------------------
+# Vault
+#-------------------------------------------------------------------------------
+export VAULT_ENABLED="${VAULT_ENABLED:-false}"
+export VAULT_NAMESPACE=vault
+export VAULT_VER=0.31.0
+export VAULT_FLAG
+
 ###############################################################################
 # Ingress, Egress, and Eastwest Gateways
 ###############################################################################
@@ -304,6 +312,7 @@ export GME_VER_27="2.7.6"
 export GME_VER_28="2.8.3"
 export GME_VER_29="2.9.2"
 export GME_VER_210="2.10.2"
+export GME_VER_211="2.11.0"
 export GME_GATEWAYS_WORKSPACE=gateways
 export GME_APPLICATIONS_WORKSPACE=applications
 export GME_VERBOSE=${GME_VERBOSE:-false}
@@ -448,6 +457,13 @@ function gsi_init {
   if $SPIRE_ENABLED; then
     SPIRE_FLAG=enabled
     echo '#' SPIRE is enabled
+  fi
+  #----------------------------------------------------------------------------
+  # Vault
+  #----------------------------------------------------------------------------
+  if $VAULT_ENABLED; then
+    VAULT_FLAG=enabled
+    echo '#' VAULT is enabled
   fi
 
   #----------------------------------------------------------------------------
@@ -696,10 +712,24 @@ function _wait_for_pods {
   local _app=$3
 
   if is_create_mode; then
-    $DRY_RUN kubectl wait                                                      \
+    $DRY_RUN kubectl wait pods                                                 \
     --context "$_context"                                                      \
     --namespace "$_namespace"                                                  \
-    --for=condition=Ready pods -l app="$_app"     
+    --for=condition=Ready -l app="$_app"     
+  fi
+}
+
+function _wait_for_pods_running {
+  local _context=$1
+  local _namespace=$2
+  local _app=$3
+
+  if is_create_mode; then
+    $DRY_RUN kubectl wait pods                                                 \
+    --context "$_context"                                                      \
+    --namespace "$_namespace"                                                  \
+    --for=jsonpath='{.status.phase}'=Running                                   \
+    -l app="$_app"
   fi
 }
 
@@ -877,6 +907,7 @@ function _jinja2_values {
          -D tls_termination_enabled="$TLS_TERMINATION_FLAG"                    \
          -D traffic_policy="$TRAFFIC_POLICY"                                   \
          -D utils_namespace="$UTILS_NAMESPACE"                                 \
+         -D vault_namespace="$VAULT_NAMESPACE"                                 \
          "$TEMPLATES"/jinja2_globals.yaml.j2                                   \
     >> "$J2_GLOBALS"
 }
