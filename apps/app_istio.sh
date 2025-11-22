@@ -14,7 +14,6 @@ function app_init_istio {
         ! $SPIRE_ENABLED && exec_istio_secrets
       fi
     fi
-    $AMBIENT_ENABLED && exec_gateway_api_crds
     exec_istio
     exec_telemetry_defaults
 

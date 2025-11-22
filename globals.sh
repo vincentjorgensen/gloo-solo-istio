@@ -122,10 +122,11 @@ export ARGOCD_VER="9.0.3" # "8.2.5"
 export ARGOCD_NAMESPACE=argocd
 
 #-------------------------------------------------------------------------------
-# Cert manager
+# Cert Manager
 #-------------------------------------------------------------------------------
 export CERT_MANAGER_ENABLED=${CERT_MANAGER_ENABLED:-false}
-export CERT_MANAGER_VER="v1.18.2"
+export CERT_MANAGER_HELM_REPO="oci://quay.io/jetstack/charts/cert-manager"
+export CERT_MANAGER_VER="v1.19.1"
 export CERT_MANAGER_NAMESPACE="cert-manager"
 export CERT_MANAGER_INGRESS_SECRET="ingress-ca-key-pair"
 export CLUSTER_ISSUER="selfsigned-cluster-issuer"
@@ -174,7 +175,7 @@ export GLOO_MESH_GATEWAY_VER=2.10.0
 export GLOO_MESH_GATEWAY_FLAG
 
 #-------------------------------------------------------------------------------
-# Gateway API
+# K8s Gateway API
 #-------------------------------------------------------------------------------
 export GATEWAY_API_EXP_CRDS_ENABLED=${GATEWAY_API_EXP_CRDS_ENABLED:-false}
 export GATEWAY_API_ENABLED=${GATEWAY_API_ENABLED:-false}
@@ -278,10 +279,10 @@ export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_126=1.26.6
 export HELM_REPO_127=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_127=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_127=1.27.2
+export ISTIO_VER_127=1.27.3-patch0
 export HELM_REPO_128=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_128=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_128=1.28.0-beta.1
+export ISTIO_VER_128=1.28.0
 export ISTIO_SECRET=cacerts
 export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TRUST_DOMAIN="cluster.local"
@@ -316,7 +317,7 @@ export GME_VER_211="2.11.0"
 export GME_GATEWAYS_WORKSPACE=gateways
 export GME_APPLICATIONS_WORKSPACE=applications
 export GME_VERBOSE=${GME_VERBOSE:-false}
-export DEFAULT_GME_VER="2.10"
+export DEFAULT_GME_VER="2.11"
 export DEFAULT_GME_SECRET="relay-token"
 export DEFAULT_GME_SECRET_TOKEN="my-lucky-secret-token"
 export GME_SECRET=${GME_SECRET:-$DEFAULT_GME_SECRET}
@@ -387,7 +388,7 @@ function set_gme {
 
 function gsi_set_defaults {
   set_revision main
-  set_istio 1.26 solo distroless
+  set_istio 1.28 solo distroless
   set_gme
 }
 
@@ -472,6 +473,7 @@ function gsi_init {
   if $CERT_MANAGER_ENABLED; then
     CERT_MANAGER_FLAG=enabled 
     HTTPS_FLAG=enabled
+    GATEWAY_API_EXP_CRDS_ENABLED=true
     echo '#' Cert-manager is enabled
   fi
 
@@ -562,7 +564,7 @@ function gsi_init {
     KGATEWAY_FLAG=enabled
     INGRESS_GATEWAY_CLASS=kgateway
     INGRESS_ENABLED=true
-    echo '#' Kgateway is enabled
+    echo '#' Kgateway '(K8s Gateway API)' is enabled
   fi
   #----------------------------------------------------------------------------
   # Gloo Gateway V1 (Gateway API)
@@ -573,8 +575,7 @@ function gsi_init {
     GLOO_GATEWAY_NAMESPACE=$GLOO_GATEWAY_V1_NAMESPACE 
     INGRESS_GATEWAY_CLASS=gloo-gateway
     INGRESS_ENABLED=true
-    echo '#' Gateway API CRDs are enabled
-    echo '#' Gloo Gateway V1 is enabled "(Gateway API)"
+    echo '#' Gloo Gateway V1 '(K8s Gateway API)' is enabled
   fi
   #----------------------------------------------------------------------------
   # Gloo Gateway V2 (Gateway API)
@@ -586,8 +587,7 @@ function gsi_init {
     INGRESS_GATEWAY_CLASS=gloo-gateway-v2
     INGRESS_ENABLED=true
     GATEWAY_API_EXP_CRDS_ENABLED=true
-    echo '#' Experimental Gateway API CRDs are enabled
-    echo '#' Gloo Gateway V2 is enabled "(Gateway API)"
+    echo '#' Gloo Gateway V2 '(K8s Gateway API)' is enabled
   fi
   #----------------------------------------------------------------------------
   # Gloo Edge API (Gloo Gateway V1)
@@ -595,7 +595,7 @@ function gsi_init {
   if $GLOO_EDGE_ENABLED; then
     GLOO_EDGE_FLAG=enabled
     INGRESS_ENABLED=true
-    echo '#' Gloo Edge is enabled "(Gloo Gateway V1 with Edge API)"
+    echo '#' Gloo Edge is enabled
   fi
   #----------------------------------------------------------------------------
   # Gateway ExtAuth
@@ -636,6 +636,16 @@ function gsi_init {
   fi
   if $NETSHOOT_ENABLED; then
     echo '#' NetShoot is enabled
+  fi
+
+
+  #----------------------------------------------------------------------------
+  # K8s Gateway API
+  #----------------------------------------------------------------------------
+  if $GATEWAY_API_ENABLED && $GATEWAY_API_EXP_CRDS_ENABLED; then
+    echo '#' K8s Gateway Experimental CRDs are enabled
+  elif $GATEWAY_API_ENABLED; then
+    echo '#' K8s Gateway Standard CRDs are enabled
   fi
 
   #############################################################################

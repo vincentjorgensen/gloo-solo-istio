@@ -31,10 +31,7 @@ function exec_cert_manager_secrets {
 function exec_cert_manager {
   if is_create_mode; then
 
-    # Requires Gateway API CRDs
-    exec_gateway_api_crds 
- 
-    $DRY_RUN helm upgrade --install cert-manager jetstack/cert-manager        \
+    $DRY_RUN helm upgrade --install cert-manager "$CERT_MANAGER_HELM_REPO"    \
     --version "$CERT_MANAGER_VER"                                             \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$CERT_MANAGER_NAMESPACE"                                     \

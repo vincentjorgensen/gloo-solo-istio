@@ -15,7 +15,7 @@ function exec_gateway_api_crds {
   # Intall either experimental or standard
   if $GATEWAY_API_ENABLED && $GATEWAY_API_EXP_CRDS_ENABLED; then
     exec_gateway_api_experimental_crds
-  else 
+  elif $GATEWAY_API_ENABLED; then
     exec_gateway_api_standard_crds
   fi
 }

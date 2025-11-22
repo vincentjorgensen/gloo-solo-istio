@@ -43,7 +43,7 @@ spec:
         service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "{{ https_port }}"
         service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
 {%-     endif %}
-      extralabels:
+      extraLabels:
         target-workload: gateway
 {%-   endif %}
     deployment:
