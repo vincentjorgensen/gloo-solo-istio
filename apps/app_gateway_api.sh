@@ -29,12 +29,9 @@ function app_init_ingress_gateway_api {
 
 function app_init_eastwest_gateway_api {
   if $GATEWAY_API_ENABLED && $MULTICLUSTER_ENABLED; then
-    exec_eastwest_gateway_api
-    gsi_cluster_swap
-    exec_eastwest_gateway_api
-    exec_eastwest_link_gateway_api
-    gsi_cluster_swap
-    exec_eastwest_link_gateway_api
+    $ITER_MC exec_eastwest_gateway_api
+
+    $ITER_MC exec_eastwest_link_gateway_api
   fi
 }
 
@@ -136,61 +133,56 @@ function exec_eastwest_gateway_api {
   _make_manifest "$_pa_template" > "$_pa_manifest"
   _make_manifest "$_ew_template" > "$_ew_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_CONTEXT"                                                     \
-  -f "$_pa_manifest"
+  _apply_manifest "$_pa_manifest"
+  _apply_manifest "$_ew_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_CONTEXT"                                                     \
-  -f "$_ew_manifest"
-
-  sleep 1.5
-
-  if is_create_mode; then
-    _wait_for_pods "$GSI_CONTEXT" "$EASTWEST_NAMESPACE" "$EASTWEST_GATEWAY"
-  fi
+  _wait_for_pods "$GSI_CONTEXT" "$EASTWEST_NAMESPACE" "$EASTWEST_GATEWAY"
 }
 
 function exec_eastwest_link_gateway_api {
-  local _manifest="$MANIFESTS/gateway_api.eastwest_remote_gateway.${GSI_REMOTE_CLUSTER}.yaml"
+  local _manifest
   local _template="$TEMPLATES"/gateway_api/eastwest_remote_gateway.manifest.yaml.j2
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
   local _remote_address _address_type
 
-  _remote_address=$(
-    $DRY_RUN kubectl get svc "$EASTWEST_GATEWAY"                               \
-    --namespace "$EASTWEST_NAMESPACE"                                          \
-    --context "$GSI_CONTEXT"                                                   \
-    -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
-
-  if is_create_mode; then
-  while [[ -z $_remote_address ]]; do
+  for cluster in $(env|ggrep GSI_CLUSTER|sed -e 's/GSI_CLUSTER\(.*\)=.*/\1/'); do
+    if ! [[ "$GSI_CLUSTER" == "$(eval echo '$'GSI_CLUSTER"${cluster}")" ]]; then
+     
       _remote_address=$(
         $DRY_RUN kubectl get svc "$EASTWEST_GATEWAY"                           \
         --namespace "$EASTWEST_NAMESPACE"                                      \
-        --context "$GSI_CONTEXT"                                               \
+        --context "$(eval echo '$'GSI_CONTEXT"${cluster}")"                    \
         -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
-      echo -n '.' && sleep 5
-    done && echo
-  fi
 
-  if echo "$_remote_address" | grep -qE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+'; then
-    _address_type=IPAddress
-  else
-    _address_type=Hostname
-  fi
+      if is_create_mode; then
+      while [[ -z $_remote_address ]]; do
+          _remote_address=$(
+            $DRY_RUN kubectl get svc "$EASTWEST_GATEWAY"                       \
+            --namespace "$EASTWEST_NAMESPACE"                                  \
+            --context "$(eval echo '$'GSI_CONTEXT"${cluster}")"                \
+            -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}")
+          echo -n '.' && sleep 5
+        done && echo
+        fi
 
-  jinja2                                                                       \
-         -D address_type="$_address_type"                                      \
-         -D cluster="$GSI_CLUSTER"                                             \
-         -D network="$GSI_NETWORK"                                             \
-         -D remote_address="$_remote_address"                                  \
-         -D trust_domain="$TRUST_DOMAIN"                                       \
-         "$_template"                                                          \
-         "$_j2"                                                               \
-  > "$_manifest"
-
-  _apply_manifest "$_manifest"
+      if echo "$_remote_address" | grep -qE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+'; then
+        _address_type=IPAddress
+      else
+        _address_type=Hostname
+      fi
+  
+      _manifest="$MANIFESTS/gateway_api.eastwest_remote_gateway.remote-$(eval echo '$'GSI_CONTEXT"${cluster}").${GSI_CLUSTER}.yaml"
+      jinja2                                                                   \
+             -D address_type="$_address_type"                                  \
+             -D remote_address="$_remote_address"                              \
+             -D trust_domain="$TRUST_DOMAIN"                                   \
+             "$_template"                                                      \
+             "$_j2"                                                            \
+      > "$_manifest"
+    
+      _apply_manifest "$_manifest"
+    fi
+  done
 }
 
 function exec_ingress_gateway_api {
@@ -205,10 +197,6 @@ function exec_ingress_gateway_api {
   _make_manifest "$_in_template" > "$_in_manifest"
   _make_manifest "$_te_template" > "$_te_manifest"
 
-###  if $GLOO_GATEWAY_V2_ENABLED; then
-###    patch_gloo_gateway_v2 "$INGRESS_NAMESPACE" "${INGRESS_GATEWAY}-ggw-params"
-###  fi
-
   $DRY_RUN kubectl "$GSI_MODE"                                                 \
   --context "$GSI_CONTEXT"                                                     \
   -f "$_pa_manifest"
@@ -221,4 +209,3 @@ function exec_ingress_gateway_api {
   --context "$GSI_CONTEXT"                                                     \
   -f "$_te_manifest"
 }
-

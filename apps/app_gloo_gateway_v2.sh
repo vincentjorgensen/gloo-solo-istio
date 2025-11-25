@@ -68,26 +68,6 @@ function exec_gloo_gateway_v2_control_plane {
   fi
 }
 
-function patch_gloo_gateway_v2 {
-  local _namespace=$1
-  local _name=$2
-
-  if is_create_mode; then
-   $DRY_RUN  kubectl patch gatewayclass gloo-gateway-v2                        \
-    --context "$GSI_CONTEXT"                                                   \
-    --namespace "$_namespace"                                                  \
-    --type=merge                                                               \
-    --patch='{
-    "spec": {
-      "parametersRef": {
-        "group": "gloo.solo.io",
-        "kind": "GlooGatewayParameters",
-        "name": "'"$_name"'",
-        "namespace": "'"$_namespace"'"
-      } } }'
-  fi
-}
-
 function exec_backend {
   local _manifest="$MANIFESTS/backend.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/backend.manifest.yaml.j2

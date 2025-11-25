@@ -1,21 +1,11 @@
 #!/usr/bin/env bash
 function app_init_helloworld {
   if $HELLOWORLD_ENABLED; then
-    export HW_SVC_VER=$((HW_SVC_VER+1))
-    exec_helloworld
-
-    if $MULTICLUSTER_ENABLED; then
-      HW_SVC_VER=$((HW_SVC_VER+1))
-      gsi_cluster_swap
-      _jinja2_values # swaps region/zone to remote
-      exec_helloworld
-      gsi_cluster_swap
-      _jinja2_values # swaps region/zone to local
-    fi
+    $ITER_MC exec_helloworld
   fi
 
   if $REMOTE_HELLOWORLD_ENABLED; then
-    exec_remote_helloworld
+    $ITER_MC exec_remote_helloworld
   fi
 }
 
@@ -25,9 +15,6 @@ function exec_helloworld {
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   _label_ns_for_istio "$HELLOWORLD_NAMESPACE"
-
-  _service_version="v${HW_SVC_VER}"
-  [[ -n $GSI_SERVICE_VERSION ]] && _service_version="$GSI_SERVICE_VERSION"
 
   _make_manifest "$_template" > "$_manifest"
   _apply_manifest "$_manifest"
