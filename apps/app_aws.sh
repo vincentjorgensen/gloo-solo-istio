@@ -12,6 +12,16 @@ function app_init_aws {
   fi
 }
 
+function app_init_acmpca {
+  create_aws_intermediate_pca Istio
+  create_aws_pca_issuer_role Istio
+  exec_aws_pca_serviceaccount
+  exec_aws_pca_privateca_issuer
+  create_aws_pca_issuer -c istio -n istio-system -a "$SUBORDINATE_CAARN"
+  ### create_aws_pca_cluster_issuer -c istio -n default -a "$ROOT_CAARN" # -a "$SUBORDINATE_CAARN"
+  exec_istio_awspca_secrets
+}
+
 function exec_initialize_root_pca {
   local _cmd; _cmd=$(mktemp)
   local _ca_manifest="$MANIFESTS/pca_ca_config_root_ca.json"
@@ -457,12 +467,6 @@ function exec_cognito_route_option {
   local _manifest="$MANIFESTS"/route_option.cognitio."$GSI_CLUSTER".yaml
   local _template="$TEMPLATES"/route_options.cognito.manifest.yaml.j2
 
-  jinja2                                                                      \
-         "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
-    > "$_manifest"
-
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest"
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
 }

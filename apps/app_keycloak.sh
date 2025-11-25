@@ -9,18 +9,9 @@ function exec_keycloak {
   local _manifest="$MANIFESTS/keycloak.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/keycloak.manifest.yaml.j2
 
-  jinja2                                                                      \
-         "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
-  > "$_manifest"
-
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
-
-  if is_create_mode; then
-    _wait_for_pods "$GSI_CONTEXT" "$KEYCLOAK_NAMESPACE" keycloak
-  fi
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
+  _wait_for_pods "$GSI_CONTEXT" "$KEYCLOAK_NAMESPACE" keycloak
 }
 
 function set_keycloak_token_client_and_secret {
@@ -92,18 +83,17 @@ function create_keycloak_secret {
   local _namespace=$1
   local _manifest="$MANIFESTS/secret.keycloak.${_namespace}.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/secret.keycloak.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   ### set_keycloak_token_client_and_secret # sets KEYCLOAK_TOKEN, KEYCLOAK_CLIENT, KEYCLOAK_SECRET, and KEYCLOAK_ID
 
   jinja2 -D namespace="$_namespace"                                           \
          -D secret="$KEYCLOAK_SECRET"                                         \
          "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
+         "$_j2"                                                               \
   > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
+  _apply_manifest "$_manifest"
 }
 
 function create_keycloak_extauth_auth_config {
@@ -125,6 +115,7 @@ function create_keycloak_extauth_auth_config {
   done
   local _manifest="$MANIFESTS/auth_config.oauth.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/auth_config.oauth.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                      \
          -D client_id="$KEYCLOAK_CLIENT"                                      \
@@ -135,10 +126,8 @@ function create_keycloak_extauth_auth_config {
          -D service_namespace="$_service_namespace"                           \
          -D system_namespace="$GLOO_GATEWAY_NAMESPACE"                        \
          "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
+         "$_j2"                                                               \
   > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
+  _apply_manifest "$_manifest"
 }

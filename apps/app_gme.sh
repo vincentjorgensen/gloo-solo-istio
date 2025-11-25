@@ -155,15 +155,8 @@ function create_gloo_k8s_cluster {
   local _manifest="$MANIFESTS/gloo.k8s_cluster.${_cluster}.yaml"
   local _template="$TEMPLATES"/gloo.k8s_cluster.manifest.yaml.j2
 
-  jinja2                                                                       \
-         -D cluster="$_cluster"                                                \
-         "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
-  > "$_manifest"
-
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_MGMT_CONTEXT"                                                \
-  -f "$_manifest"
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
 }
 
 function exec_gloo_agent {

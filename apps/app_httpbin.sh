@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 function app_init_httpbin {
   if $HTTPBIN_ENABLED; then
-    if $MULTICLUSTER_ENABLED; then
-      gsi_cluster_swap
-      exec_httpbin
-      gsi_cluster_swap
-    else
-      exec_httpbin
-    fi
+     $ITER_MC exec_httpbin
  fi
 }
 

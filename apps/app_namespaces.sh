@@ -1,12 +1,6 @@
 #!/usr/bin/env bash
 function app_init_namespaces {
-  exec_namespaces
-
-  if $MULTICLUSTER_ENABLED; then
-    gsi_cluster_swap
-    exec_namespaces
-    gsi_cluster_swap
-  fi
+  $ITER_MC exec_namespaces
 
   if $GME_ENABLED; then
     echo '#' "GME is enabled, creating namespace $GME__NAMESPACE on mgmt server $GSI_MGMT_CLUSTER"
@@ -42,9 +36,5 @@ function _namespace_exists {
   local _context=$1
   local _namespace=$2
 
-#  if [[ -z $DRY_RUN ]]; then
-    kubectl get namespace "$_namespace" --context "$_context" > /dev/null 2>&1
-#  else
-#    return 0
-#  fi
+  kubectl get namespace "$_namespace" --context "$_context" > /dev/null 2>&1
 }

@@ -4,7 +4,7 @@
 # 
 # Env vars and functions for setting global state of the k8s clusters
 ###############################################################################
-export J2_GLOBALS UTAG
+export UTAG
 #-------------------------------------------------------------------------------
 # Directories
 #-------------------------------------------------------------------------------
@@ -70,6 +70,7 @@ export HELLOWORLD_SERVICE_PORT=8001
 export HELLOWORLD_CONTAINER_PORT=8080
 export HELLOWORLD_SIZE=1
 export REMOTE_HELLOWORLD_ENABLED=${REMOTE_HELLOWORLD_ENABLED:-false}
+export HW_SVC_VER=0
 
 #-------------------------------------------------------------------------------
 # HTTPBIN App
@@ -191,7 +192,12 @@ export EASTWEST_NAMESPACE=eastwest-gateways
 export EASTWEST_GATEWAY=eastwest-gateway
 export MULTICLUSTER_NAMESPACE=$EASTWEST_NAMESPACE
 export EASTWEST_SIZE=1
-export EASTWEST_GATEWAY_CLASS MC_FLAG EASTWEST_REMOTE_GATEWAY_CLASS
+export EASTWEST_GATEWAY_CLASS EASTWEST_REMOTE_GATEWAY_CLASS
+
+#-------------------------------------------------------------------------------
+# Multicluster
+#-------------------------------------------------------------------------------
+export MC_FLAG ITER_MC
 
 #-------------------------------------------------------------------------------
 # Ingress as Istio Gateway (OSS)
@@ -487,6 +493,12 @@ function gsi_init {
     echo '#' Keycloak is enabled
   fi
 
+  if $EXTERNAL_DNS_ENABLED; then
+    GATEWAY_API_ENABLED=true
+    echo '#' External DNS is enabled
+    
+  fi
+
   #############################################################################
   # k8s providers
   #############################################################################
@@ -531,6 +543,7 @@ function gsi_init {
   #----------------------------------------------------------------------------
   if $MULTICLUSTER_ENABLED; then
     MC_FLAG=enabled
+    ITER_MC=_iter_mc
     echo '#' Multicluster is enabled 
     if $AMBIENT_ENABLED; then
       EASTWEST_GATEWAY_CLASS=istio-eastwest
@@ -653,7 +666,7 @@ function gsi_init {
   # Generate the Global J2 parameters
   #############################################################################
   gsi_set_defaults
-  _jinja2_values
+  $ITER_MC _jinja2_values
 }
 
 function _get_k8s_region {
@@ -794,15 +807,14 @@ function _label_ns_for_istio {
 
 function _make_manifest {
   local _template=$1
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
-       -D cluster="$GSI_CLUSTER"                                               \
-       -D network="$GSI_NETWORK"                                               \
        -D trust_domain="$TRUST_DOMAIN"                                         \
        -D remote_cluster="$REMOTE_CLUSTER"                                     \
        -D remote_trust_domain="$REMOTE_TRUST_DOMAIN"                           \
        "$_template"                                                            \
-       "$J2_GLOBALS"
+       "$_j2"
 }
 
 function _apply_manifest {
@@ -815,18 +827,23 @@ function _apply_manifest {
 
 function _jinja2_values {
   local _region _zones
-  J2_GLOBALS="$MANIFESTS"/jinja2_globals.yaml
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   _region=$(_get_k8s_region "$GSI_CONTEXT")
   _zones=$(_get_k8s_zones "$GSI_CONTEXT")
 
-  echo "zones:" > "$J2_GLOBALS"
+
+  HW_SVC_VER=$((HW_SVC_VER+1))
+
+  echo "zones:" > "$_j2"
 
   while read -r zone; do
-    echo "- $zone" >> "$J2_GLOBALS"
+    echo "- $zone" >> "$_j2"
   done <<< "$_zones"
 
   jinja2                                                                       \
+         -D cluster="$GSI_CLUSTER"                                             \
+         -D network="$GSI_NETWORK"                                             \
          -D ambient_enabled="$AMBIENT_FLAG"                                    \
          -D aws_enabled="$AWS_FLAG"                                            \
          -D azure_enabled="$AZURE_FLAG"                                        \
@@ -871,6 +888,7 @@ function _jinja2_values {
          -D gme_verbose="$GME_VERBOSE"                                         \
          -D helloworld_container_port="$HELLOWORLD_CONTAINER_PORT"             \
          -D helloworld_namespace="$HELLOWORLD_NAMESPACE"                       \
+         -D helloworld_service_version="$HW_SVC_VER"                           \
          -D helloworld_service_name="$HELLOWORLD_SERVICE_NAME"                 \
          -D helloworld_service_port="$HELLOWORLD_SERVICE_PORT"                 \
          -D helloworld_size="$HELLOWORLD_SIZE"                                 \
@@ -919,6 +937,6 @@ function _jinja2_values {
          -D utils_namespace="$UTILS_NAMESPACE"                                 \
          -D vault_namespace="$VAULT_NAMESPACE"                                 \
          "$TEMPLATES"/jinja2_globals.yaml.j2                                   \
-    >> "$J2_GLOBALS"
+    >> "$_j2"
 }
 # END

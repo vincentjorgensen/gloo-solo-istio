@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
 function app_init_gloo_gateway_v2 {
   if $GLOO_GATEWAY_V2_ENABLED; then
-    exec_gloo_gateway_v2_crds
-    exec_gloo_gateway_v2_control_plane
-  
-    if $MULTICLUSTER_ENABLED; then
-      gsi_cluster_swap
-      exec_gloo_gateway_v2_crds
-      exec_gloo_gateway_v2_control_plane
-      gsi_cluster_swap
-    fi
+    $ITER_MC exec_gloo_gateway_v2_crds
+    $ITER_MC exec_gloo_gateway_v2_control_plane
   fi
 }
 
@@ -98,23 +91,23 @@ function patch_gloo_gateway_v2 {
 function exec_backend {
   local _manifest="$MANIFESTS/backend.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/backend.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
          -D service_name="$GSI_APP_SERVICE_NAME"                               \
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                     \
          -D service_port="$GSI_APP_SERVICE_PORT"                               \
          "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
+         "$_j2"                                                               \
   > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_CONTEXT"                                                     \
-  -f "$_manifest"
+  _apply_manifest "$_manifest"
 }
 
 function exec_reference_grant {
   local _manifest="$MANIFESTS/reference_grant.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/reference_grant.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
          -D gateway_namespace="$INGRESS_NAMESPACE"                             \
@@ -122,12 +115,10 @@ function exec_reference_grant {
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                     \
          -D multicluster="$MC_FLAG"                                            \
          "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
+         "$_j2"                                                               \
   > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_CONTEXT"                                                     \
-  -f "$_manifest"
+  _apply_manifest "$_manifest"
 }
 
 function create_reference_grant {
@@ -144,18 +135,17 @@ function create_reference_grant {
     esac
   done
   local _manifest="$MANIFESTS/reference_grant.${_service_name}.${_service_namespace}.${GSI_CLUSTER}.yaml"
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
          -D gateway_namespace="$_namespace"                                    \
          -D service="$_service_name"                                           \
          -D service_namespace="$_service_namespace"                            \
          "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
+         "$_j2"                                                               \
   > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_CONTEXT"                                                     \
-  -f "$_manifest"
+  _apply_manifest "$_manifest"
 }
 
 function exec_gloo_gateway_v2_keycloak_secret {
@@ -166,6 +156,7 @@ function exec_extauth_keycloak_ggv2_auth_config {
   local _gateway_address
   local _manifest="$MANIFESTS/auth_config.oauth.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/auth_config.oauth.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
          -D client_id="$KEYCLOAK_CLIENT"                                       \
@@ -176,10 +167,8 @@ function exec_extauth_keycloak_ggv2_auth_config {
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                     \
          -D system_namespace="$GLOO_GATEWAY_NAMESPACE"                         \
          "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
+         "$_j2"                                                               \
   > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_CONTEXT"                                                     \
-  -f "$_manifest" 
+  _apply_manifest "$_manifest"
 }

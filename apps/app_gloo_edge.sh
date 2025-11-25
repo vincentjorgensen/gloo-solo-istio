@@ -1,9 +1,9 @@
 function app_init_gloo_edge {
   if $GLOO_EDGE_ENABLED; then
-    exec_gloo_edge
+    $ITER_MC exec_gloo_edge
 
     if $GME_ENABLED; then
-      exec_gloo_virtual_gateway
+      $ITER_MC exec_gloo_virtual_gateway
     fi
   fi
 }
@@ -12,10 +12,7 @@ function exec_gloo_edge {
   local _manifest="$MANIFESTS/helm.gloo-edge.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/helm.gloo-gateway-v1.yaml.j2
 
-  jinja2                                                                       \
-         "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
-  > "$_manifest"
+  _make_manifest "$_template" > "$_manifest"
 
   if is_create_mode; then
     $DRY_RUN helm upgrade -i gloo-edge glooe/gloo-ee                           \
@@ -52,7 +49,7 @@ function create_gloo_edge_virtual_service {
          -D service_namespace="$_service_namespace"                            \
          -D service_port="$_service_port"                                      \
          "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
+         "$_j2"                                                               \
   > "$_manifest"
 
   _apply_manifest "$_manifest"

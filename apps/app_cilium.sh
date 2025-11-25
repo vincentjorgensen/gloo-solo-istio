@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 function app_init_cilium {
   if $CILIUM_ENABLED; then
-    exec_cilium
+    $ITER_MC exec_cilium
   fi
 }
 
 function exec_cilium {
   local _manifest="$MANIFESTS/helm.cilium.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES/helm.cilium.yaml.j2"
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   local _k8s_svc_host _k8s_svc_port
   _k8s_svc_host=$(
@@ -30,7 +31,7 @@ function exec_cilium {
   jinja2 -D k8s_svc_host="$_k8s_svc_host"                                      \
          -D k8s_svc_port="$_k8s_svc_port"                                      \
        "$_template"                                                            \
-       "$J2_GLOBALS"                                                           \
+       "$_j2"                                                                  \
     > "$_manifest"
   
   if is_create_mode; then
@@ -41,7 +42,7 @@ function exec_cilium {
     --values "$_manifest"                                                      \
     --wait
   else
-    $DRY_RUN helm upgrade -i cilium cilium/cilium                              \
+    $DRY_RUN helm uninstall cilium                                             \
     --kube-context="$GSI_CONTEXT"                                              \
     --namespace "$KUBE_SYSTEM_NAMESPACE"                                       \
     --wait

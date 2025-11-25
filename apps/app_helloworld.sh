@@ -22,25 +22,23 @@ function app_init_helloworld {
 function exec_helloworld {
   local _manifest="$MANIFESTS/helloworld.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/helloworld.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   _label_ns_for_istio "$HELLOWORLD_NAMESPACE"
 
   _service_version="v${HW_SVC_VER}"
   [[ -n $GSI_SERVICE_VERSION ]] && _service_version="$GSI_SERVICE_VERSION"
 
-  jinja2                                                                       \
-         -D helloworld_service_version="${_service_version:-none}"             \
-         "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
-    > "$_manifest"
-
+  _make_manifest "$_template" > "$_manifest"
   _apply_manifest "$_manifest"
+
   _wait_for_pods "$GSI_CONTEXT" "$HELLOWORLD_NAMESPACE" helloworld
 }
 
 function exec_remote_helloworld {
   local _manifest="$MANIFESTS/remote-helloworld.backend.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/remote-hellowworld.backend.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   _remote_helloworld_address=$(docker inspect helloworld | jq -r '.[].NetworkSettings.Networks."'"$DOCKER_NETWORK"'".IPAddress')
   _remote_helloworld_port=$(docker inspect helloworld | jq -r '.[].Config.Env[]|select(contains("SERVER_PORT"))'|awk -F= '{print $2}')
@@ -51,7 +49,7 @@ function exec_remote_helloworld {
          -D remote_helloworld_port="${_remote_helloworld_port}"                \
          -D remote_helloworld_ssl_port="${_remote_helloworld_ssl_port}"        \
          "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
+         "$_j2"                                                                \
     > "$_manifest"
 
   _apply_manifest "$_manifest"

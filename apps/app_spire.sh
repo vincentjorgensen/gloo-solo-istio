@@ -68,6 +68,7 @@ function exec_spire_server {
   local _kustomize_template="$TEMPLATES"/spire.kustomization.yaml.j2
 #  local _federation_patch="$MANIFESTS/spire-${GSI_CLUSTER}/spire-federation-patch.yaml"
   local _post_renderer=""
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   if is_create_mode; then
     _make_manifest "$_template" > "$_manifest"
@@ -82,7 +83,7 @@ function exec_spire_server {
              -D ca_country="US"                                                \
              -D ca_ou="Customer Success"                                       \
          "$_cm_template"                                                       \
-         "$J2_GLOBALS"                                                         \
+         "$_j2"                                                                \
       > "$_cm_manifest"
 
     _make_manifest "$_kustomize_template" > "$_kustomize"
@@ -145,10 +146,11 @@ function exec_spire_agent {
   local _manifest="$MANIFESTS/helm.spire.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/helm.spire-agent.yaml.j2
   local _spire_bundle="$MANIFESTS/configmap.spire-bundle.${GSI_CLUSTER}.yaml"
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
     jinja2 -D spire_bundle="$(cat "$MANIFESTS"/spire-server.bundle)"          \
          "$TEMPLATES"/configmap.spire-bundle.yaml.j2                          \
-         "$J2_GLOBALS"                                                        \
+         "$_j2"                                                               \
       > "$_spire_bundle"
 
     jinja2 -D trust_domain="$TRUST_DOMAIN"                                    \
@@ -156,7 +158,7 @@ function exec_spire_agent {
            -D spire_server_address="$(cat "$MANIFESTS"/spire-server.address)" \
            -D spire_server_port="$(cat "$MANIFESTS"/spire-server.port)"       \
          "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
+         "$_j2"                                                               \
       > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \

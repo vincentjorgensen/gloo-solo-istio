@@ -1,39 +1,14 @@
 #!/usr/bin/env bash
 function app_init_istio {
   if $SIDECAR_ENABLED || $AMBIENT_ENABLED; then
-    if $AWS_ENABLED && $CERT_MANAGER_ENABLED; then
-      create_aws_intermediate_pca Istio
-      create_aws_pca_issuer_role Istio
-      exec_aws_pca_serviceaccount
-      exec_aws_pca_privateca_issuer
-      create_aws_pca_issuer -c istio -n istio-system -a "$SUBORDNIATE_CAARN"
-      ### create_aws_pca_cluster_issuer -c istio -n default -a "$ROOT_CAARN" # -a "$SUBORDNIATE_CAARN"
-      exec_istio_awspca_secrets
+    if $AWS_PCA_ENABLED && $CERT_MANAGER_ENABLED; then
+      $ITER_MC app_init_acmpca
     else
-      if $MULTICLUSTER_ENABLED; then
-        ! $SPIRE_ENABLED && exec_istio_secrets
+      if ! $SPIRE_ENABLED; then
+        $ITER_MC exec_istio_secrets
       fi
-    fi
-    exec_istio
-    exec_telemetry_defaults
-
-    if $MULTICLUSTER_ENABLED; then
-      gsi_cluster_swap
-      if $AWS_ENABLED && $CERT_MANAGER_ENABLED; then
-        create_aws_pca_issuer_role Istio
-        exec_aws_pca_serviceaccount
-        exec_aws_pca_privateca_issuer
-        create_aws_pca_cluster_issuer -c istio -n istio-system -a "$SUBORDNIATE_CAARN"
-        ### create_aws_pca_cluster_issuer -c istio -n default -a "$ROOT_CAARN" # -a "$SUBORDNIATE_CAARN"
-        exec_istio_awspca_secrets
-      else
-        if ! $SPIRE_ENABLED; then
-          exec_istio_secrets
-        fi
-      fi
-      exec_istio
-      exec_telemetry_defaults
-      gsi_cluster_swap
+      $ITER_MC exec_istio
+      $ITER_MC exec_telemetry_defaults
     fi
   fi
 }
@@ -57,13 +32,14 @@ function exec_istio_secrets {
 function exec_istio_awspca_secrets {
   local _manifest="$MANIFESTS"/certificate.cert-manager."$GSI_CLUSTER".yaml
   local _template="$TEMPLATES"/certificate.cert-manager.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2 -D awspca_component="istio"                                          \
          -D awspca_issuer="$AWSPCA_ISSUER"                                    \
          -D awspca_issuer_kind="$AWSPCA_ISSUER_KIND"                          \
          -D trust_domain="$TRUST_DOMAIN"                                      \
          "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
+         "$_j2"                                                               \
   > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \

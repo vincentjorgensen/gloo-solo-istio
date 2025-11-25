@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 function app_init_utils {
   if $UTILS_ENABLED; then
-    exec_utils
+    $ITER_MC exec_utils
   fi
 }
 
 function app_init_netshoot {
   if $NETSHOOT_ENABLED; then
-    exec_netshoot
+    $ITER_MC exec_netshoot
   fi
 }
 
 function app_init_curl {
   if $CURL_ENABLED; then
-    exec_curl
+    $ITER_MC exec_curl
   fi
 }
 

@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 function app_init_gateway_api {
   if $GATEWAY_API_ENABLED; then 
-    exec_gateway_api_crds 
-
-    if $MULTICLUSTER_ENABLED; then
-      gsi_cluster_swap
-      exec_gateway_api_crds 
-      gsi_cluster_swap
-    fi
+    $ITER_MC exec_gateway_api_crds 
   fi
 }
 
@@ -83,8 +77,7 @@ function exec_gateway_api_experimental_crds {
 function exec_httproute {
   local _manifest="$MANIFESTS/httproute.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/httproute.manifest.yaml.j2
-
-  exec_gateway_api_crds
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
          -D namespace="$INGRESS_NAMESPACE"                                     \
@@ -92,12 +85,10 @@ function exec_httproute {
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                     \
          -D service_port="$GSI_APP_SERVICE_PORT"                               \
          "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
+         "$_j2"                                                               \
   > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_CONTEXT"                                                     \
-  -f "$_manifest"
+  _apply_manifest "$_manifest"
 }
 
 function create_httproute {
@@ -119,20 +110,16 @@ function create_httproute {
   local _manifest="$MANIFESTS/httproute.${_service_name}.${_namespace}.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/httproute.manifest.yaml.j2
 
-  exec_gateway_api_crds
-
   jinja2                                                                       \
          -D namespace="$_namespace"                                            \
          -D service="$_service_name"                                           \
          -D service_namespace="$_service_namespace"                            \
          -D service_port="$_service_port"                                      \
          "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
+         "$_j2"                                                               \
   > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_CONTEXT"                                                     \
-  -f "$_manifest"
+  _apply_manifest "$_manifest"
 
   # create_reference_grant
   if [[ $_service_namespace != "$_namespace" ]]; then
@@ -167,6 +154,7 @@ function exec_eastwest_gateway_api {
 function exec_eastwest_link_gateway_api {
   local _manifest="$MANIFESTS/gateway_api.eastwest_remote_gateway.${GSI_REMOTE_CLUSTER}.yaml"
   local _template="$TEMPLATES"/gateway_api/eastwest_remote_gateway.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
   local _remote_address _address_type
 
   _remote_address=$(
@@ -199,12 +187,10 @@ function exec_eastwest_link_gateway_api {
          -D remote_address="$_remote_address"                                  \
          -D trust_domain="$TRUST_DOMAIN"                                       \
          "$_template"                                                          \
-         "$J2_GLOBALS"                                                         \
+         "$_j2"                                                               \
   > "$_manifest"
 
-  $DRY_RUN kubectl "$GSI_MODE"                                                 \
-  --context "$GSI_REMOTE_CONTEXT"                                              \
-  -f "$_manifest"
+  _apply_manifest "$_manifest"
 }
 
 function exec_ingress_gateway_api {

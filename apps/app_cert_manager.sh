@@ -1,16 +1,7 @@
 #!/usr/bin/env bash
 function app_init_cert_manager {
   if $CERT_MANAGER_ENABLED; then
-    if $DOCKER_DESKTOP_ENABLED; then
-      exec_cert_manager_secrets
-    fi
-    exec_cert_manager
-    if $MULTICLUSTER_ENABLED; then
-      gsi_cluster_swap
-      exec_cert_manager
-      gsi_cluster_swap
-    fi
-    exec_cert_manager_cluster_issuer
+    $ITER_MC exec_cert_manager
   fi
 }
 
@@ -59,14 +50,8 @@ function exec_cert_manager_cluster_issuer {
   local _manifest="$MANIFESTS/cluster_issuer.cert-manager.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/cluster_issuer.cert-manager.manifest.yaml.j2
 
-  jinja2                                                                      \
-         "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
-  > "$_manifest"
-  
-  $DRY_RUN kubectl "$GSI_MODE"                                                \
-  --context "$GSI_CONTEXT"                                                    \
-  -f "$_manifest" 
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
 }
 
 function create_cert_manager_issuer {
@@ -96,11 +81,12 @@ function create_cert_manager_issuer {
 
   local _manifest="$MANIFESTS/issuer.cert-manager.${_name}.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/issuer.cert-manager.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                      \
          -D serial_no="$(date +%Y%m%d)"                                       \
          "$_template"                                                         \
-         "$J2_GLOBALS"                                                        \
+         "$_j2"                                                               \
   > "$_manifest"
 
   jinja2 -D name="$_name"                                                     \

@@ -119,3 +119,16 @@ function _strip_license_keys {
   done
   popd || return
 }
+
+function _iter_mc {
+  for cluster in $(env|ggrep GSI_CLUSTER|sed -e 's/GSI_CLUSTER\(.*\)=.*/\1/'); do
+    export GSI_CLUSTER GSI_CONTEXT GSI_NETWORK
+    GSI_CLUSTER=$(eval echo '$'GSI_CLUSTER"${cluster}")
+    GSI_CONTEXT=$(eval echo '$'GSI_CONTEXT"${cluster}")
+    GSI_NETWORK=$(eval echo '$'GSI_NETWORK"${cluster}")
+
+    for _exe in "$@"; do
+      eval "$_exe"
+    done
+  done
+}
