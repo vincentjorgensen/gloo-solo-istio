@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 function app_init_external_dns {
   if $EXTERNAL_DNS_ENABLED; then
-    if ! $MULTICLUSTER_ENABLED; then
-      exec_external_dns_for_pihole
-    else
-      _iter_mc exec_external_dns_for_pihole
-    fi
+      $ITER_MC_1 exec_external_dns_for_pihole
   fi
 }
 

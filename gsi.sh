@@ -48,8 +48,7 @@ GSI_DECK=(
   app_init_ingress_gateway_api
 
   # Routing
-  exec_helloworld_routing
-  exec_httpbin_routing
+  app_init_routing
 )
 
 function play_gsi {
@@ -121,14 +120,27 @@ function _strip_license_keys {
 }
 
 function _iter_mc {
-  for cluster in $(env|ggrep GSI_CLUSTER|sed -e 's/GSI_CLUSTER\(.*\)=.*/\1/'); do
+  local _cluster
+  for _cluster in $(env|ggrep GSI_CLUSTER|sed -e 's/GSI_CLUSTER\(.*\)=.*/\1/'); do
     export GSI_CLUSTER GSI_CONTEXT GSI_NETWORK
-    GSI_CLUSTER=$(eval echo '$'GSI_CLUSTER"${cluster}")
-    GSI_CONTEXT=$(eval echo '$'GSI_CONTEXT"${cluster}")
-    GSI_NETWORK=$(eval echo '$'GSI_NETWORK"${cluster}")
+    GSI_CLUSTER=$(eval echo '$'GSI_CLUSTER"${_cluster}")
+    GSI_CONTEXT=$(eval echo '$'GSI_CONTEXT"${_cluster}")
+    GSI_NETWORK=$(eval echo '$'GSI_NETWORK"${_cluster}")
 
     for _exe in "$@"; do
       eval "$_exe"
     done
   done
+}
+
+function _iter_mc_1 {
+    export GSI_CLUSTER GSI_CONTEXT GSI_NETWORK
+    local _cluster=1
+    GSI_CLUSTER=$(eval echo '$'GSI_CLUSTER"${_cluster}")
+    GSI_CONTEXT=$(eval echo '$'GSI_CONTEXT"${_cluster}")
+    GSI_NETWORK=$(eval echo '$'GSI_NETWORK"${_cluster}")
+
+    for _exe in "$@"; do
+      eval "$_exe"
+    done
 }

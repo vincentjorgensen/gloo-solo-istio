@@ -197,7 +197,7 @@ export EASTWEST_GATEWAY_CLASS EASTWEST_REMOTE_GATEWAY_CLASS
 #-------------------------------------------------------------------------------
 # Multicluster
 #-------------------------------------------------------------------------------
-export MC_FLAG ITER_MC
+export MC_FLAG ITER_MC ITER_MC_1
 
 #-------------------------------------------------------------------------------
 # Ingress as Istio Gateway (OSS)
@@ -544,6 +544,7 @@ function gsi_init {
   if $MULTICLUSTER_ENABLED; then
     MC_FLAG=enabled
     ITER_MC=_iter_mc
+    ITER_MC_1=_iter_mc_1
     echo '#' Multicluster is enabled 
     if $AMBIENT_ENABLED; then
       EASTWEST_GATEWAY_CLASS=istio-eastwest
