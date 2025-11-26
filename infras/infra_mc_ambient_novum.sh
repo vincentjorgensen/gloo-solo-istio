@@ -18,9 +18,10 @@ export GSI_CONTEXT3="$GSI_CLUSTER3"
 export GSI_NETWORK3="$GSI_CLUSTER3"
 export GSI_TRUST_DOMAIN3="cluster.local"
 
-###export GSI_CLUSTER4=cluster4
-###export GSI_CONTEXT4="$GSI_CLUSTER4"
-###export GSI_NETWORK4="$GSI_CLUSTER4"
+export GSI_CLUSTER4=cluster4
+export GSI_CONTEXT4="$GSI_CLUSTER4"
+export GSI_NETWORK4="$GSI_CLUSTER4"
+export GSI_TRUST_DOMAIN4="cluster.local"
 
 # Infrastructure
 export EXTERNAL_DNS_ENABLED=true

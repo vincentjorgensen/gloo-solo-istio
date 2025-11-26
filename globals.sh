@@ -808,7 +808,7 @@ function _label_ns_for_istio {
 
 function _make_manifest {
   local _m_globals
-  _m_j2=$(mktemp)
+  _m_j2=$(mktemp "$TMPDIR"/XXXXXXXXXX.yaml)
 
   while getopts "D:" opt; do
     # shellcheck disable=SC2220
@@ -824,8 +824,6 @@ function _make_manifest {
   cat "$_j2" >> "$_m_j2"
 
   jinja2                                                                       \
-       -D remote_cluster="$REMOTE_CLUSTER"                                     \
-       -D remote_trust_domain="$REMOTE_TRUST_DOMAIN"                           \
        "$_template"                                                            \
        "$_m_j2"
 }
@@ -847,7 +845,7 @@ function _j2_remote_clusters {
   for _cluster in $(env|ggrep GSI_CLUSTER|sed -e 's/GSI_CLUSTER\(.*\)=.*/\1/'); do
     if ! [[ "$GSI_CLUSTER" == "$(eval echo '$'GSI_CLUSTER"${_cluster}")" ]]; then
       cat <<EOF >>"$_r_j2"
-- name: $(eval echo '$'GSI_CLUSTER"${_cluster}"):
+- name: $(eval echo '$'GSI_CLUSTER"${_cluster}")
   network: $(eval echo '$'GSI_NETWORK"${_cluster}")
   context: $(eval echo '$'GSI_CONTEXT"${_cluster}")
   trust_domain: $(eval echo '$'GSI_TRUST_DOMAIN"${_cluster}")
@@ -868,7 +866,7 @@ function _jinja2_values {
   HW_SVC_VER=$((HW_SVC_VER+1))
 
   if $MULTICLUSTER_ENABLED; then
-    _j2_remote_clusters >> "$_j2"
+    _j2_remote_clusters > "$_j2"
   fi
 
   echo "zones:" >> "$_j2"
