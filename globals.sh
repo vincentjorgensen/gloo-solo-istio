@@ -807,15 +807,27 @@ function _label_ns_for_istio {
 }
 
 function _make_manifest {
+  local _m_globals
+  _m_j2=$(mktemp)
+
+  while getopts "D:" opt; do
+    # shellcheck disable=SC2220
+    case $opt in
+      D)
+        echo "$OPTARG" | awk -F= '{print $1 ": " $2 }' >> "$_m_j2" ;;
+    esac
+  done
+
   local _template=$1
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
+  cat "$_j2" >> "$_m_j2"
+
   jinja2                                                                       \
-       -D trust_domain="$TRUST_DOMAIN"                                         \
        -D remote_cluster="$REMOTE_CLUSTER"                                     \
        -D remote_trust_domain="$REMOTE_TRUST_DOMAIN"                           \
        "$_template"                                                            \
-       "$_j2"
+       "$_m_j2"
 }
 
 function _apply_manifest {
@@ -826,6 +838,26 @@ function _apply_manifest {
   -f "$_manifest"
 }
 
+function _j2_remote_clusters {
+  local _cluster _r_j2
+  _r_j2=$(mktemp)
+
+  echo "remote_clusters:" >> "$_r_j2"
+
+  for _cluster in $(env|ggrep GSI_CLUSTER|sed -e 's/GSI_CLUSTER\(.*\)=.*/\1/'); do
+    if ! [[ "$GSI_CLUSTER" == "$(eval echo '$'GSI_CLUSTER"${_cluster}")" ]]; then
+      cat <<EOF >>"$_r_j2"
+- name: $(eval echo '$'GSI_CLUSTER"${_cluster}"):
+  network: $(eval echo '$'GSI_NETWORK"${_cluster}")
+  context: $(eval echo '$'GSI_CONTEXT"${_cluster}")
+  trust_domain: $(eval echo '$'GSI_TRUST_DOMAIN"${_cluster}")
+EOF
+    fi
+  done
+
+  cat "$_r_j2"
+}
+
 function _jinja2_values {
   local _region _zones
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
@@ -833,10 +865,13 @@ function _jinja2_values {
   _region=$(_get_k8s_region "$GSI_CONTEXT")
   _zones=$(_get_k8s_zones "$GSI_CONTEXT")
 
-
   HW_SVC_VER=$((HW_SVC_VER+1))
 
-  echo "zones:" > "$_j2"
+  if $MULTICLUSTER_ENABLED; then
+    _j2_remote_clusters >> "$_j2"
+  fi
+
+  echo "zones:" >> "$_j2"
 
   while read -r zone; do
     echo "- $zone" >> "$_j2"
@@ -845,6 +880,7 @@ function _jinja2_values {
   jinja2                                                                       \
          -D cluster="$GSI_CLUSTER"                                             \
          -D network="$GSI_NETWORK"                                             \
+         -D trust_domain="$TRUST_DOMAIN"                                       \
          -D ambient_enabled="$AMBIENT_FLAG"                                    \
          -D aws_enabled="$AWS_FLAG"                                            \
          -D azure_enabled="$AZURE_FLAG"                                        \

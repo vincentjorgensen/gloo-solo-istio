@@ -44,6 +44,7 @@ function create_gloo_edge_virtual_service {
   
   local _manifest="$MANIFESTS/gloo_edge.virtual_service.${_service}.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/gloo_edge/virtual_service.manifest.yaml.j2
+  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2 -D service="$_service"                                                \
          -D service_namespace="$_service_namespace"                            \

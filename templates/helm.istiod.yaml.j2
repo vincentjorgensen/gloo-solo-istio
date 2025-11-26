@@ -53,10 +53,10 @@ meshConfig:
     retryOn: connect-failure,refused-stream,unavailable,cancelled,reset,503
   trustDomain: {{ trust_domain }}
 {%- if multicluster_enabled %}
-{%-   if trust_domain != remote_trust_domain %}
 ###  trustDomainAliases:
-###  - "{{ remote_trust_domain }}"
-{%-   endif %}
+{%-   for cluster in remote_clusters %}
+###  - "{{ cluster.trust_domain }}"
+{%-  endfor %}
 {%- endif %}
 {%- if docker_desktop_enabled %}
 resources:

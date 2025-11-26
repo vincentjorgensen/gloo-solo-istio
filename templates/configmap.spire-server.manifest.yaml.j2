@@ -120,18 +120,20 @@ data:
             "refresh_hint": "5m"
           },
           "federates_with": [
+{%- for cluster in remote_clusters %}
             {
-              "{{ remote_trust_domain }}": {
-                "bundle_endpoint_url": "https://ss{{ remote_cluster }}.{{ tldn }}:8443",
+              "{{ cluster.trust_domain }}": {
+                "bundle_endpoint_url": "https://ss{{ cluster.name }}.{{ tldn }}:8443",
                 "bundle_endpoint_profile": [
                   {
                     "https_spiffe": {
-                      "endpoint_spiffe_id": "spiffe://{{ remote_trust_domain }}/spire/server"
+                      "endpoint_spiffe_id": "spiffe://{{ cluster.trust_domain }}/spire/server"
                     }
                   }
                 ]
               }
-            }
+            }{% if not loop.last %},{% endif %}
+{%- endfor %}
           ]
         },
         "jwt_issuer": "https://oidc-discovery.{{ trust_domain }}",
