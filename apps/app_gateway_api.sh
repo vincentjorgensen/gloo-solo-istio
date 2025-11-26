@@ -141,9 +141,8 @@ function exec_eastwest_gateway_api {
 }
 
 function exec_eastwest_link_gateway_api {
-  local _manifest
+  local _manifest _j2
   local _template="$TEMPLATES"/gateway_api/eastwest_remote_gateway.manifest.yaml.j2
-  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
   local _remote_address _address_type
 
   for cluster in $(env|ggrep GSI_CLUSTER|sed -e 's/GSI_CLUSTER\(.*\)=.*/\1/'); do
@@ -172,6 +171,7 @@ function exec_eastwest_link_gateway_api {
         _address_type=Hostname
       fi
   
+      _j2="$MANIFESTS"/jinja2_globals."$(eval echo '$'GSI_CLUSTER"${cluster}")".yaml
       _manifest="$MANIFESTS/gateway_api.eastwest_remote_gateway.remote-$(eval echo '$'GSI_CONTEXT"${cluster}").${GSI_CLUSTER}.yaml"
       jinja2                                                                   \
              -D address_type="$_address_type"                                  \

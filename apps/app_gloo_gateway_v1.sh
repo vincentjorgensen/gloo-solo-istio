@@ -1,6 +1,6 @@
 function app_init_gloo_gateway_v1 {
   if $GLOO_GATEWAY_V1_ENABLED; then
-    $ITER_MC exec_gloo_gateway_v1
+    $ITER_MC_1 exec_gloo_gateway_v1
   fi
 }
 

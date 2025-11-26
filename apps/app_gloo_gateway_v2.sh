@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 function app_init_gloo_gateway_v2 {
   if $GLOO_GATEWAY_V2_ENABLED; then
-    $ITER_MC exec_gloo_gateway_v2_crds
-    $ITER_MC exec_gloo_gateway_v2_control_plane
+    $ITER_MC_1 exec_gloo_gateway_v2_crds
+    $ITER_MC_1 exec_gloo_gateway_v2_control_plane
   fi
 }
 
