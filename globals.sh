@@ -42,6 +42,8 @@ export GCP_FLAG
 # Amazon AWS Settings
 #-------------------------------------------------------------------------------
 export AWS_ENABLED=${AWS_ENABLED:-false}
+export AWS_PCA_ENABLED=${AWS_PCA_ENABLED:-false}
+export AWS_COGNITO_ENABLED=${AWS_COGNITO_ENABLED:-false}
 export ROOT_CAARN ROOT_CERTARN SUBORDINATE_CAARN SUBORDINATE_CERTARN
 export AWS_PCA_POLICY_ARN AWS_PCA_ROLE_ARN
 export AWSPCA_ISSUER_VER=v1.6.0
@@ -113,7 +115,7 @@ export CILIUM_VER=1.18.0
 # External DNS
 #-------------------------------------------------------------------------------
 export EXTERNAL_DNS_ENABLED=${EXTERNAL_DNS_ENABLED:-false}
-export EXTERNAL_DNS_VER=1.18.0
+export EXTERNAL_DNS_VER=1.19.0 # 1.18.0
 
 #-------------------------------------------------------------------------------
 # ArgoCD
@@ -285,10 +287,10 @@ export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
 export ISTIO_VER_126=1.26.6
 export HELM_REPO_127=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_127=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_127=1.27.3-patch0
+export ISTIO_VER_127=1.27.4
 export HELM_REPO_128=oci://us-docker.pkg.dev/soloio-img/istio-helm
 export ISTIO_REPO_128=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_128=1.28.0
+export ISTIO_VER_128=1.28.1
 export ISTIO_SECRET=cacerts
 export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TRUST_DOMAIN="cluster.local"
