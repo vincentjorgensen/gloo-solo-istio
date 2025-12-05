@@ -1,0 +1,9 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: ingress-tls-cert-issuer
+  namespace: {{ ingress_namespace }}
+spec:
+  selfSigned: {}
+...

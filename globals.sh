@@ -185,6 +185,7 @@ export GATEWAY_API_ENABLED=${GATEWAY_API_ENABLED:-false}
 export GATEWAY_API_VER=v1.4.0
 export GATEWAY_API_EXP_VER=v1.4.0
 export GATEWWAY_API_CRDS_URL=https://github.com/kubernetes-sigs/gateway-api/releases/download
+export GATEWAY_API_EXP_CRDS_FLAG
 
 #-------------------------------------------------------------------------------
 # Eastwest Gateway Settings
@@ -662,6 +663,7 @@ function gsi_init {
   # K8s Gateway API
   #----------------------------------------------------------------------------
   if $GATEWAY_API_ENABLED && $GATEWAY_API_EXP_CRDS_ENABLED; then
+    GATEWAY_API_EXP_CRDS_FLAG=enabled
     echo '#' K8s Gateway Experimental CRDs are enabled
   elif $GATEWAY_API_ENABLED; then
     echo '#' K8s Gateway Standard CRDs are enabled
@@ -912,6 +914,7 @@ function _jinja2_values {
          -D gloo_gateway_v2_enabled="$GLOO_GATEWAY_V2_FLAG"                    \
          -D gme_enabled="$GME_FLAG"                                            \
          -D glooui_enabled="$GLOOUI_FLAG"                                      \
+         -D gateway_api_exp_crds_enabled="$GATEWAY_API_EXP_CRDS_FLAG"          \
          -D gloo_mesh_gateway_enabled="$GLOO_MESH_GATEWAY_FLAG"                \
          -D gloo_mesh_license_key="$GLOO_MESH_LICENSE_KEY"                     \
          -D gloo_system_namespace="$GLOO_SYSTEM_NAMESPACE"                     \

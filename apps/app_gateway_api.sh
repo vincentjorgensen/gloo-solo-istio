@@ -194,6 +194,8 @@ function exec_ingress_gateway_api {
   local _te_manifest="$MANIFESTS/gateway_api.telemetry.${GSI_CLUSTER}.yaml"
   local _te_template="$TEMPLATES"/gateway_api/telemetry.gateway.manifest.yaml.j2
 
+  _label_ns_for_istio "$INGRESS_NAMESPACE"
+
   _make_manifest "$_pa_template" > "$_pa_manifest"
   _make_manifest "$_in_template" > "$_in_manifest"
   _make_manifest "$_te_template" > "$_te_manifest"

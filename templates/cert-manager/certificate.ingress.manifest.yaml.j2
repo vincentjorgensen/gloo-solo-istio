@@ -1,0 +1,23 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ingress-tls-cert
+  namespace: {{ ingress_namespace }}
+spec:
+  commonName: {{ tldn }}
+  dnsNames:
+  - "*.{{ tldn }}"
+  secretName: ingress-tls-secret
+  duration: 24h
+  renewBefore: 12h
+  privateKey:
+    algorithm: RSA
+    size: 4096
+  usages:
+  - server auth
+  issuerRef:
+    name: ingress-tls-cert-issuer
+    kind: Issuer
+    group: cert-manager.io
+...

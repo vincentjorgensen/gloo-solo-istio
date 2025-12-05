@@ -20,20 +20,22 @@ function exec_cert_manager_secrets {
 }
 
 function exec_cert_manager {
+  local _manifest="$MANIFESTS/helm.cert-manager.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/cert-manager/helm.values.yaml.j2
+
+  _make_manifest "$_template" > "$_manifest"
+
   if is_create_mode; then
 
-    $DRY_RUN helm upgrade --install cert-manager "$CERT_MANAGER_HELM_REPO"    \
-    --version "$CERT_MANAGER_VER"                                             \
-    --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$CERT_MANAGER_NAMESPACE"                                     \
-    --create-namespace                                                        \
-    --set config.apiVersion="controller.config.cert-manager.io/v1alpha1"      \
-    --set config.kind="ControllerConfiguration"                               \
-    --set config.enableGatewayAPI=true                                        \
-    --set "extraArgs={--feature-gates=ExperimentalGatewayAPISupport=true}"    \
-    --set crds.enabled=true
+    $DRY_RUN helm upgrade --install cert-manager "$CERT_MANAGER_HELM_REPO"     \
+    --version "$CERT_MANAGER_VER"                                              \
+    --kube-context="$GSI_CONTEXT"                                              \
+    --namespace "$CERT_MANAGER_NAMESPACE"                                      \
+    --create-namespace                                                         \
+    --values "$_manifest"                                                      \
+    --wait
   else 
-    $DRY_RUN helm uninstall cert-manager                                      \
+    $DRY_RUN helm uninstall cert-manager                                       \
     --kube-context="$GSI_CONTEXT"                                             \
     --namespace "$CERT_MANAGER_NAMESPACE"
   fi
@@ -46,9 +48,27 @@ function exec_cert_manager {
   fi
 }
 
+function exec_cert_manager_ingress_issuer {
+
+  local _manifest="$MANIFESTS/cert-manager.issuer.ingress.manifest${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/cert-manager/issuer.ingress.manifest.yaml.j2
+
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
+}
+
+function exec_cert_manager_ingress_certificate {
+
+  local _manifest="$MANIFESTS/cert-manager.certificate.ingress.manifest${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/cert-manager/certificate.ingress.manifest.yaml.j2
+
+  _make_manifest "$_template" > "$_manifest"
+  _apply_manifest "$_manifest"
+}
+
 function exec_cert_manager_cluster_issuer {
-  local _manifest="$MANIFESTS/cluster_issuer.cert-manager.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/cluster_issuer.cert-manager.manifest.yaml.j2
+  local _manifest="$MANIFESTS/cert-manager.cluster_issuer.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/cert-manager/cluster_issuer.manifest.yaml.j2
 
   _make_manifest "$_template" > "$_manifest"
   _apply_manifest "$_manifest"

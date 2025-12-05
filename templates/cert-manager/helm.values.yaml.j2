@@ -1,0 +1,10 @@
+config:
+  apiVersion: 'controller.config.cert-manager.io/v1alpha1'
+  kind: ControllerConfiguration
+  enableGatewayAPI: true
+{%- if gateway_api_exp_crds_enabled %}
+extraArgs:
+- --feature-gates=ExperimentalGatewayAPISupport=true
+{%- endif %}
+crds:
+  enabled: true
