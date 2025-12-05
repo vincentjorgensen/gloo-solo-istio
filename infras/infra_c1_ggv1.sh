@@ -6,7 +6,6 @@ export GSI_NETWORK=$GSI_CLUSTER
 
 # Testing Apps
 export HELLOWORLD_ENABLED=true
-export HTTPBIN_ENABLED=true
 export NETSHOOT_ENABLED=true
 
 # Gateways

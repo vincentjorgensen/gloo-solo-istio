@@ -3,25 +3,25 @@ provider:
 serviceAccount:
   create: true
   name: external-dns
-rbac:
-  additionalPermissions:
-  - apiGroups:
-    - ""
-    resources:
-    - namespaces
-    verbs:
-    - get
-    - watch
-    - list
-  - apiGroups:
-    - gateway.networking.k8s.io
-    resources:
-    - gateways
-    - httproutes
-    verbs:
-    - get
-    - watch
-    - list
+###rbac:
+###  additionalPermissions:
+###  - apiGroups:
+###    - ""
+###    resources:
+###    - namespaces
+###    verbs:
+###    - get
+###    - watch
+###    - list
+###  - apiGroups:
+###    - gateway.networking.k8s.io
+###    resources:
+###    - gateways
+###    - httproutes
+###    verbs:
+###    - get
+###    - watch
+###    - list
 sources:
 - service
 - ingress

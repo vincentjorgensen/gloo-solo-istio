@@ -62,7 +62,7 @@ function exec_istio_base {
   done
 
   local _manifest="$MANIFESTS/helm.istio-base.${_cluster}.yaml"
-  local _template="$TEMPLATES"/helm.istio-base.yaml.j2
+  local _template="$TEMPLATES"/istio/helm.istio-base.yaml.j2
 
   if is_create_mode; then
     _make_manifest "$_template" > "$_manifest"
@@ -84,7 +84,7 @@ function exec_istio_base {
 
 function exec_istio_istiod {
   local _manifest="$MANIFESTS/helm.istiod.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.istiod.yaml.j2
+  local _template="$TEMPLATES"/istio/helm.istiod.yaml.j2
 
   if is_create_mode; then
     _make_manifest "$_template" > "$_manifest"
@@ -104,7 +104,7 @@ function exec_istio_istiod {
 
 function exec_istio_cni {
   local _manifest="$MANIFESTS/helm.istio-cni.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.istio-cni.yaml.j2
+  local _template="$TEMPLATES"/istio/helm.istio-cni.yaml.j2
 
   if is_create_mode; then
     _make_manifest "$_template" > "$_manifest"
@@ -124,7 +124,7 @@ function exec_istio_cni {
 
 function exec_istio_ztunnel {
   local _manifest="$MANIFESTS/helm.ztunnel.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.ztunnel.yaml.j2
+  local _template="$TEMPLATES"/istio/helm.ztunnel.yaml.j2
 
   if is_create_mode; then
     _make_manifest "$_template" > "$_manifest"
@@ -144,7 +144,7 @@ function exec_istio_ztunnel {
 
 function exec_telemetry_defaults {
   local _template="$TEMPLATES"/telemetry.istio-system.manifest.yaml
-  local _manifest="$MANIFESTS"/telemetry.istio-system."$GSI_CLUSTER".yaml
+  local _manifest="$MANIFESTS"/istio/telemetry.istio-system."$GSI_CLUSTER".yaml
 
   cp "$_template"                                                              \
      "$_manifest"

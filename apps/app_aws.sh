@@ -2,11 +2,11 @@
 
 function app_init_aws {
   if $AWS_ENABLED; then
-    if $CERT_MANAGER_ENABLED; then
+    if $AWS_PCA_ENABLED; then
       exec_initialize_root_pca
     fi
 
-    if $COGNITO_ENABLED; then
+    if $AWS_COGNITO_ENABLED; then
       exec_cognito_route_option
     fi
   fi

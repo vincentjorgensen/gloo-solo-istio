@@ -105,6 +105,11 @@ global:
       enabled: true
       deployment:
         logLevel: debug
+  glooStats:
+    podMonitor:
+      releaseLabel: prometheus-stack
+    serviceMonitor:
+      releaseLabel: prometheus-stack
 settings:
 {%- if gloo_gateway_v1_enabled %}
   writeNamespace: {{ gloo_gateway_namespace }}
