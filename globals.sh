@@ -510,16 +510,19 @@ function gsi_init {
   fi
   if $AWS_ENABLED; then
     AWS_FLAG=enabled
+    DOCKER_DESKTOP_ENABLED=false 
     # shellcheck disable=SC2299
     COGNITO_ISSUER_FQDN="${${COGNITO_ISSUER_URL##*//}%%/*}"
     echo '#' Amazon AWS is enabled
   fi
   if $AZURE_ENABLED; then
     AZURE_FLAG=enabled
+    DOCKER_DESKTOP_ENABLED=false 
     echo '#' Microsoft AZURE is enabled
   fi
   if $GCP_ENABLED; then
     GCP_FLAG=enabled
+    DOCKER_DESKTOP_ENABLED=false 
     echo '#' Google GCP is enabled
   fi
 
