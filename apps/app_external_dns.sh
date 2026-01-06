@@ -7,11 +7,11 @@ function app_init_external_dns {
 
 function exec_external_dns_for_pihole {
   local _manifest="$MANIFESTS/helm.external-dns.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES/helm.external-dns.yaml.j2"
+  local _template="$TEMPLATES/external-dns/helm.values.yaml.j2"
   local _de_manifest="$MANIFESTS/external-dns-${GSI_CLUSTER}/deployment.external-dns.patch.yaml"
-  local _de_template="$TEMPLATES"/deployment.external-dns.patch.yaml
+  local _de_template="$TEMPLATES"/external-dns/deployment.patch.yaml
   local _kustomize_renderer="$MANIFESTS/external-dns-${GSI_CLUSTER}/kustomize.sh"
-  local _kustomization_template="$TEMPLATES"/external-dns.pihole.kustomization.yaml.j2
+  local _kustomization_template="$TEMPLATES"/external-dns/pihole.kustomization.yaml.j2
   local _kustomization="$MANIFESTS/external-dns-${GSI_CLUSTER}/kustomization.yaml"
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 

@@ -1,0 +1,15 @@
+---
+provider:
+  name: pihole
+serviceAccount:
+  create: true
+  name: external-dns
+sources:
+- service
+- ingress
+- gateway-httproute
+registry: noop
+extraArgs:
+  pihole-api-version: 6
+  pihole-server: http://{{ pihole_server_address }}
+...
