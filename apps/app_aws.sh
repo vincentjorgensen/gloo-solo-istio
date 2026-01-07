@@ -415,7 +415,8 @@ function create_aws_pca_issuer {
         _namespace=$OPTARG ;;
     esac
   done
-  local _manifest="$MANIFESTS"/awspca_issuer."$_component"."$_namespace"."$GSI_CLUSTER".yaml
+  local _manifest="$MANIFESTS"/aws.awspca_issuer."$_component"."$_namespace"."$GSI_CLUSTER".yaml
+  local _template="$TEMPLATES"/aws/awspca_issuer.manifest.yaml.j2
   export AWSPCA_ISSUER="aws-pca-issuer-${_component}"
   export AWSPCA_ISSUER_KIND="AWSPCAIssuer"
 
@@ -423,7 +424,7 @@ function create_aws_pca_issuer {
          -D namespace="$_namespace"                                            \
          -D ca_arn="$_ca_arn"                                                  \
          -D ca_region="us-west-2"                                              \
-         "$TEMPLATES"/awspca_issuer.manifest.yaml.j2                           \
+         "$_template"                                                          \
   > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                 \
@@ -446,7 +447,8 @@ function create_aws_pca_cluster_issuer {
     esac
   done
 
-  local _manifest="$MANIFESTS"/awspca_cluster_issuer."$_component"."$_namespace"."$GSI_CLUSTER".yaml
+  local _manifest="$MANIFESTS"/aws.awspca_cluster_issuer."$_component"."$_namespace"."$GSI_CLUSTER".yaml
+  local _template="$TEMPLATES"/aws/awspca_cluster_issuer.manifest.yaml.j2
   export AWSPCA_ISSUER="aws-pca-cluster-issuer-${_component}"
   export AWSPCA_ISSUER_KIND="AWSPCAClusterIssuer"
 
@@ -454,7 +456,7 @@ function create_aws_pca_cluster_issuer {
          -D namespace="$_namespace"                                           \
          -D ca_arn="$_ca_arn"                                                 \
          -D ca_region="us-west-2"                                             \
-         "$TEMPLATES"/awspca_cluster_issuer.manifest.yaml.j2                  \
+         "$_template"                                                          \
   > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
@@ -464,8 +466,8 @@ function create_aws_pca_cluster_issuer {
 # END
 
 function exec_cognito_route_option {
-  local _manifest="$MANIFESTS"/route_option.cognitio."$GSI_CLUSTER".yaml
-  local _template="$TEMPLATES"/route_options.cognito.manifest.yaml.j2
+  local _manifest="$MANIFESTS"/aws.route_option.cognitio."$GSI_CLUSTER".yaml
+  local _template="$TEMPLATES"/aws/route_options.cognito.manifest.yaml.j2
 
   _make_manifest "$_template" > "$_manifest"
   _apply_manifest "$_manifest"
