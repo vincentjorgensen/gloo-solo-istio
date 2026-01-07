@@ -62,7 +62,8 @@ function exec_spire_server {
   local _kustomize_renderer="$MANIFESTS/spire-${GSI_CLUSTER}/kustomize.sh"
   local _kustomize="$MANIFESTS/spire-${GSI_CLUSTER}/kustomization.yaml"
   local _kustomize_template="$TEMPLATES"/spire/kustomization.yaml.j2
-#  local _federation_patch="$MANIFESTS/spire-${GSI_CLUSTER}/spire-federation-patch.yaml"
+#  local _fed_patch_manifest="$MANIFESTS/spire-${GSI_CLUSTER}/spire-federation-patch.yaml"
+#  local _fed_patch_template="$TEMPLATES"/spire/spire-federation-patch.yaml.j2
   local _post_renderer=""
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
@@ -84,9 +85,9 @@ function exec_spire_server {
 
     _make_manifest "$_kustomize_template" > "$_kustomize"
 
-##      jinja2 -D spire_namespace="$SPIRE_NAMESPACE"                            \
-##             "$TEMPLATES"/spire-federation-patch.yaml.j2                      \
-##        > "$_federation_patch"
+##      jinja2 -D spire_namespace="$SPIRE_NAMESPACE"                           \
+##             "$_fed_patch_template"                                          \
+##        > "$_fed_patch_manifest"
 
       cp "$TEMPLATES"/kustomize.sh "$_kustomize_renderer"
       _post_renderer="--post-renderer $_kustomize_renderer"
