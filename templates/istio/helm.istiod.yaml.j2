@@ -14,7 +14,7 @@ license:
 {%- endif %}
 global:
   hub: {{ istio_repo }}
-  tag: {{ istio_ver }}{{ istio_flavor }}
+  tag: {{ istio_ver }}{{ istio_flavor | default('',true) }}
   variant: {{ istio_variant }}
 {%- if multicluster_enabled %}
   meshID: {{ mesh_id }}
@@ -23,6 +23,12 @@ global:
     enabled: true
   network: {{ network }}
 {%- endif %}
+##%- if flat_network_enabled %}
+#pilot:
+#  cni:
+#    namespace: istio-system
+#    enabled: true
+##%- endif %}
 {%- if spire_enabled %}
 gateways:
   spire:
@@ -35,9 +41,17 @@ env:
 ######  VERIFY_CERTIFICATE_AT_CLIENT: false
 {%- if ambient_enabled %}
 {%-   if not istio_127_enabled %}
-  PILOT_ENABLE_ALPHA_GATEWAY_API: true # Don't know what this does # For EW Gateway TLS # Broken in 1.27.2
+###  PILOT_ENABLE_ALPHA_GATEWAY_API: true # Don't know what this does # For EW Gateway TLS # Broken in 1.27.2
 {%-   endif %}
-  PILOT_ENABLE_ALPHA_GATEWAY_API: true # Don't know what this does # For EW Gateway TLS # Broken in 1.27.2
+{%-   if flat_network_enabled %}
+  PEERING_ENABLE_FLAT_NETWORKS: "true"
+  DISABLE_LEGACY_MULTICLUSTER: "true"
+{%-   endif %}
+{%-   if istio_repo == "docker.io/istio" and multicluster_enabled %} 
+  # For OSS Multicluster Only
+  AMBIENT_ENABLE_MULTI_NETWORK: "true"
+{%-   endif %}
+  PILOT_ENABLE_ALPHA_GATEWAY_API: true
   PILOT_ENABLE_IP_AUTOALLOCATE: true
   PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
   PILOT_ENABLE_WORKLOAD_ENTRY_HEALTHCHECKS: true
@@ -47,6 +61,9 @@ meshConfig:
   defaultConfig:
     holdApplicationUntilProxyStarts: true
     proxyMetadata:
+##%- if flat_network_enabled %}
+#      ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+##%- endif %}
       ISTIO_META_DNS_CAPTURE: "true"
   defaultHttpRetryPolicy:
     attempts: 3

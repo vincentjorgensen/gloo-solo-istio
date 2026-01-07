@@ -2,7 +2,7 @@
 revision: {{ istio_revision }}
 {%- endif %}
 hub: {{ istio_repo }}
-tag: {{ istio_ver }}{{ istio_flavor }}
+tag: {{ istio_ver }}{{ istio_flavor |default('',true) }}
 variant: {{ istio_variant }}
 {%- if multicluster_enabled %}
 multiCluster:
@@ -13,6 +13,9 @@ env:
   ISTIO_META_ENABLE_HBONE: true
   ISTIO_META_DNS_CAPTURE: true
   SKIP_VALIDATE_TRUST_DOMAIN: true
+##%- if flat_network_enabled %}
+#  L7_ENABLED: "true"
+##%- endif %}
 {%- if docker_desktop_enabled %}
 resources:
   limits:
@@ -30,4 +33,13 @@ spire:
 l7Telemetry:
   distributedTracing:
     otlpEndpoint: "http://gloo-telemetry-collector.{{ gme_namespace }}.svc.cluster.local:4317"
+{%- endif %}
+{%- if flat_network_enabled %}
+profile: ambient
+platforms:
+  peering:
+    enabled: true
+terminationGracePeriodSeconds: 29
+configValidation: true
+enabled: true
 {%- endif %}

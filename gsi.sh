@@ -78,7 +78,8 @@ function rew_gsi {
 }
 
 function dry_run_gsi {
-  local infra=$1
+  [[ -n $1 ]] && UTAG=$1
+  local infra=${1:-$UTAG}
 
   # shellcheck source=/dev/null
   source "$(dirname "$0")/infras/infra_${infra}.sh"

@@ -143,8 +143,8 @@ function exec_istio_ztunnel {
 }
 
 function exec_telemetry_defaults {
-  local _template="$TEMPLATES"/telemetry.istio-system.manifest.yaml
-  local _manifest="$MANIFESTS"/istio/telemetry.istio-system."$GSI_CLUSTER".yaml
+  local _manifest="$MANIFESTS"/telemetry.istio-system."$GSI_CLUSTER".yaml
+  local _template="$TEMPLATES"/istio/telemetry.istio-system.manifest.yaml
 
   cp "$_template"                                                              \
      "$_manifest"

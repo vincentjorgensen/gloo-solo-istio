@@ -5,6 +5,7 @@ gloo:
     enabled: true
   gateway:
     readGatewaysFromAllNamespaces: true 
+    compressedProxySpec: true
   gatewayProxies:
     gatewayProxy:
       disabled: true
@@ -57,6 +58,14 @@ gloo:
   kubeGateway:
 {%- if gloo_gateway_v1_enabled %}
     enabled: true
+###    gatewayParameters:
+###      glooGateway:
+###        envoyContainer:
+###          image:
+###            registry: us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod
+###            repository: envoy-gloo-ee-standard-debug
+###            tag: v1.35.6-patch1-asan
+###            digest: sha256:b406f31bd5fc3f5322585f901f0e6e1402cc197ac06dba640d8722a5092742f5
 {%- else %}
     enabled: false
 {%- endif %}

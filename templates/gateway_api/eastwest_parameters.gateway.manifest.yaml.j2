@@ -26,6 +26,9 @@ data:
       maxReplicas: {{ eastwest_size }}
 
   deployment: |
+    metadata:
+      labels:
+        app: {{ eastwest_gateway }}
     spec:
       replicas: {{ eastwest_size }}
 {%-   if docker_desktop_enabled %}
@@ -42,8 +45,14 @@ data:
                 memory: 64m
 {%-   endif %}
 
-{%-   if aws_enabled %}
   service: |
+    metadata:
+      labels:
+        topology.istio.io/cluster: {{ cluster }}
+        topology.kubernetes.io/region: {{ region }}
+        topology.kubernetes.io/zone: {{ zones[0] }}
+        istio.io/expose-istiod: "15012"
+{%-   if aws_enabled %}
     annotations:
       external-dns.alpha.kubernetes.io/hostname: "eastwest-gateway.{{ network }}.{{ tldn }}"
       service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp

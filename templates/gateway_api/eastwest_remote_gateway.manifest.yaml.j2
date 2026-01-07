@@ -6,7 +6,10 @@ metadata:
     gateway.istio.io/service-account: {{ eastwest_gateway }}
     gateway.istio.io/trust-domain: {{ trust_domain }}
   labels:
+    topology.istio.io/cluster: {{ cluster }}
     topology.istio.io/network: {{ network }}
+    topology.kubernetes.io/region: {{ region }}
+    topology.kubernetes.io/zone: {{ zones[0] }}
 {%- if eastwest_remote_gateway_class == "istio-remote" %}
 {%-   if istio_revision %}
     istio.io/rev: {{ istio_revision }}

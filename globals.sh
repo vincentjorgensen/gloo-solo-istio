@@ -190,6 +190,7 @@ export GATEWAY_API_EXP_CRDS_FLAG
 #-------------------------------------------------------------------------------
 # Eastwest Gateway Settings
 #-------------------------------------------------------------------------------
+export FLAT_NETWORK_ENABLED=${FLAT_NETWORK_ENABLED:-false}
 export MULTICLUSTER_ENABLED=${MULTICLUSTER_ENABLED:-false}
 export EASTWEST_NAMESPACE=eastwest-gateways
 export EASTWEST_GATEWAY=eastwest-gateway
@@ -269,29 +270,25 @@ export KEYCLOAK_TOKEN KEYCLOAK_CLIENT KEYCLOAK_SECRET KEYCLOAK_ID
 #-------------------------------------------------------------------------------
 # Istio Versions
 #-------------------------------------------------------------------------------
+export HELM_REPO_PUB=istio
+export ISTIO_REPO_PUB=docker.io/istio
+export HELM_REPO_GEN=oci://us-docker.pkg.dev/soloio-img/istio-helm
+export ISTIO_REPO_GEN=us-docker.pkg.dev/soloio-img/istio
+export ISTIO_DISTRO_GEN=distroless
+export REVISION_GEN=main
+
 export ISTIO_ENABLED=${ISTIO_ENABLED:-false}
 export ISTIO_NAMESPACE=istio-system
 export AMBIENT_NAMESPACE=$ISTIO_NAMESPACE
 export SIDECAR_NAMESPACE=$ISTIO_NAMESPACE
 export PEERING_DISCOVERY_SUFFIX="mesh.internal"
-export HELM_REPO_123=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
-export ISTIO_REPO_123=us-docker.pkg.dev/gloo-mesh/istio-207627c16668
-export ISTIO_VER_123=1.23.6-patch2
-export HELM_REPO_124=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-4d37697f9711
-export ISTIO_REPO_124=us-docker.pkg.dev/gloo-mesh/istio-4d37697f9711
-export ISTIO_VER_124=1.24.6-patch0
-export HELM_REPO_125=oci://us-docker.pkg.dev/soloio-img/istio-helm
-export ISTIO_REPO_125=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_125=1.25.3-patch0
-export HELM_REPO_126=oci://us-docker.pkg.dev/soloio-img/istio-helm
-export ISTIO_REPO_126=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_126=1.26.6
-export HELM_REPO_127=oci://us-docker.pkg.dev/soloio-img/istio-helm
-export ISTIO_REPO_127=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_127=1.27.4
-export HELM_REPO_128=oci://us-docker.pkg.dev/soloio-img/istio-helm
-export ISTIO_REPO_128=us-docker.pkg.dev/soloio-img/istio
-export ISTIO_VER_128=1.28.1
+export ISTIO_VER_123=1.23.6-patch6
+export ISTIO_VER_124=1.24.6-patch2
+export ISTIO_VER_125=1.25.5-patch2
+export ISTIO_VER_126=1.26.8
+export ISTIO_VER_127=1.27.5
+export ISTIO_VER_128=1.28.2
+export ISTIO_DEFAULT=128_SOLO
 export ISTIO_SECRET=cacerts
 export DEFAULT_MESH_ID="mesh"
 export DEFAULT_TRUST_DOMAIN="cluster.local"
@@ -299,10 +296,75 @@ export TRUST_DOMAIN=${TRUST_DOMAIN:-$DEFAULT_TRUST_DOMAIN}
 export MESH_ID=${MESH_ID:-$DEFAULT_MESH_ID}
 export ISTIO_PEER_AUTH_MODE="STRICT" # STRICT, PERMISSIVE, UNSET, DISABLED (not allowed for ztunnel)
 export SIDECAR_INJECTOR_WEBHOOKS_ENABLED=${SIDECAR_INJECTOR_WEBHOOKS_ENABLED:-false}
+
+# OSS Istio 1.27
+export ISTIO_VER_127_OSS=$ISTIO_VER_127
+export ISTIO_REPO_127_OSS=$ISTIO_REPO_PUB
+export HELM_REPO_127_OSS=$HELM_REPO_PUB
+export ISTIO_FLAVOR_127_OSS=''
+export ISTIO_DISTRO_127_OSS=$ISTIO_DISTRO_GEN
+export REVISION_127_OSS=$REVISION_GEN
+
+# OSS Istio 1.28
+export ISTIO_VER_128_OSS=$ISTIO_VER_128
+export ISTIO_REPO_128_OSS=$ISTIO_REPO_PUB
+export HELM_REPO_128_OSS=$HELM_REPO_PUB
+export ISTIO_FLAVOR_128_OSS=''
+export ISTIO_DISTRO_128_OSS=$ISTIO_DISTRO_GEN
+export REVISION_128_OSS=$REVISION_GEN
+
+# Solo Istio 1.23
+export ISTIO_VER_123_SOLO=$ISTIO_VER_123
+export ISTIO_REPO_123_SOLO=us-docker.pkg.dev/gloo-mesh/istio-207627c16668
+export HELM_REPO_123_SOLO=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-207627c16668
+export ISTIO_FLAVOR_123_SOLO='-solo'
+export ISTIO_DISTRO_123_SOLO=$ISTIO_DISTRO_GEN
+export REVISION_123_SOLO=$REVISION_GEN
+
+# Solo Istio 1.24
+export ISTIO_VER_124_SOLO=$ISTIO_VER_124
+export ISTIO_REPO_124_SOLO=us-docker.pkg.dev/gloo-mesh/istio-4d37697f9711
+export HELM_REPO_124_SOLO=oci://us-docker.pkg.dev/gloo-mesh/istio-helm-4d37697f9711
+export ISTIO_FLAVOR_124_SOLO='-solo'
+export ISTIO_DISTRO_124_SOLO=$ISTIO_DISTRO_GEN
+export REVISION_124_SOLO=$REVISION_GEN
+
+# Solo Istio 1.25
+export ISTIO_VER_125_SOLO=$ISTIO_VER_125
+export ISTIO_REPO_125_SOLO=$ISTIO_REPO_GEN
+export HELM_REPO_125_SOLO=$HELM_REPO_GEN
+export ISTIO_FLAVOR_125_SOLO='-solo'
+export ISTIO_DISTRO_125_SOLO=$ISTIO_DISTRO_GEN
+export REVISION_125_SOLO=$REVISION_GEN
+
+# Solo Istio 1.26
+export ISTIO_VER_126_SOLO=$ISTIO_VER_126
+export ISTIO_REPO_126_SOLO=$ISTIO_REPO_GEN
+export HELM_REPO_126_SOLO=$HELM_REPO_GEN
+export ISTIO_FLAVOR_126_SOLO='-solo'
+export ISTIO_DISTRO_126_SOLO=$ISTIO_DISTRO_GEN
+export REVISION_126_SOLO=$REVISION_GEN
+
+# Solo Istio 1.27
+export ISTIO_VER_127_SOLO=$ISTIO_VER_127
+export ISTIO_REPO_127_SOLO=$ISTIO_REPO_GEN
+export HELM_REPO_127_SOLO=$HELM_REPO_GEN
+export ISTIO_FLAVOR_127_SOLO='-solo'
+export ISTIO_DISTRO_127_SOLO=$ISTIO_DISTRO_GEN
+export REVISION_127_SOLO=$REVISION_GEN
+
+# Solo Istio 1.28
+export ISTIO_VER_128_SOLO=$ISTIO_VER_128
+export ISTIO_REPO_128_SOLO=$ISTIO_REPO_GEN
+export HELM_REPO_128_SOLO=$HELM_REPO_GEN
+export ISTIO_FLAVOR_128_SOLO='-solo'
+export ISTIO_DISTRO_128_SOLO=$ISTIO_DISTRO_GEN
+export REVISION_128_SOLO=$REVISION_GEN
+###
 # Traffic Distribution: PreferNetwork, PreferClose, PreferRegion, Any
-export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO ISTIO_126_FLAG
+export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO
 export REVISION TRAFFIC_DISTRIBUTION SIDECAR_INJECTOR_WEBHOOKS_FLAG
-export ISTIO_127_FLAG
+export ISTIO_126_FLAG ISTIO_127_FLAG ISTIO_128_FLAG
 
 #-------------------------------------------------------------------------------
 # Istio Dataplane Modes
@@ -313,6 +375,8 @@ export SIDECAR_FLAG AMBIENT_FLAG
 
 #-------------------------------------------------------------------------------
 # Gloo Mesh Enterprise (GME)
+# AKA Gloo UI
+# AKA Gloo Mesh Core (GMC)
 #-------------------------------------------------------------------------------
 export GME_ENABLED=${GME_ENABLED:-false}
 export GME_NAMESPACE=$GLOO_MESH_NAMESPACE
@@ -345,7 +409,8 @@ export GME_FLAG GME_MGMT_AGENT_FLAG GLOOUI_FLAG
 #-------------------------------------------------------------------------------
 # Current cluster identifiers
 #-------------------------------------------------------------------------------
-export GSI_MODE GSI_CLUSTER GSI_CONTEXT GSI_NETWORK
+export GSI_MODE GSI_ISTIO
+export GSI_CLUSTER GSI_CONTEXT GSI_NETWORK 
 export GSI_REMOTE_CLUSTER GSI_REMOTE_CONTEXT GSI_REMOTE_NETWORK
 export GSI_MGMT_CLUSTER GSI_MGMT_CONTEXT GSI_MGMT_NETWORK
 
@@ -360,32 +425,16 @@ function set_gsi_mode {
   export GSI_MODE=${1:-$DEFAULT_GSI_MODE}
 }
 
-function set_revision {
-  export REVISION="$1"
-}
-
 function set_istio {
-  local _istio=$1
-  local _flavor=$2
-  local _variant=$3
-
-  export ISTIO_VER ISTIO_REPO HELM_REPO ISTIO_FLAVOR ISTIO_DISTRO
-  ISTIO_VER=$(eval echo \$ISTIO_VER_"${_istio//.}")
-  ISTIO_REPO=$(eval echo \$ISTIO_REPO_"${_istio//.}")
-  HELM_REPO=$(eval echo \$HELM_REPO_"${_istio//.}")
-  [[ -n $_flavor ]] && ISTIO_FLAVOR="-${_flavor}"
-  [[ -n $_variant ]] && ISTIO_DISTRO="${_variant}"
-
-  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
-    ISTIO_126_FLAG="enabled"
+  if [[ -z "$GSI_ISTIO" ]]; then
+    GSI_ISTIO=$ISTIO_DEFAULT
   fi
-
-  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 27 ]]; then
-    ISTIO_127_FLAG="enabled"
-  fi
-##  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 27 ]]; then
-##    ISTIO_126_FLAG="enabled"
-##  fi
+  ISTIO_VER=$(eval echo \$ISTIO_VER_"${GSI_ISTIO//.}")
+  ISTIO_REPO=$(eval echo \$ISTIO_REPO_"${GSI_ISTIO//.}")
+  HELM_REPO=$(eval echo \$HELM_REPO_"${GSI_ISTIO//.}")
+  ISTIO_FLAVOR=$(eval echo \$ISTIO_FLAVOR_"${GSI_ISTIO//.}")
+  ISTIO_DISTRO=$(eval echo \$ISTIO_DISTRO_"${GSI_ISTIO//.}")
+  REVISION=$(eval echo \$REVISION_"${GSI_ISTIO//.}")
 }
 
 function set_gme {
@@ -396,8 +445,7 @@ function set_gme {
 }
 
 function gsi_set_defaults {
-  set_revision main
-  set_istio 1.28 solo distroless
+  set_istio
   set_gme
 }
 
@@ -434,6 +482,11 @@ function gsi_init {
     # shellcheck disable=SC1090
     source "$INFRAS/infra_${UTAG}.sh"
   fi
+
+  #############################################################################
+  # Set defaults based on pre-config
+  #############################################################################
+  gsi_set_defaults
 
   #############################################################################
   # Support infrastructure which affects later fields
@@ -543,6 +596,14 @@ function gsi_init {
     AMBIENT_FLAG=enabled
     echo '#' Istio Ambient dataplane is enabled
   fi
+
+  if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
+    ISTIO_126_FLAG="enabled"
+  elif [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 27 ]]; then
+    ISTIO_127_FLAG="enabled"
+  elif [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 28 ]]; then
+    ISTIO_128_FLAG="enabled"
+  fi
   
   #----------------------------------------------------------------------------
   # Multicluster
@@ -556,6 +617,10 @@ function gsi_init {
       EASTWEST_GATEWAY_CLASS=istio-eastwest
       EASTWEST_REMOTE_GATEWAY_CLASS=istio-remote
       echo '#' Ambient Multicluster is enabled
+    fi
+    if $FLAT_NETWORK_ENABLED; then
+      FLAT_NETWORK_FLAG="enabled"
+      echo '#' Ambient Multicluster Flat Network is enabled
     fi
   fi
 
@@ -670,10 +735,8 @@ function gsi_init {
   fi
 
   #############################################################################
-  # Set defaults based on pre-config
   # Generate the Global J2 parameters
   #############################################################################
-  gsi_set_defaults
   $ITER_MC _jinja2_values
 }
 
@@ -905,6 +968,7 @@ function _jinja2_values {
          -D eastwest_namespace="$EASTWEST_NAMESPACE"                           \
          -D eastwest_size="$EASTWEST_SIZE"                                     \
          -D extauth_enabled="$EXTAUTH_FLAG"                                    \
+         -D flat_network_enabled="$FLAT_NETWORK_FLAG"                          \
          -D gcp_enabled="$GCP_FLAG"                                            \
          -D gloo_edge_enabled="$GLOO_EDGE_FLAG"                                \
          -D gloo_edge_namespace="$GLOO_EDGE_NAMESPACE"                         \
@@ -949,6 +1013,7 @@ function _jinja2_values {
          -D ingress_size="$INGRESS_SIZE"                                       \
          -D istio_126_enabled="$ISTIO_126_FLAG"                                \
          -D istio_127_enabled="$ISTIO_127_FLAG"                                \
+         -D istio_128_enabled="$ISTIO_128_FLAG"                                \
          -D istio_enabled="$ISTIO_ENABLED"                                     \
          -D istio_flavor="$ISTIO_FLAVOR"                                       \
          -D istio_namespace="$ISTIO_NAMESPACE"                                 \

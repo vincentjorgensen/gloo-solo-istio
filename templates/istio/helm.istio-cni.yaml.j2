@@ -5,10 +5,15 @@ revision: {{ istio_revision }}
 {%- endif %}
 global:
   hub: {{ istio_repo }}
-  tag: {{ istio_ver }}{{ istio_flavor }}
+  tag: {{ istio_ver }}{{ istio_flavor | default('',true) }}
   variant: {{ istio_variant }}
 ambient:
   dnsCapture: true
+##%- if flat_network_enabled %}
+#excludeNamespaces:
+#- istio-system
+#- kube-system
+##%- endif %}
 {%- if docker_desktop_enabled %}
 resources:
   limits:
