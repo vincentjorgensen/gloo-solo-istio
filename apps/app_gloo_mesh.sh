@@ -70,8 +70,8 @@ function create_gme_secrets {
     esac
   done
 
-  local _manifest="$MANIFESTS/gme.secret.relay-token.${_cluster}.yaml"
-  local _template="$TEMPLATES"/gme.secret.relay-token.manifest.yaml.j2
+  local _manifest="$MANIFESTS"/gloo-mesh.secret.relay-token."${_cluster}".yaml
+  local _template="$TEMPLATES"/gloo-mesh/secret.relay-token.manifest.yaml.j2
 
   _make_manifest "$_template" > "$_manifest"
 
@@ -107,8 +107,8 @@ function exec_gloo_platform_crds {
 }
 
 function exec_gloo_mgmt_server {
-  local _manifest="$MANIFESTS/helm.gloo-mgmt-server.${GSI_MGMT_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.gloo-mgmt-server.yaml.j2
+  local _manifest="$MANIFESTS/helm.gloo-mesh-mgmt-server.${GSI_MGMT_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gloo-mesh/helm.values-server.yaml.j2
 
   if is_create_mode; then
     _make_manifest "$_template" > "$_manifest"
@@ -133,8 +133,8 @@ function exec_gloo_mgmt_server {
 }
 
 function exec_gloo_k8s_cluster {
-  local _manifest="$MANIFESTS/gloo.k8s_cluster.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/gloo.k8s_cluster.manifest.yaml.j2
+  local _manifest="$MANIFESTS"/gloo-mesh.k8s_cluster."${GSI_CLUSTER}".yaml
+  local _template="$TEMPLATES"/gloo-mesh/k8s_cluster.manifest.yaml.j2
 
   _make_manifest "$_template" > "$_manifest"
   _apply_manifest "$_manifest"
@@ -152,8 +152,8 @@ function create_gloo_k8s_cluster {
     esac
   done
 
-  local _manifest="$MANIFESTS/gloo.k8s_cluster.${_cluster}.yaml"
-  local _template="$TEMPLATES"/gloo.k8s_cluster.manifest.yaml.j2
+  local _manifest="$MANIFESTS"/gloomesh.k8s_cluster."${_cluster}".yaml
+  local _template="$TEMPLATES"/gloo-mesh/k8s_cluster.manifest.yaml.j2
 
   _make_manifest "$_template" > "$_manifest"
   _apply_manifest "$_manifest"
@@ -161,6 +161,7 @@ function create_gloo_k8s_cluster {
 
 function exec_gloo_agent {
   local _manifest="$MANIFESTS/helm.gloo-agent.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gloo-mesh/helm.values-agent.yaml.j2             
 
   GLOO_MESH_SERVER=$(kubectl get svc gloo-mesh-mgmt-server                    \
     --context "$GSI_MGMT_CONTEXT"                                             \
@@ -181,7 +182,7 @@ function exec_gloo_agent {
            -D gloo_mesh_server="${GLOO_MESH_SERVER:-GLOO_MESH_SERVER}"        \
            -D gloo_mesh_telemetry_gateway="${GLOO_MESH_TELEMETRY_GATEWAY:-GLOO_MESH_TELEMETRY_GATEWAY}" \
            -D gme_secret="$GME_SECRET"                                        \
-           "$TEMPLATES"/helm.gloo-agent.yaml.j2                               \
+           "$_template"                                                       \
       > "$_manifest"
 
     $DRY_RUN helm upgrade -i gloo-platform-agent gloo-platform/gloo-platform  \
@@ -217,13 +218,14 @@ function create_gloo_virtual_destination {
     esac
   done
 
-  local _manifest="$MANIFESTS/gloo.virtualdestination.${_service_name}.${_workspace_name}.${GSI_CLUSTER}.yaml"
+  local _manifest="$MANIFESTS"/gloo-mesh.virtualdestination."${_service_name}"."${_workspace_name}"."${GSI_CLUSTER}".yaml
+  local _template="$TEMPLATES"/gloo-mesh/virtualdestination.manifest.yaml.j2
 
   jinja2 -D workspace="$_workspace_name"                                      \
          -D app_service_name="$_service_name"                                 \
          -D app_service_port="$_service_port"                                 \
          -D tldn="$TLDN"                                                      \
-         "$TEMPLATES"/gloo.virtualdestination.manifest.yaml.j2                \
+         "$_template"                                                         \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
@@ -246,14 +248,15 @@ function create_gloo_route_table {
 
   echo "sn $_service_name"
 
-  local _manifest="$MANIFESTS/gloo.routetable.${_workspace_name}.${GSI_CLUSTER}.yaml"
+  local _manifest="$MANIFESTS/gloo-mesh.routetable.${_workspace_name}.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES/gloo-mesh/routetable.manifest.yaml"
 
   jinja2 -D workspace="$_workspace_name"                                      \
          -D app_service_name="$_service_name"                                 \
          -D mgmt_cluster="$GSI_MGMT_CLUSTER"                                  \
          -D gateways_workspace="$GME_GATEWAYS_WORKSPACE"                      \
          -D tldn="$TLDN"                                                      \
-         "$TEMPLATES"/gloo.routetable.manifest.yaml.j2                        \
+         "$_template"                                                         \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
@@ -262,13 +265,14 @@ function create_gloo_route_table {
 }
 
 function exec_gloo_virtual_gateway {
-  local _manifest="$MANIFESTS/gloo.virtualgateway.${GSI_CLUSTER}.yaml"
+  local _manifest="$MANIFESTS"/gloo-mesh.virtualgateway."${GSI_CLUSTER}".yaml
+  local _template="$TEMPLATES"/gloo-mesh/virtualgateway.manifest.yaml.j2   
 
   jinja2 -D gateways_workspace="$GME_GATEWAYS_WORKSPACE"                      \
          -D ingress_gateway_cluster_name="$GSI_GATEWAY_CLUSTER"               \
          -D gateways_namespace="$INGRESS_NAMESPACE"                           \
          -D tldn="$TLDN"                                                      \
-         "$TEMPLATES"/gloo.virtualgateway.manifest.yaml.j2                    \
+         "$_template"                                                         \
     > "$_manifest"
 
   create_namespace "$GSI_MGMT_CONTEXT" "$GME_GATEWAYS_WORKSPACE"-config
@@ -307,8 +311,8 @@ function create_gloo_workspacesettings {
     esac
   done
 
-  local _manifest="$MANIFESTS/gloo.workspacesettings.${_workspace_name}.${GSI_MGMT_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/gloo.workspacesettings.manifest.yaml.j2
+  local _manifest="$MANIFESTS/gloo-mesh.workspacesettings.${_workspace_name}.${GSI_MGMT_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gloo-mesh/workspacesettings.manifest.yaml.j2
 
   echo "import_workspaces:" >> "$_ztemp"
   for ws in "${_import_workspaces[@]}"; do
@@ -350,7 +354,8 @@ function create_gloo_workspace {
     esac
   done
 
-  local _manifest="$MANIFESTS/gloo.workspace.${_workspace_name}.${GSI_MGMT_CLUSTER}.yaml"
+  local _manifest="$MANIFESTS/gloo-mesh.workspace.${_workspace_name}.${GSI_MGMT_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gloo-mesh/workspace.manifest.yaml.j2
 
   echo "namespaces:" >> "$_ztemp"
   for ns in "${_namespaces[@]}"; do
@@ -367,7 +372,7 @@ function create_gloo_workspace {
   jinja2 -D name="$_workspace_name"                                           \
          -D namespace="$GME_NAMESPACE"                                        \
          -D mgmt_cluster="$GSI_MGMT_CLUSTER"                                  \
-         "$TEMPLATES"/gloo.workspace.manifest.yaml.j2                         \
+         "$_template"                                                         \
          "$_ztemp".yaml                                                       \
     > "$_manifest"
 
