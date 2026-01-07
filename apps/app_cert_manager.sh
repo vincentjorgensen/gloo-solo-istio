@@ -99,8 +99,8 @@ function create_cert_manager_issuer {
     esac
   done
 
-  local _manifest="$MANIFESTS/issuer.cert-manager.${_name}.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/issuer.cert-manager.manifest.yaml.j2
+  local _manifest="$MANIFESTS/cert-manager/issuer.${_name}.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/cert-manager/issuer.manifest.yaml.j2
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                      \
@@ -117,7 +117,7 @@ function create_cert_manager_issuer {
          -D state="$_state"                                                   \
          -D locale="$_locale"                                                 \
          -D secret_name="$_secret_name"                                       \
-         "$TEMPLATES"/issuer.cert-manager.manifest.yaml.j2                    \
+         "$_template"                                                         \
     > "$_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
