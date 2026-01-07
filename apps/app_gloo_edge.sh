@@ -10,7 +10,7 @@ function app_init_gloo_edge {
 
 function exec_gloo_edge {
   local _manifest="$MANIFESTS/helm.gloo-edge.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.gloo-gateway-v1.yaml.j2
+  local _template="$TEMPLATES"/gloo-edge/helm.values.yaml.j2
 
   _make_manifest "$_template" > "$_manifest"
 
@@ -43,7 +43,7 @@ function create_gloo_edge_virtual_service {
   done
   
   local _manifest="$MANIFESTS/gloo_edge.virtual_service.${_service}.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/gloo_edge/virtual_service.manifest.yaml.j2
+  local _template="$TEMPLATES"/gloo-edge/virtual_service.manifest.yaml.j2
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2 -D service="$_service"                                                \
