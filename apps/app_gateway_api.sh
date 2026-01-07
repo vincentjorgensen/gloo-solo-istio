@@ -54,9 +54,9 @@ function exec_gateway_api_standard_crds {
 function exec_gateway_api_experimental_crds {
   if [[ -z $(eval echo '$'GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
     if is_create_mode; then
-      $DRY_RUN kubectl apply                                                     \
-      --context "$GSI_CONTEXT"                                                   \
-      --server-side=true                                                         \
+      $DRY_RUN kubectl apply                                                   \
+      --context "$GSI_CONTEXT"                                                 \
+      --server-side=true                                                       \
       -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_EXP_VER"/experimental-install.yaml
       [[ -z $DRY_RUN ]] && eval GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
     fi
@@ -72,8 +72,8 @@ function exec_gateway_api_experimental_crds {
 }
 
 function exec_httproute {
-  local _manifest="$MANIFESTS/httproute.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/httproute.manifest.yaml.j2
+  local _manifest="$MANIFESTS/gateway-api.httproute.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gateway-api/httproute.manifest.yaml.j2
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
@@ -82,7 +82,7 @@ function exec_httproute {
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                     \
          -D service_port="$GSI_APP_SERVICE_PORT"                               \
          "$_template"                                                          \
-         "$_j2"                                                               \
+         "$_j2"                                                                \
   > "$_manifest"
 
   _apply_manifest "$_manifest"
@@ -104,8 +104,8 @@ function create_httproute {
     esac
   done
 
-  local _manifest="$MANIFESTS/httproute.${_service_name}.${_namespace}.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/httproute.manifest.yaml.j2
+  local _manifest="$MANIFESTS/gateway-api.httproute.${_service_name}.${_namespace}.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gateway-api/httproute.manifest.yaml.j2
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
@@ -114,7 +114,7 @@ function create_httproute {
          -D service_namespace="$_service_namespace"                            \
          -D service_port="$_service_port"                                      \
          "$_template"                                                          \
-         "$_j2"                                                               \
+         "$_j2"                                                                \
   > "$_manifest"
 
   _apply_manifest "$_manifest"
@@ -126,10 +126,10 @@ function create_httproute {
 }
 
 function exec_eastwest_gateway_api {
-  local _ew_manifest="$MANIFESTS/gateway_api.eastwest_gateway.${GSI_CLUSTER}.yaml"
-  local _ew_template="$TEMPLATES"/gateway_api/eastwest_gateway.gateway.manifest.yaml.j2
-  local _pa_manifest="$MANIFESTS/gateway_api.eastwest_parameters.${GSI_CLUSTER}.yaml"
-  local _pa_template="$TEMPLATES"/gateway_api/eastwest_parameters.gateway.manifest.yaml.j2
+  local _ew_manifest="$MANIFESTS/gateway-api.eastwest_gateway.${GSI_CLUSTER}.yaml"
+  local _ew_template="$TEMPLATES"/gateway-api/eastwest_gateway.gateway.manifest.yaml.j2
+  local _pa_manifest="$MANIFESTS/gateway-api.eastwest_parameters.${GSI_CLUSTER}.yaml"
+  local _pa_template="$TEMPLATES"/gateway-api/eastwest_parameters.gateway.manifest.yaml.j2
 
   _make_manifest "$_pa_template" > "$_pa_manifest"
   _make_manifest "$_ew_template" > "$_ew_manifest"
@@ -142,7 +142,7 @@ function exec_eastwest_gateway_api {
 
 function exec_eastwest_link_gateway_api {
   local _manifest _j2
-  local _template="$TEMPLATES"/gateway_api/eastwest_remote_gateway.manifest.yaml.j2
+  local _template="$TEMPLATES"/gateway-api/eastwest_remote_gateway.manifest.yaml.j2
   local _remote_address _address_type
 
   for cluster in $(env|ggrep GSI_CLUSTER|sed -e 's/GSI_CLUSTER\(.*\)=.*/\1/'); do
@@ -187,12 +187,12 @@ function exec_eastwest_link_gateway_api {
 }
 
 function exec_ingress_gateway_api {
-  local _in_manifest="$MANIFESTS/gateway_api.ingress_gateway.${GSI_CLUSTER}.yaml"
-  local _in_template="$TEMPLATES"/gateway_api/ingress_gateway.gateway.manifest.yaml.j2
-  local _pa_manifest="$MANIFESTS/gateway_api.ingress_parameters.${GSI_CLUSTER}.yaml"
-  local _pa_template="$TEMPLATES"/gateway_api/ingress_parameters.gateway.manifest.yaml.j2
-  local _te_manifest="$MANIFESTS/gateway_api.telemetry.${GSI_CLUSTER}.yaml"
-  local _te_template="$TEMPLATES"/gateway_api/telemetry.gateway.manifest.yaml.j2
+  local _in_manifest="$MANIFESTS/gateway-api.ingress_gateway.${GSI_CLUSTER}.yaml"
+  local _in_template="$TEMPLATES"/gateway-api/ingress_gateway.gateway.manifest.yaml.j2
+  local _pa_manifest="$MANIFESTS/gateway-api.ingress_parameters.${GSI_CLUSTER}.yaml"
+  local _pa_template="$TEMPLATES"/gateway-api/ingress_parameters.gateway.manifest.yaml.j2
+  local _te_manifest="$MANIFESTS/gateway-api.telemetry.${GSI_CLUSTER}.yaml"
+  local _te_template="$TEMPLATES"/gateway-api/telemetry.gateway.manifest.yaml.j2
 
   _label_ns_for_istio "$INGRESS_NAMESPACE"
 
