@@ -24,7 +24,8 @@ function app_init_acmpca {
 
 function exec_initialize_root_pca {
   local _cmd; _cmd=$(mktemp)
-  local _ca_manifest="$MANIFESTS/pca_ca_config_root_ca.json"
+  local _ca_manifest="$MANIFESTS"/aws.pca_ca_config_root_ca.json
+  local _ca_template="$TEMPLATES"/aws/pca_ca_config_root_ca.json
   local _ca_arn="$MANIFESTS/root-ca.arn"
   local _ca_csr="$MANIFESTS/root-ca.csr"
   local _ca_pem="$MANIFESTS/root-ca.pem"
@@ -35,7 +36,7 @@ function exec_initialize_root_pca {
     echo "ROOT_CERT_VALIDITY_IN_DAYS=$ROOT_CERT_VALIDITY_IN_DAYS"
   fi
   
-  cp "$TEMPLATES"/pca_ca_config_root_ca.json                                  \
+  cp "$_ca_template"                                                          \
      "$_ca_manifest"
 
   ROOT_CAARN=$(aws acm-pca list-certificate-authorities                       \
@@ -150,7 +151,8 @@ function create_aws_intermediate_pca {
   local _cmd; _cmd=$(mktemp)
 
   local _component=$1
-  local _ca_manifest="$MANIFESTS/pca_ca_config_intermediate_ca.${_component}.json"
+  local _ca_manifest="$MANIFESTS"/aws.pca_ca_config_intermediate_ca."${_component}".json
+  local _ca_template="$TEMPLATES"/aws/pca_ca_config_intermediate_ca.json.j2
   local _ca_arn="$MANIFESTS/intermediate_ca.${_component}.arn"
   local _ca_csr="$MANIFESTS/intermediate_ca.${_component}.csr"
   local _ca_pem="$MANIFESTS/intermediate-cert.${_component}.pem"
@@ -162,7 +164,7 @@ function create_aws_intermediate_pca {
   fi
 
   jinja2 -D component="$_component"                                           \
-         "$TEMPLATES/pca_ca_config_intermediate_ca.json.j2"                   \
+         "$_ca_template"                                                      \
   > "$_ca_manifest"
 
   SUBORDINATE_CAARN=$(aws acm-pca list-certificate-authorities                \
@@ -283,8 +285,10 @@ EOF
 function create_aws_pca_issuer_role {
   local _cmd; _cmd=$(mktemp)
   local _component=$1
-  local _policy_manifest="$MANIFESTS/AWSPCAIssuerPolicy.${_component}.${GSI_CLUSTER}.json"
-  local _assume_manifest="$MANIFESTS/AWSPCAAssumeRole.${_component}.${GSI_CLUSTER}.json"
+  local _policy_manifest="$MANIFESTS/aws.AWSPCAIssuerPolicy.${_component}.${GSI_CLUSTER}.json"
+  local _policy_template="$TEMPLATES"/aws/AWSPCAIssuerPolicy.json.j2
+  local _assume_manifest="$MANIFESTS/aws.AWSPCAAssumeRole.${_component}.${GSI_CLUSTER}.json"
+  local _assume_template="$TEMPLATES"/aws/AWSPCAAssumeRole.json.j2
   local _policy_arn="$MANIFESTS/AWSPCAIssuerPolicy.${_component}.${GSI_CLUSTER}.arn"
   local _assume_arn="$MANIFESTS/AWSPCAAssumeRole.${_component}.${GSI_CLUSTER}.arn"
 
@@ -301,13 +305,13 @@ function create_aws_pca_issuer_role {
 
   jinja2 -D ca_root_arn="$ROOT_CAARN"                                         \
          -D ca_sub_arn="$SUBORDINATE_CAARN"                                   \
-         "$TEMPLATES/AWSPCAIssuerPolicy.json.j2"                              \
+         "$_policy_template"                                                  \
   > "$_policy_manifest"
 
   jinja2 -D partition="$_partition"                                           \
          -D account_id="$_account_id"                                         \
          -D oidc_issuer="$_oidc_issuer"                                       \
-         "$TEMPLATES/AWSPCAAssumeRole.json.j2"                                \
+         "$_assume_template"                                                  \
   > "$_assume_manifest"
 
   if is_create_mode; then
