@@ -53,6 +53,8 @@ function exec_spire_crds {
 }
 
 function exec_spire_server {
+  local _cid_manifest="$MANIFESTS"/spire.cluster-id."$GSI_CLUSTER".yaml
+  local _cid_template="$TEMPLATES"/spire/cluster-id.manifest.yaml
   local _manifest="$MANIFESTS/helm.spire-server.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/spire/helm.server.yaml.j2
   local _cm_manifest="$MANIFESTS/spire.configmap.server.${GSI_CLUSTER}.yaml"
@@ -108,8 +110,8 @@ function exec_spire_server {
     --namespace "$SPIRE_NAMESPACE"
   fi
 
-  cp "$TEMPLATES"/spire/cluster-id.manifest.yaml                              \
-     "$MANIFESTS"/spire.cluster-id."$GSI_CLUSTER".yaml
+  cp "$_cid_template"                                                         \
+     "$_cid_manifest"
 
 ###  $DRY_RUN kubectl "$GSI_MODE"                                                \
 ###  --context "$GSI_CONTEXT"                                                    \
@@ -137,6 +139,8 @@ function exec_spire_server {
 }
 
 function exec_spire_agent {
+  local _cid_manifest="$MANIFESTS"/spire.cluster-id."$GSI_CLUSTER".yaml
+  local _cid_template="$TEMPLATES"/spire/cluster-id.manifest.yaml
   local _manifest="$MANIFESTS/helm.spire-agent.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/spire/helm.agent.yaml.j2
   local _spire_bundle="$MANIFESTS/configmap.spire-bundle.${GSI_CLUSTER}.yaml"
@@ -178,8 +182,8 @@ function exec_spire_agent {
     --namespace "$SPIRE_NAMESPACE"
   fi
 
-  cp "$TEMPLATES"/spire.cluster-id.manifest.yaml                              \
-     "$MANIFESTS"/spire.cluster-id."$GSI_CLUSTER".yaml
+  cp "$_cid_template"                                                         \
+     "$_cid_manifest"
 
   $DRY_RUN kubectl "$GSI_MODE"                                                \
   --context "$GSI_CONTEXT"                                                    \
