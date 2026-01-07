@@ -31,7 +31,7 @@ function exec_gloo_gateway_v1 {
 
 function exec_gloo_gateway_v1_gateway {
   local _manifest="$MANIFESTS/gloo-gateway-v1.gateway.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/gloo-gateway-v1.gateway.manifest.yaml.j2
+  local _template="$TEMPLATES"/gloo-gateway-v1/gateway.manifest.yaml.j2
 
   _make_manifest "$_template" > "$_manifest"
   _apply_manifest "$_manifest"
