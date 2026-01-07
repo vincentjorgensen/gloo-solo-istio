@@ -25,12 +25,6 @@ function app_init_spire {
 
 function exec_spire_secrets {
   if is_create_mode; then
-###    kubectl "$GSI_MODE" secret generic "$SPIRE_SECRET"                        \
-###    --context "$GSI_CONTEXT"                                                  \
-###    --namespace "$SPIRE_NAMESPACE"                                            \
-###    --from-file=tls.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/ca-cert.pem           \
-###    --from-file=tls.key="$SPIRE_CERTS"/"${GSI_CLUSTER}"/ca-key.pem            \
-###    --from-file=bundle.crt="$SPIRE_CERTS"/"${GSI_CLUSTER}"/cert-chain.pem
     $DRY_RUN kubectl create secret generic "$SPIRE_SECRET"                     \
     --context "$GSI_CONTEXT"                                                   \
     --namespace "$SPIRE_NAMESPACE"                                             \
@@ -46,26 +40,26 @@ function exec_spire_secrets {
 function exec_spire_crds {
   if is_create_mode; then
     # shellcheck disable=SC2086
-    $DRY_RUN helm upgrade --install spire-crds spire/spire-crds                        \
-    --version "$SPIRE_CRDS_VER"                                               \
-    --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$SPIRE_NAMESPACE"                                            \
+    $DRY_RUN helm upgrade --install spire-crds spire/spire-crds                \
+    --version "$SPIRE_CRDS_VER"                                                \
+    --kube-context="$GSI_CONTEXT"                                              \
+    --namespace "$SPIRE_NAMESPACE"                                             \
     --wait
   else
-    $DRY_RUN helm uninstall spire-crds                                                 \
-    --kube-context="$GSI_CONTEXT"                                             \
+    $DRY_RUN helm uninstall spire-crds                                         \
+    --kube-context="$GSI_CONTEXT"                                              \
     --namespace "$SPIRE_NAMESPACE"
   fi
 }
 
 function exec_spire_server {
-  local _manifest="$MANIFESTS/helm.spire.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.spire.yaml.j2
-  local _cm_manifest="$MANIFESTS/spire-${GSI_CLUSTER}/configmap.spire-server.yaml"
-  local _cm_template="$TEMPLATES"/configmap.spire-server.manifest.yaml.j2
+  local _manifest="$MANIFESTS/helm.spire-server.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/spire/helm.server.yaml.j2
+  local _cm_manifest="$MANIFESTS/spire.configmap.server.${GSI_CLUSTER}.yaml"
+  local _cm_template="$TEMPLATES"/spire/configmap.server.manifest.yaml.j2
   local _kustomize_renderer="$MANIFESTS/spire-${GSI_CLUSTER}/kustomize.sh"
   local _kustomize="$MANIFESTS/spire-${GSI_CLUSTER}/kustomization.yaml"
-  local _kustomize_template="$TEMPLATES"/spire.kustomization.yaml.j2
+  local _kustomize_template="$TEMPLATES"/spire/kustomization.yaml.j2
 #  local _federation_patch="$MANIFESTS/spire-${GSI_CLUSTER}/spire-federation-patch.yaml"
   local _post_renderer=""
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
@@ -97,16 +91,16 @@ function exec_spire_server {
     fi
 
     # shellcheck disable=SC2086 disable=SC2046
-    $DRY_RUN helm upgrade --install spire spire/spire                         \
-    --version "$SPIRE_SERVER_VER"                                             \
-    --kube-context="$GSI_CONTEXT"                                             \
-    --namespace "$SPIRE_NAMESPACE"                                            \
-    --values "$_manifest"                                                     \
-    $(eval echo $_post_renderer)                                              \
+    $DRY_RUN helm upgrade --install spire spire/spire                          \
+    --version "$SPIRE_SERVER_VER"                                              \
+    --kube-context="$GSI_CONTEXT"                                              \
+    --namespace "$SPIRE_NAMESPACE"                                             \
+    --values "$_manifest"                                                      \
+    $(eval echo $_post_renderer)                                               \
     --wait
 
-    $DRY_RUN kubectl wait                                                     \
-    --namespace "$SPIRE_NAMESPACE"                                            \
+    $DRY_RUN kubectl wait                                                      \
+    --namespace "$SPIRE_NAMESPACE"                                             \
     --for=condition=Ready pods --all
   else
     $DRY_RUN helm uninstall spire                                             \
@@ -114,7 +108,7 @@ function exec_spire_server {
     --namespace "$SPIRE_NAMESPACE"
   fi
 
-  cp "$TEMPLATES"/spire.cluster-id.manifest.yaml                              \
+  cp "$TEMPLATES"/spire/cluster-id.manifest.yaml                              \
      "$MANIFESTS"/spire.cluster-id."$GSI_CLUSTER".yaml
 
 ###  $DRY_RUN kubectl "$GSI_MODE"                                                \
@@ -143,13 +137,14 @@ function exec_spire_server {
 }
 
 function exec_spire_agent {
-  local _manifest="$MANIFESTS/helm.spire.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.spire-agent.yaml.j2
+  local _manifest="$MANIFESTS/helm.spire-agent.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/spire/helm.agent.yaml.j2
   local _spire_bundle="$MANIFESTS/configmap.spire-bundle.${GSI_CLUSTER}.yaml"
+  local _bundle_template="$TEMPLATES"/spire/configmap.bundle.yaml.j2
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
     jinja2 -D spire_bundle="$(cat "$MANIFESTS"/spire-server.bundle)"          \
-         "$TEMPLATES"/configmap.spire-bundle.yaml.j2                          \
+         "$_bundle_template"                                                  \
          "$_j2"                                                               \
       > "$_spire_bundle"
 
@@ -201,11 +196,11 @@ _remote_trust_bundle=\$(kubectl exec spire-server-0                            \
 --context "\$GSI_REMOTE_CONTEXT"                                               \
 -- spire-server bundle show -format spiffe)
 
-kubectl exec spire-server-0                                                   \
+kubectl exec spire-server-0                                                    \
 --namespace "\$SPIRE_NAMESPACE"                                                \
 --context "\$GSI_CONTEXT"                                                      \
--- spire-server bundle set                                                    \
-   -format spiffe                                                             \
+-- spire-server bundle set                                                     \
+   -format spiffe                                                              \
    -id "spiffe://\${REMOTE_TRUST_DOMAIN}"                                      \
 <<< "\$_remote_trust_bundle"
 EOF
