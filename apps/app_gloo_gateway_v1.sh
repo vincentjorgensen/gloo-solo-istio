@@ -6,7 +6,7 @@ function app_init_gloo_gateway_v1 {
 
 function exec_gloo_gateway_v1 {
   local _manifest="$MANIFESTS/helm.gloo-gateway-v1.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.gloo-gateway-v1.yaml.j2
+  local _template="$TEMPLATES"/gloo-gateway-v1/helm.values.yaml.j2
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
