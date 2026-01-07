@@ -7,8 +7,8 @@ function app_init_gloo_gateway_v2 {
 }
 
 function exec_gloo_gateway_v2_crds {
-  local _manifest="$MANIFESTS/helm.gloo-gateway-crds-v2.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.gloo-gateway-crds-v2.yaml.j2
+  local _manifest="$MANIFESTS/helm.gloo-gateway-v2-crds.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gloo-gateway-v2/helm.crds.yaml.j2
 
   _make_manifest "$_template" > "$_manifest"
 
@@ -30,7 +30,7 @@ function exec_gloo_gateway_v2_crds {
 
 function exec_gloo_gateway_v2_control_plane {
   local _manifest="$MANIFESTS/helm.gloo-gateway-v2.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/helm.gloo-gateway-v2.yaml.j2
+  local _template="$TEMPLATES"/gloo-gateway-v2/helm.values.yaml.j2
 
   local _k_label="=ambient"
 
@@ -70,7 +70,7 @@ function exec_gloo_gateway_v2_control_plane {
 
 function exec_backend {
   local _manifest="$MANIFESTS/backend.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/backend.manifest.yaml.j2
+  local _template="$TEMPLATES"/gloo-gateway-v2/backend.manifest.yaml.j2
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
@@ -85,8 +85,8 @@ function exec_backend {
 }
 
 function exec_reference_grant {
-  local _manifest="$MANIFESTS/reference_grant.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/reference_grant.manifest.yaml.j2
+  local _manifest="$MANIFESTS/gloo-gateway-v2.reference_grant.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gloo-gateway-v2/reference_grant.manifest.yaml.j2
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
@@ -114,7 +114,7 @@ function create_reference_grant {
         _service_namespace=$OPTARG ;;
     esac
   done
-  local _manifest="$MANIFESTS/reference_grant.${_service_name}.${_service_namespace}.${GSI_CLUSTER}.yaml"
+  local _manifest="$MANIFESTS/gloo-gateway-v2.reference_grant.${_service_name}.${_service_namespace}.${GSI_CLUSTER}.yaml"
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
@@ -134,8 +134,8 @@ function exec_gloo_gateway_v2_keycloak_secret {
 
 function exec_extauth_keycloak_ggv2_auth_config {
   local _gateway_address
-  local _manifest="$MANIFESTS/auth_config.oauth.${GSI_CLUSTER}.yaml"
-  local _template="$TEMPLATES"/auth_config.oauth.manifest.yaml.j2
+  local _manifest="$MANIFESTS/gloo-gateway-v2.auth_config.oauth.${GSI_CLUSTER}.yaml"
+  local _template="$TEMPLATES"/gloo-gateway-v2/auth_config.oauth.manifest.yaml.j2
   local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
