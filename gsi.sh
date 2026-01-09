@@ -57,7 +57,7 @@ function play_gsi {
 
   # shellcheck source=/dev/null
   source "$(dirname "$0")/infras/infra_${infra}.sh"
-  export GSI_MODE=create
+  export GSI_MODE=apply # create
   for exe in "${GSI_DECK[@]}"; do
     echo '#'"$exe"
     eval "$exe"

@@ -14,7 +14,7 @@ export GSI_NETWORK2="$GSI_CLUSTER2"
 export GSI_TRUST_DOMAIN2=cluster.local
 
 # Infrastructure
-export GSI_ISTIO=127_SOLO
+export GSI_ISTIO=128_SOLO
 export AMBIENT_ENABLED=true
 export EXTERNAL_DNS_ENABLED=true
 

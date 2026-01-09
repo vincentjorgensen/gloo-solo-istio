@@ -62,21 +62,23 @@ spec:
 ###      enabled: false
 {%-   endif %}
     envoyContainer:
-###      bootstrap:
-###        logLevel: debug
-      image:
-        registry: us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod
-        repository: gloo-ee-envoy-wrapper-fips
-        tag: 1.20.3-asan
-        digest: sha256:780680bc972302d6e324ddaf99794558ecc56932e272372af8d4fbe045a5a255
+      bootstrap:
+        logLevel: debug
+{% if  ingress_gateway_class == "gloo-gateway" %}
+##      image:
+##        registry: us-docker.pkg.dev/developers-369321/gloo-gateway-public-nonprod
+##        repository: gloo-ee-envoy-wrapper-fips
+##        tag: 1.20.3-asan
+##        digest: sha256:780680bc972302d6e324ddaf99794558ecc56932e272372af8d4fbe045a5a255
+{% endif %}
 {%-   if docker_desktop_enabled %}
-###      resources:
-###        limits:
-###          cpu: 50m
-###          memory: 256Mi
-###        requests:
-###          cpu: 2m
-###          memory: 64Mi
+      resources:
+        limits:
+          cpu: 50m
+          memory: 256Mi
+        requests:
+          cpu: 2m
+          memory: 64Mi
 {%-   endif %}
 {%- endif %}
 {%- if ingress_gateway_class == "kgateway" 

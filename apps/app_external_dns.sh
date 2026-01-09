@@ -21,7 +21,7 @@ function exec_external_dns_for_pihole {
   $DRY_RUN kubectl create secret generic pihole-password                       \
   --context "$GSI_CONTEXT"                                                     \
   --namespace "$KUBE_SYSTEM_NAMESPACE"                                         \
-  --from-literal EXTERNAL_DNS_PIHOLE_PASSWORD="$(yq -r '.services.pihole.environment.FTLCONF_webserver_api_password' "$K3D_DIR"/pihole.docker-compose.yaml.j2)"
+  --from-literal EXTERNAL_DNS_PIHOLE_PASSWORD="$(yq -r '.services.pihole.environment.FTLCONF_webserver_api_password' "$K3D_DIR"/docker-compose.yaml)"
 
   jinja2 -D pihole_server_address="$_pihole_server_address"                    \
        "$_template"                                                            \

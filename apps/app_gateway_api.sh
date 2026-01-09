@@ -7,14 +7,16 @@ function app_init_gateway_api {
 
 function app_init_ingress_gateway_api {
   if $GATEWAY_API_ENABLED; then 
-    if $KEYCLOAK_ENABLED; then
-      if $KGATEWAY_ENABLED; then
-        $ITER_MC_1 exec_kgateway_keycloak_secret
-      elif $GLOO_GATEWAY_V2_ENABLED; then
-        $ITER_MC_1 exec_gloo_gateway_v2_keycloak_secret
+    if $INGRESS_ENABLED; then
+      if $KEYCLOAK_ENABLED; then
+        if $KGATEWAY_ENABLED; then
+          $ITER_MC_1 exec_kgateway_keycloak_secret
+        elif $GLOO_GATEWAY_V2_ENABLED; then
+          $ITER_MC_1 exec_gloo_gateway_v2_keycloak_secret
+        fi
       fi
+      $ITER_MC_1 exec_ingress_gateway_api
     fi
-    $ITER_MC_1 exec_ingress_gateway_api
   fi
 }
 
@@ -27,54 +29,58 @@ function app_init_eastwest_gateway_api {
 }
 
 function exec_gateway_api_crds {
-  # Intall either experimental or standard
-  if $GATEWAY_API_ENABLED && $GATEWAY_API_EXP_CRDS_ENABLED; then
-    exec_gateway_api_experimental_crds
-  elif $GATEWAY_API_ENABLED; then
-    exec_gateway_api_standard_crds
+  local _gateway_api_ver
+  if ! kubectl --context "$GSI_CONTEXT" get crds|grep -q gateways.gateway.networking.k8s.io; then
+    # Install either experimental or standard
+    if $GATEWAY_API_ENABLED && $GATEWAY_API_EXP_CRDS_ENABLED; then
+      exec_gateway_api_experimental_crds
+    elif $GATEWAY_API_ENABLED; then
+      exec_gateway_api_standard_crds
+    fi
+  else
+    _gateway_api_ver=$(
+      kubectl get crd gateways.gateway.networking.k8s.io                       \
+        --context "$GSI_CONTEXT" -ojson                                       |\
+      jq -r '.metadata.annotations | ."gateway.networking.k8s.io/bundle-version" , ."gateway.networking.k8s.io/channel"' |\
+      tr '\n' ' '                                                             |\
+      sed -e 's/ /-/'
+    )
+    echo '#'" Kubernetes Gateway API Version ${_gateway_api_ver} already installed"
   fi
 }
 
 function exec_gateway_api_standard_crds {
-  if [[ -z $(eval echo '$'GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
+  if is_create_mode; then
     $DRY_RUN kubectl "$GSI_MODE"                                               \
     --context "$GSI_CONTEXT"                                                   \
     -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
-    [[ -z $DRY_RUN ]] && eval GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
   fi
 
   if ! is_create_mode; then
     $DRY_RUN kubectl "$GSI_MODE"                                               \
     --context "$GSI_CONTEXT"                                                   \
     -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_VER"/standard-install.yaml
-    [[ -z $DRY_RUN ]] && eval unset GATEWAY_API_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
   fi
 }
 
 function exec_gateway_api_experimental_crds {
-  if [[ -z $(eval echo '$'GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}") ]]; then
-    if is_create_mode; then
-      $DRY_RUN kubectl apply                                                   \
-      --context "$GSI_CONTEXT"                                                 \
-      --server-side=true                                                       \
-      -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_EXP_VER"/experimental-install.yaml
-      [[ -z $DRY_RUN ]] && eval GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"=applied
-    fi
+  if is_create_mode; then
+    $DRY_RUN kubectl apply                                                   \
+    --context "$GSI_CONTEXT"                                                 \
+    --server-side=true                                                       \
+    -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_EXP_VER"/experimental-install.yaml
   fi
 
   if ! is_create_mode; then
     $DRY_RUN kubectl "$GSI_MODE"                                               \
     --context "$GSI_CONTEXT"                                                   \
     -f "$GATEWWAY_API_CRDS_URL"/"$GATEWAY_API_EXP_VER"/experimental-install.yaml
-    [[ -z $DRY_RUN ]] && eval unset GATEWAY_API_EXP_CRDS_APPLIED_"${GSI_CLUSTER//-/_}"
-    
   fi
 }
 
 function exec_httproute {
   local _manifest="$MANIFESTS/gateway-api.httproute.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/gateway-api/httproute.manifest.yaml.j2
-  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
          -D namespace="$INGRESS_NAMESPACE"                                     \
@@ -82,7 +88,7 @@ function exec_httproute {
          -D service_namespace="$GSI_APP_SERVICE_NAMESPACE"                     \
          -D service_port="$GSI_APP_SERVICE_PORT"                               \
          "$_template"                                                          \
-         "$_j2"                                                                \
+         "$(_get_j2)"                                                          \
   > "$_manifest"
 
   _apply_manifest "$_manifest"
@@ -106,7 +112,6 @@ function create_httproute {
 
   local _manifest="$MANIFESTS/gateway-api.httproute.${_service_name}.${_namespace}.${GSI_CLUSTER}.yaml"
   local _template="$TEMPLATES"/gateway-api/httproute.manifest.yaml.j2
-  local _j2="$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 
   jinja2                                                                       \
          -D namespace="$_namespace"                                            \
@@ -114,7 +119,7 @@ function create_httproute {
          -D service_namespace="$_service_namespace"                            \
          -D service_port="$_service_port"                                      \
          "$_template"                                                          \
-         "$_j2"                                                                \
+         "$(_get_j2)"                                                          \
   > "$_manifest"
 
   _apply_manifest "$_manifest"

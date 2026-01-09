@@ -115,7 +115,7 @@ export CILIUM_VER=1.18.0
 # External DNS
 #-------------------------------------------------------------------------------
 export EXTERNAL_DNS_ENABLED=${EXTERNAL_DNS_ENABLED:-false}
-export EXTERNAL_DNS_VER=1.19.0 # 1.18.0
+export EXTERNAL_DNS_VER=1.20.0 # 1.18.0
 
 #-------------------------------------------------------------------------------
 # ArgoCD
@@ -604,6 +604,9 @@ function gsi_init {
   elif [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 28 ]]; then
     ISTIO_128_FLAG="enabled"
   fi
+  if $ISTIO_ENABLED; then
+    GATEWAY_API_ENABLED=true
+  fi
   
   #----------------------------------------------------------------------------
   # Multicluster
@@ -924,6 +927,10 @@ EOF
   done
 
   cat "$_r_j2"
+}
+
+function _get_j2 {
+  echo "$MANIFESTS"/jinja2_globals."$GSI_CLUSTER".yaml
 }
 
 function _jinja2_values {
