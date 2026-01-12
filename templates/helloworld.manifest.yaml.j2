@@ -32,22 +32,39 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+{% if interop_enabled %}
+  name: helloworld-{{ zone }}-am
+{% else %}
   name: helloworld-{{ zone }}
+{% endif %}
   namespace: {{ helloworld_namespace }}
   labels:
     app: helloworld
+{% if interop_enabled %}
+    version: v{{ helloworld_service_version }}am
+{% else %}
     version: v{{ helloworld_service_version }}
+{% endif %}
 spec:
   replicas: {{ helloworld_size }}
   selector:
     matchLabels:
       app: helloworld
-      version: {{ zone }}
+{% if interop_enabled %}
+      version: v{{ helloworld_service_version }}am
+{% else %}
+      version: v{{ helloworld_service_version }}
+{% endif %}
   template:
     metadata:
       labels:
         app: helloworld
-        version: {{ zone }}
+{% if interop_enabled %}
+        version: v{{ helloworld_service_version }}am
+        istio.io/dataplane-mode: ambient
+{% else %}
+        version: v{{ helloworld_service_version }}
+{% endif %}
     spec:
       serviceAccountName: helloworld
       affinity:
@@ -64,7 +81,11 @@ spec:
       - name: helloworld
         env:
         - name: SERVICE_VERSION
+{% if interop_enabled %}
+          value: v{{ helloworld_service_version }}am
+{% else %}
           value: v{{ helloworld_service_version }}
+{% endif %}
         - name: ZONE
           value: {{ zone }}
         - name: REGION
@@ -83,5 +104,63 @@ spec:
           requests:
             cpu: 1m
             memory: 20Mi
+{% if interop_enabled %}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helloworld-{{ zone }}-sc
+  namespace: {{ helloworld_namespace }}
+  labels:
+    app: helloworld
+    version: v{{ helloworld_service_version }}sc
+spec:
+  replicas: {{ helloworld_size }}
+  selector:
+    matchLabels:
+      app: helloworld
+      version: v{{ helloworld_service_version }}sc
+  template:
+    metadata:
+      labels:
+        app: helloworld
+        version: v{{ helloworld_service_version }}sc
+        istio.io/rev: main
+    spec:
+      serviceAccountName: helloworld
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values:
+                - {{ zone }}
+      containers:
+      - name: helloworld
+        env:
+        - name: SERVICE_VERSION
+          value: v{{ helloworld_service_version }}sc
+        - name: ZONE
+          value: {{ zone }}
+        - name: REGION
+          value: {{ region }}
+        - name: SERVER_PORT
+          value: '{{ helloworld_container_port }}'
+        image: vincentjorgensen/rust-helloworld:0.1.3
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ helloworld_container_port }}
+          name: http
+        resources:
+          limits:
+            cpu: 3m
+            memory: 40Mi
+          requests:
+            cpu: 1m
+            memory: 20Mi
+{% endif %}
 {% endfor %}
 ...

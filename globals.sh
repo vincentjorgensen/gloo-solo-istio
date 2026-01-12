@@ -371,7 +371,8 @@ export ISTIO_126_FLAG ISTIO_127_FLAG ISTIO_128_FLAG
 #-------------------------------------------------------------------------------
 export AMBIENT_ENABLED=${AMBIENT_ENABLED:-false}
 export SIDECAR_ENABLED=${SIDECAR_ENABLED:-false}
-export SIDECAR_FLAG AMBIENT_FLAG
+export INTEROP_ENABLED=${INTEROP_ENABLED:-false}
+export SIDECAR_FLAG AMBIENT_FLAG INTEROP_FLAG
 
 #-------------------------------------------------------------------------------
 # Gloo Mesh Enterprise (GME)
@@ -596,6 +597,11 @@ function gsi_init {
     AMBIENT_FLAG=enabled
     echo '#' Istio Ambient dataplane is enabled
   fi
+  if $INTEROP_ENABLED; then
+    ISTIO_ENABLED=true
+    INTEROP_FLAG=enabled
+    echo '#' Istio Interop dataplane is enabled
+  fi
 
   if [[ $(echo "$ISTIO_VER" | awk -F. '{print $2}') -ge 26 ]]; then
     ISTIO_126_FLAG="enabled"
@@ -616,7 +622,7 @@ function gsi_init {
     ITER_MC=_iter_mc
     ITER_MC_1=_iter_mc_1
     echo '#' Multicluster is enabled 
-    if $AMBIENT_ENABLED; then
+    if $AMBIENT_ENABLED || $INTEROP_ENABLED; then
       EASTWEST_GATEWAY_CLASS=istio-eastwest
       EASTWEST_REMOTE_GATEWAY_CLASS=istio-remote
       echo '#' Ambient Multicluster is enabled
@@ -1031,6 +1037,7 @@ function _jinja2_values {
          -D istio_traffic_distribution="${TRAFFIC_DISTRIBUTION:-Any}"          \
          -D istio_variant="$ISTIO_DISTRO"                                      \
          -D istio_ver="$ISTIO_VER"                                             \
+         -D interop_enabled="$INTEROP_FLAG"                                    \
          -D keycloak_namespace="$KEYCLOAK_NAMESPACE"                           \
          -D keycloak_ver="$KEYCLOAK_VER"                                       \
          -D kube_system_namespace="$KUBE_SYSTEM_NAMESPACE"                     \

@@ -2,7 +2,7 @@
 {%- if istio_revision %}
 revision: {{ istio_revision }}
 {%- endif %}
-{%- if ambient_enabled %}
+{%- if ambient_enabled or interop_enabled %}
 profile: ambient
 {%-   if multicluster_enabled %}
 platforms:
@@ -39,7 +39,7 @@ env:
   PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: false ## ???
   PILOT_SKIP_VALIDATE_TRUST_DOMAIN: true
 ######  VERIFY_CERTIFICATE_AT_CLIENT: false
-{%- if ambient_enabled %}
+{%- if ambient_enabled or interop_enabled %}
 {%-   if not istio_127_enabled %}
 ###  PILOT_ENABLE_ALPHA_GATEWAY_API: true # Don't know what this does # For EW Gateway TLS # Broken in 1.27.2
 {%-   endif %}

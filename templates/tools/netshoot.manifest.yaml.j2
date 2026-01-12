@@ -21,6 +21,9 @@ spec:
     metadata:
       labels:
         app: netshoot
+{% if interop_enabled %}
+        istio.io/dataplane-mode: ambient
+{% endif %}
     spec:
       serviceAccountName: netshoot
       containers:

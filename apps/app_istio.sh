@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 function app_init_istio {
-  if $SIDECAR_ENABLED || $AMBIENT_ENABLED; then
+  if $ISTIO_ENABLED; then
     if $AWS_PCA_ENABLED && $CERT_MANAGER_ENABLED; then
       $ITER_MC app_init_acmpca
     else
@@ -165,8 +165,8 @@ function exec_istio {
 
   exec_istio_base
   exec_istio_istiod
-  "$AMBIENT_ENABLED" && exec_istio_cni
-  "$AMBIENT_ENABLED" && exec_istio_ztunnel
+  "$AMBIENT_ENABLED" || $INTEROP_ENABLED && exec_istio_cni
+  "$AMBIENT_ENABLED" || $INTEROP_ENABLED && exec_istio_ztunnel
 
   if is_create_mode; then
     $DRY_RUN kubectl wait                                                      \
